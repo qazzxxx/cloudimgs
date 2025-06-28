@@ -14,10 +14,10 @@ import {
 } from "antd";
 import {
   InboxOutlined,
-  CloudUploadOutlined,
   CheckCircleOutlined,
   InfoCircleOutlined,
 } from "@ant-design/icons";
+import LogoWithText from "./LogoWithText";
 import axios from "axios";
 
 const { Dragger } = Upload;

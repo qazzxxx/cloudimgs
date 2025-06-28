@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   Card,
-  Image,
   Button,
   Space,
   Typography,
@@ -23,6 +22,7 @@ import {
   SearchOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
+import LogoWithText from "./LogoWithText";
 import dayjs from "dayjs";
 
 const { Title, Text } = Typography;

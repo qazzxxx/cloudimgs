@@ -1,33 +1,17 @@
 import React, { useState, useEffect } from "react";
-import {
-  Layout,
-  Menu,
-  theme,
-  Typography,
-  Space,
-  Card,
-  Row,
-  Col,
-  Statistic,
-  message,
-} from "antd";
+import { Layout, Menu, theme, message } from "antd";
 import {
   UploadOutlined,
   PictureOutlined,
   DashboardOutlined,
-  CloudUploadOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  CopyOutlined,
-  EyeOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./components/UploadComponent";
 import ImageGallery from "./components/ImageGallery";
 import StatsComponent from "./components/StatsComponent";
+import LogoWithText from "./components/LogoWithText";
 import axios from "axios";
 
 const { Header, Content, Sider } = Layout;
-const { Title } = Typography;
 
 function App() {
   const [selectedKey, setSelectedKey] = useState("upload");
@@ -137,12 +121,13 @@ function App() {
           borderBottom: "1px solid #f0f0f0",
         }}
       >
-        <Space>
-          <CloudUploadOutlined style={{ fontSize: "24px", color: "#1890ff" }} />
-          <Title level={3} style={{ margin: 0, color: "#1890ff" }}>
-            CloudImgs
-          </Title>
-        </Space>
+        <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
+          <LogoWithText
+            size={32}
+            titleLevel={3}
+            style={{ verticalAlign: "middle" }}
+          />
+        </div>
       </Header>
       <Layout>
         <Sider width={200} style={{ background: colorBgContainer }}>

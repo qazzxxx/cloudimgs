@@ -16,6 +16,7 @@ import {
   FolderOutlined,
   CloudOutlined,
 } from "@ant-design/icons";
+import LogoWithText from "./LogoWithText";
 
 const { Title, Text } = Typography;
 
