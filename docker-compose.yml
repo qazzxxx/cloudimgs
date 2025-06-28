@@ -2,8 +2,10 @@ version: "3.8"
 
 services:
   cloudimgs:
-    # 使用 Docker Hub 上的镜像
-    image: qazzxxx/cloudimgs:latest
+    # 使用本地构建（开发模式）
+    build: .
+    # 或使用 Docker Hub 上的镜像（生产模式）
+    # image: qazzxxx/cloudimgs:latest
     ports:
       - "3001:3001"
     environment:

@@ -29,70 +29,43 @@
 - Axios (HTTP 客户端)
 - Day.js (日期处理)
 
-## 快速开始
+## 🚀 快速开始
 
-### 本地开发
+### 使用 Docker Compose（推荐）
 
-1. 克隆项目
+1. **克隆项目**
 
 ```bash
 git clone <repository-url>
 cd cloudimgs
 ```
 
-2. 安装依赖
+2. **启动应用**
 
 ```bash
-# 安装后端依赖
-npm install
-
-# 安装前端依赖
-cd client && npm install
-```
-
-3. 启动开发服务器
-
-```bash
-# 启动后端服务器
-npm run dev
-
-# 启动前端开发服务器 (新终端)
-cd client && npm start
-```
-
-4. 访问应用
-
-- 前端: http://localhost:3000
-- 后端 API: http://localhost:3001
-
-### Docker 部署
-
-#### 方法一：使用本地构建
-
-```bash
-# 构建并启动容器
+# 使用本地构建
 docker-compose up -d
 
-# 查看日志
-docker-compose logs -f
-```
-
-#### 方法二：使用 Docker Hub 镜像
-
-```bash
-# 使用生产配置
+# 或使用 Docker Hub 镜像
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
-#### 方法三：直接运行
+3. **访问应用**
+
+- 应用地址: http://localhost:3001
+
+### 使用 Docker 直接运行
 
 ```bash
-# 替换 your-docker-username 为你的 Docker Hub 用户名
+# 拉取镜像
+docker pull qazzxxx/cloudimgs:latest
+
+# 运行容器
 docker run -d \
   --name cloudimgs \
   -p 3001:3001 \
   -v $(pwd)/uploads:/app/uploads \
-  your-docker-username/cloudimgs:latest
+  qazzxxx/cloudimgs:latest
 ```
 
 ### 环境变量配置
@@ -119,34 +92,20 @@ cp env.example .env
 # 登录 Docker Hub
 docker login
 
-# 检查 Docker 环境
-./check-docker.sh
+# 构建镜像
+docker build -t your-username/cloudimgs:latest .
 ```
 
 2. **发布镜像**
 
 ```bash
-# 修改脚本中的用户名
-sed -i '' 's/your-docker-username/YOUR_ACTUAL_USERNAME/g' docker-publish.sh
-
-# 发布最新版本
-./docker-publish.sh
-
-# 发布指定版本
-./docker-publish.sh v1.0.0
-```
-
-3. **手动发布**
-
-```bash
-# 构建镜像
-docker build -t your-docker-username/cloudimgs:latest .
-
 # 推送镜像
-docker push your-docker-username/cloudimgs:latest
-```
+docker push your-username/cloudimgs:latest
 
-详细说明请查看 [DOCKER_PUBLISH.md](DOCKER_PUBLISH.md)
+# 发布版本标签
+docker build -t your-username/cloudimgs:v1.0.0 .
+docker push your-username/cloudimgs:v1.0.0
+```
 
 ## API 接口
 
@@ -206,8 +165,6 @@ cloudimgs/
 ├── Dockerfile             # Docker配置
 ├── docker-compose.yml     # Docker Compose配置
 ├── docker-compose.prod.yml # 生产环境配置
-├── docker-publish.sh      # Docker发布脚本
-├── check-docker.sh        # Docker检查脚本
 ├── .github/workflows/     # GitHub Actions
 └── README.md              # 项目说明
 ```
@@ -243,7 +200,7 @@ cloudimgs/
 
 ### 生产环境部署
 
-1. 使用 Docker (推荐)
+1. **使用 Docker Compose（推荐）**
 
 ```bash
 # 本地构建
@@ -253,18 +210,14 @@ docker-compose up -d
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
-2. 手动部署
+2. **使用 Docker 直接运行**
 
 ```bash
-# 安装依赖
-npm install
-cd client && npm install
-
-# 构建前端
-cd client && npm run build
-
-# 启动服务
-npm start
+docker run -d \
+  --name cloudimgs \
+  -p 3001:3001 \
+  -v $(pwd)/uploads:/app/uploads \
+  qazzxxx/cloudimgs:latest
 ```
 
 ### 配置说明
