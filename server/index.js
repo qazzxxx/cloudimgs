@@ -21,26 +21,77 @@ const STORAGE_PATH =
 // 确保存储目录存在
 fs.ensureDirSync(STORAGE_PATH);
 
-// 配置multer
+// 路径安全校验，防止目录穿越
+function safeJoin(base, target) {
+  const targetPath = path.resolve(base, target || "");
+  if (!targetPath.startsWith(path.resolve(base))) {
+    throw new Error("非法目录路径");
+  }
+  return targetPath;
+}
+
+// 处理中文文件名，确保编码正确
+function sanitizeFilename(filename) {
+  try {
+    // 如果文件名已经被编码，先解码
+    if (filename.includes("%")) {
+      filename = decodeURIComponent(filename);
+    }
+    // 处理可能的 Buffer 编码问题
+    if (Buffer.isBuffer(filename)) {
+      filename = filename.toString("utf8");
+    }
+    // 移除或替换不安全的字符，但保留中文字符
+    filename = filename.replace(/[<>:"/\\|?*]/g, "_");
+    return filename;
+  } catch (error) {
+    console.warn("文件名处理错误:", error);
+    // 如果解码失败，使用原始文件名但清理不安全字符
+    return filename.replace(/[<>:"/\\|?*]/g, "_");
+  }
+}
+
+// 配置multer，支持多层目录和中文文件名
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, STORAGE_PATH);
+    // 优先使用query参数，因为multer处理时body可能还没有解析
+    let dir = req.query.dir || req.body.dir || "";
+    dir = dir.replace(/\\/g, "/"); // 兼容windows
+    const dest = safeJoin(STORAGE_PATH, dir);
+    // 使用同步方式确保目录存在
+    try {
+      fs.ensureDirSync(dest);
+      cb(null, dest);
+    } catch (error) {
+      cb(error);
+    }
   },
   filename: (req, file, cb) => {
-    // 保持原文件名
-    const originalName = file.originalname;
-    const ext = path.extname(originalName);
-    const nameWithoutExt = path.basename(originalName, ext);
+    let originalName = file.originalname;
 
-    // 如果文件已存在，添加时间戳
-    let finalName = originalName;
+    // 关键：latin1转utf8，彻底解决中文乱码
+    try {
+      originalName = Buffer.from(originalName, "latin1").toString("utf8");
+    } catch (e) {
+      // ignore
+    }
+
+    const sanitizedName = sanitizeFilename(originalName);
+    const ext = path.extname(sanitizedName);
+    const nameWithoutExt = path.basename(sanitizedName, ext);
+    let finalName = sanitizedName;
     let counter = 1;
 
-    while (fs.existsSync(path.join(STORAGE_PATH, finalName))) {
+    let dir = req.query.dir || req.body.dir || "";
+    dir = dir.replace(/\\/g, "/");
+    const dest = safeJoin(STORAGE_PATH, dir);
+
+    while (fs.existsSync(path.join(dest, finalName))) {
       finalName = `${nameWithoutExt}_${Date.now()}_${counter}${ext}`;
       counter++;
     }
 
+    console.log("保存文件名:", finalName, "原始文件名:", file.originalname);
     cb(null, finalName);
   },
 });
@@ -48,13 +99,11 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   fileFilter: (req, file, cb) => {
-    // 只允许图片文件
     const allowedTypes = /jpeg|jpg|png|gif|webp|bmp|svg/;
     const extname = allowedTypes.test(
       path.extname(file.originalname).toLowerCase()
     );
     const mimetype = allowedTypes.test(file.mimetype);
-
     if (mimetype && extname) {
       return cb(null, true);
     } else {
@@ -66,7 +115,36 @@ const upload = multer({
   },
 });
 
-// API路由
+// 递归获取图片文件
+async function getAllImages(dir = "") {
+  const absDir = safeJoin(STORAGE_PATH, dir);
+  let results = [];
+  const files = await fs.readdir(absDir);
+  for (const file of files) {
+    const filePath = path.join(absDir, file);
+    const relPath = path.join(dir, file);
+    const stats = await fs.stat(filePath);
+    if (stats.isDirectory()) {
+      results = results.concat(await getAllImages(relPath));
+    } else {
+      const ext = path.extname(file).toLowerCase();
+      if (
+        [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"].includes(ext)
+      ) {
+        // 确保文件名编码正确
+        const safeFilename = sanitizeFilename(file);
+        results.push({
+          filename: safeFilename,
+          relPath: relPath.replace(/\\/g, "/"),
+          size: stats.size,
+          uploadTime: stats.mtime.toISOString(),
+          url: `/api/images/${encodeURIComponent(relPath.replace(/\\/g, "/"))}`,
+        });
+      }
+    }
+  }
+  return results;
+}
 
 // 1. 上传图片接口
 app.post("/api/upload", upload.single("image"), async (req, res) => {
@@ -74,16 +152,27 @@ app.post("/api/upload", upload.single("image"), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "没有选择文件" });
     }
+    let dir = req.body.dir || req.query.dir || "";
+    dir = dir.replace(/\\/g, "/");
+    const relPath = path.join(dir, req.file.filename).replace(/\\/g, "/");
+
+    // 这里要对 originalName 做转码
+    let originalName = req.file.originalname;
+    try {
+      originalName = Buffer.from(originalName, "latin1").toString("utf8");
+    } catch (e) {}
+
+    const safeFilename = sanitizeFilename(req.file.filename);
 
     const fileInfo = {
-      filename: req.file.filename,
-      originalName: req.file.originalname,
+      filename: safeFilename,
+      originalName: originalName, // 用转码后的
       size: req.file.size,
       mimetype: req.file.mimetype,
       uploadTime: new Date().toISOString(),
-      url: `/api/images/${req.file.filename}`,
+      url: `/api/images/${encodeURIComponent(relPath)}`,
+      relPath,
     };
-
     res.json({
       success: true,
       message: "图片上传成功",
@@ -95,39 +184,17 @@ app.post("/api/upload", upload.single("image"), async (req, res) => {
   }
 });
 
-// 2. 获取图片列表
+// 2. 获取图片列表（支持dir参数，递归）
 app.get("/api/images", async (req, res) => {
   try {
-    const files = await fs.readdir(STORAGE_PATH);
-    const imageFiles = [];
-
-    for (const file of files) {
-      const filePath = path.join(STORAGE_PATH, file);
-      const stats = await fs.stat(filePath);
-
-      if (stats.isFile()) {
-        const ext = path.extname(file).toLowerCase();
-        if (
-          [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"].includes(
-            ext
-          )
-        ) {
-          imageFiles.push({
-            filename: file,
-            size: stats.size,
-            uploadTime: stats.mtime.toISOString(),
-            url: `/api/images/${file}`,
-          });
-        }
-      }
-    }
-
+    let dir = req.query.dir || "";
+    dir = dir.replace(/\\/g, "/");
+    const images = await getAllImages(dir);
     // 按上传时间倒序排列
-    imageFiles.sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
-
+    images.sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
     res.json({
       success: true,
-      data: imageFiles,
+      data: images,
     });
   } catch (error) {
     console.error("获取图片列表错误:", error);
@@ -135,39 +202,16 @@ app.get("/api/images", async (req, res) => {
   }
 });
 
-// 3. 获取随机图片
+// 3. 获取随机图片（支持dir参数）
 app.get("/api/random", async (req, res) => {
   try {
-    const files = await fs.readdir(STORAGE_PATH);
-    const imageFiles = [];
-
-    for (const file of files) {
-      const filePath = path.join(STORAGE_PATH, file);
-      const stats = await fs.stat(filePath);
-
-      if (stats.isFile()) {
-        const ext = path.extname(file).toLowerCase();
-        if (
-          [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"].includes(
-            ext
-          )
-        ) {
-          imageFiles.push({
-            filename: file,
-            url: `/api/images/${file}`,
-          });
-        }
-      }
-    }
-
-    if (imageFiles.length === 0) {
+    let dir = req.query.dir || "";
+    dir = dir.replace(/\\/g, "/");
+    const images = await getAllImages(dir);
+    if (images.length === 0) {
       return res.status(404).json({ error: "没有找到图片" });
     }
-
-    // 随机选择一张图片
-    const randomImage =
-      imageFiles[Math.floor(Math.random() * imageFiles.length)];
-
+    const randomImage = images[Math.floor(Math.random() * images.length)];
     res.json({
       success: true,
       data: randomImage,
@@ -178,67 +222,115 @@ app.get("/api/random", async (req, res) => {
   }
 });
 
-// 4. 获取指定图片
-app.get("/api/images/:filename", (req, res) => {
-  const filename = req.params.filename;
-  const filePath = path.join(STORAGE_PATH, filename);
-
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.status(404).json({ error: "图片不存在" });
-  }
-});
-
-// 5. 删除图片
-app.delete("/api/images/:filename", async (req, res) => {
+// 4. 获取指定图片（支持多层目录）
+app.get("/api/images/*", (req, res) => {
+  const relPath = decodeURIComponent(req.params[0]);
   try {
-    const filename = req.params.filename;
-    const filePath = path.join(STORAGE_PATH, filename);
-
-    if (await fs.pathExists(filePath)) {
-      await fs.remove(filePath);
-      res.json({ success: true, message: "图片删除成功" });
+    const filePath = safeJoin(STORAGE_PATH, relPath);
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
     } else {
       res.status(404).json({ error: "图片不存在" });
     }
-  } catch (error) {
-    console.error("删除图片错误:", error);
-    res.status(500).json({ error: "删除图片失败" });
+  } catch (e) {
+    res.status(400).json({ error: "非法路径" });
   }
 });
 
-// 6. 获取存储统计信息
-app.get("/api/stats", async (req, res) => {
+// 5. 删除图片（支持多层目录）
+app.delete("/api/images/*", async (req, res) => {
+  const relPath = decodeURIComponent(req.params[0]);
   try {
-    const files = await fs.readdir(STORAGE_PATH);
-    let totalSize = 0;
-    let imageCount = 0;
+    const filePath = safeJoin(STORAGE_PATH, relPath);
+    if (await fs.pathExists(filePath)) {
+      await fs.remove(filePath);
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: "图片不存在" });
+    }
+  } catch (e) {
+    res.status(400).json({ error: "非法路径" });
+  }
+});
 
+// 6. 获取目录列表
+async function getDirectories(dir = "") {
+  const absDir = safeJoin(STORAGE_PATH, dir);
+  let directories = [];
+
+  try {
+    const files = await fs.readdir(absDir);
     for (const file of files) {
-      const filePath = path.join(STORAGE_PATH, file);
+      const filePath = path.join(absDir, file);
       const stats = await fs.stat(filePath);
-
-      if (stats.isFile()) {
-        const ext = path.extname(file).toLowerCase();
-        if (
-          [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"].includes(
-            ext
-          )
-        ) {
-          totalSize += stats.size;
-          imageCount++;
-        }
+      if (stats.isDirectory()) {
+        const relPath = path.join(dir, file).replace(/\\/g, "/");
+        directories.push({
+          name: file,
+          path: relPath,
+          fullPath: filePath,
+        });
       }
     }
+    // 按目录名排序
+    directories.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
+  } catch (error) {
+    console.error("读取目录失败:", error);
+  }
 
+  return directories;
+}
+
+app.get("/api/directories", async (req, res) => {
+  try {
+    let dir = req.query.dir || "";
+    dir = dir.replace(/\\/g, "/");
+    const directories = await getDirectories(dir);
     res.json({
       success: true,
-      data: {
-        totalImages: imageCount,
-        totalSize: totalSize,
-        storagePath: STORAGE_PATH,
-      },
+      data: directories,
+    });
+  } catch (error) {
+    console.error("获取目录列表错误:", error);
+    res.status(500).json({ error: "获取目录列表失败" });
+  }
+});
+
+// 7. 统计信息（递归统计所有目录）
+async function getStats(dir = "") {
+  const absDir = safeJoin(STORAGE_PATH, dir);
+  let totalImages = 0;
+  let totalSize = 0;
+  let storagePath = absDir;
+  const files = await fs.readdir(absDir);
+  for (const file of files) {
+    const filePath = path.join(absDir, file);
+    const stats = await fs.stat(filePath);
+    if (stats.isDirectory()) {
+      const subStats = await getStats(path.join(dir, file));
+      totalImages += subStats.totalImages;
+      totalSize += subStats.totalSize;
+    } else {
+      const ext = path.extname(file).toLowerCase();
+      if (
+        [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"].includes(ext)
+      ) {
+        totalImages++;
+        totalSize += stats.size;
+      }
+    }
+  }
+  return { totalImages, totalSize, storagePath };
+}
+
+app.get("/api/stats", async (req, res) => {
+  try {
+    let dir = req.query.dir || "";
+    dir = dir.replace(/\\/g, "/");
+    const stats = await getStats(dir);
+    res.json({
+      success: true,
+      data: stats,
     });
   } catch (error) {
     console.error("获取统计信息错误:", error);
@@ -246,19 +338,7 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
-// 处理React路由
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../client/build/index.html"));
-});
-
-// 错误处理中间件
-app.use((error, req, res, next) => {
-  console.error("服务器错误:", error);
-  res.status(500).json({ error: "服务器内部错误" });
-});
-
+// 启动服务
 app.listen(PORT, () => {
-  console.log(`服务器运行在端口 ${PORT}`);
-  console.log(`存储路径: ${STORAGE_PATH}`);
-  console.log(`访问地址: http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

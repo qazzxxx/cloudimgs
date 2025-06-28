@@ -17,16 +17,25 @@ import {
   CheckCircleOutlined,
   InfoCircleOutlined,
 } from "@ant-design/icons";
-import LogoWithText from "./LogoWithText";
+import DirectorySelector from "./DirectorySelector";
 import axios from "axios";
 
 const { Dragger } = Upload;
 const { Title, Text } = Typography;
 
+function sanitizeDir(input) {
+  let dir = (input || "").trim().replace(/\\+/g, "/").replace(/\/+/g, "/");
+  dir = dir.replace(/\/+$/, ""); // 去除末尾斜杠
+  dir = dir.replace(/^\/+/, ""); // 去除开头斜杠
+  dir = dir.replace(/\/+/, "/"); // 合并多余斜杠
+  return dir;
+}
+
 const UploadComponent = ({ onUploadSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [dir, setDir] = useState("");
 
   const uploadProps = {
     name: "image",
@@ -45,15 +54,26 @@ const UploadComponent = ({ onUploadSuccess }) => {
       }
       return true;
     },
-    customRequest: async ({ file, onSuccess, onError, onProgress }) => {
+    customRequest: async ({ file, onSuccess, onError }) => {
+      let safeDir = sanitizeDir(dir);
+      if (safeDir.includes("..")) {
+        message.error("目录不能包含 .. 等非法字符");
+        onError(new Error("目录不能包含 .. 等非法字符"));
+        return;
+      }
       setUploading(true);
       setUploadProgress(0);
-
       const formData = new FormData();
-      formData.append("image", file);
 
+      // 确保文件名编码正确，特别是中文文件名
+      const fileName = file.name;
+      formData.append("image", file, fileName);
+
+      const url = safeDir
+        ? `/api/upload?dir=${encodeURIComponent(safeDir)}`
+        : "/api/upload";
       try {
-        const response = await axios.post("/api/upload", formData, {
+        const response = await axios.post(url, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
@@ -62,24 +82,23 @@ const UploadComponent = ({ onUploadSuccess }) => {
               (progressEvent.loaded * 100) / progressEvent.total
             );
             setUploadProgress(percentCompleted);
-            onProgress({ percent: percentCompleted });
           },
         });
-
         if (response.data.success) {
           onSuccess(response.data);
           setUploadedFiles((prev) => [...prev, response.data.data]);
-          message.success(`${file.name} 上传成功！`);
+          message.success(`${fileName} 上传成功！`);
           if (onUploadSuccess) {
             onUploadSuccess();
           }
         } else {
+          message.error(response.data.error || "上传失败");
           onError(new Error(response.data.error));
         }
       } catch (error) {
-        console.error("上传失败:", error);
-        message.error(`${file.name} 上传失败！`);
-        onError(error);
+        const msg = error?.response?.data?.error || error.message || "上传失败";
+        message.error(msg);
+        onError(new Error(msg));
       } finally {
         setUploading(false);
         setUploadProgress(0);
@@ -104,6 +123,18 @@ const UploadComponent = ({ onUploadSuccess }) => {
   return (
     <div>
       <Title level={2}>上传图片</Title>
+
+      <Space
+        direction="vertical"
+        style={{ width: "100%", marginBottom: 16 }}
+        size="middle"
+      >
+        <DirectorySelector
+          value={dir}
+          onChange={setDir}
+          placeholder="选择或输入子目录（如 2024/06/10 或 相册/家庭，可留空）"
+        />
+      </Space>
 
       <Alert
         message="上传说明"

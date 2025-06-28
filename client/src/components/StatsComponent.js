@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   Row,
@@ -9,6 +9,8 @@ import {
   Tag,
   Progress,
   Divider,
+  Input,
+  message,
 } from "antd";
 import {
   PictureOutlined,
@@ -16,11 +18,36 @@ import {
   FolderOutlined,
   CloudOutlined,
 } from "@ant-design/icons";
-import LogoWithText from "./LogoWithText";
+import axios from "axios";
 
 const { Title, Text } = Typography;
 
-const StatsComponent = ({ stats }) => {
+const StatsComponent = () => {
+  const [dir, setDir] = useState("");
+  const [stats, setStats] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const fetchStats = async (targetDir = dir) => {
+    setLoading(true);
+    try {
+      const res = await axios.get("/api/stats", {
+        params: targetDir ? { dir: targetDir } : {},
+      });
+      if (res.data.success) {
+        setStats(res.data.data);
+      }
+    } catch (e) {
+      message.error("获取统计信息失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+    // eslint-disable-next-line
+  }, [dir]);
+
   const formatFileSize = (bytes) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -38,10 +65,23 @@ const StatsComponent = ({ stats }) => {
   return (
     <div>
       <Title level={2}>统计信息</Title>
+      <Space
+        direction="vertical"
+        style={{ width: "100%", marginBottom: 16 }}
+        size="middle"
+      >
+        <Input
+          placeholder="输入子目录（如 2024/06/10 或 相册/家庭，可留空）"
+          value={dir}
+          onChange={(e) => setDir(e.target.value)}
+          allowClear
+          style={{ width: 260 }}
+        />
+      </Space>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card loading={loading}>
             <Statistic
               title="总图片数量"
               value={stats.totalImages || 0}
@@ -52,7 +92,7 @@ const StatsComponent = ({ stats }) => {
         </Col>
 
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card loading={loading}>
             <Statistic
               title="总存储大小"
               value={formatFileSize(stats.totalSize || 0)}
@@ -63,7 +103,7 @@ const StatsComponent = ({ stats }) => {
         </Col>
 
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card loading={loading}>
             <Statistic
               title="存储使用率"
               value={getStorageUsagePercentage()}
@@ -75,7 +115,7 @@ const StatsComponent = ({ stats }) => {
         </Col>
 
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card loading={loading}>
             <Statistic
               title="平均图片大小"
               value={
@@ -92,7 +132,7 @@ const StatsComponent = ({ stats }) => {
         </Col>
       </Row>
 
-      <Card title="存储使用情况" style={{ marginTop: 24 }}>
+      <Card title="存储使用情况" style={{ marginTop: 24 }} loading={loading}>
         <Space direction="vertical" style={{ width: "100%" }}>
           <div>
             <Text>存储使用率</Text>

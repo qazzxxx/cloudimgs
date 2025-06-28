@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   Button,
@@ -21,18 +21,54 @@ import {
   EyeOutlined,
   SearchOutlined,
   ReloadOutlined,
+  FolderOutlined,
 } from "@ant-design/icons";
-import LogoWithText from "./LogoWithText";
+import DirectorySelector from "./DirectorySelector";
 import dayjs from "dayjs";
+import axios from "axios";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
 
-const ImageGallery = ({ images, loading, onDelete, onRefresh }) => {
+const ImageGallery = () => {
   const [searchText, setSearchText] = useState("");
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const [previewTitle, setPreviewTitle] = useState("");
+  const [dir, setDir] = useState("");
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchImages = async (targetDir = dir) => {
+    setLoading(true);
+    try {
+      const res = await axios.get("/api/images", {
+        params: targetDir ? { dir: targetDir } : {},
+      });
+      if (res.data.success) {
+        setImages(res.data.data);
+      }
+    } catch (e) {
+      message.error("获取图片列表失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchImages();
+    // eslint-disable-next-line
+  }, [dir]);
+
+  const handleDelete = async (relPath) => {
+    try {
+      await axios.delete(`/api/images/${encodeURIComponent(relPath)}`);
+      message.success("删除成功");
+      fetchImages();
+    } catch (error) {
+      message.error("删除失败");
+    }
+  };
 
   const formatFileSize = (bytes) => {
     if (bytes === 0) return "0 Bytes";
@@ -64,15 +100,6 @@ const ImageGallery = ({ images, loading, onDelete, onRefresh }) => {
     });
   };
 
-  const handleDelete = async (filename) => {
-    try {
-      await onDelete(filename);
-      message.success("删除成功");
-    } catch (error) {
-      message.error("删除失败");
-    }
-  };
-
   const filteredImages = images.filter((image) =>
     image.filename.toLowerCase().includes(searchText.toLowerCase())
   );
@@ -89,23 +116,60 @@ const ImageGallery = ({ images, loading, onDelete, onRefresh }) => {
       >
         <Title level={2}>图片管理</Title>
         <Space>
+          <DirectorySelector
+            value={dir}
+            onChange={setDir}
+            placeholder="选择或输入子目录"
+            style={{ width: 260 }}
+            allowInput={false}
+          />
           <Search
             placeholder="搜索图片名称"
             allowClear
-            style={{ width: 300 }}
+            style={{ width: 200 }}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             prefix={<SearchOutlined />}
           />
           <Button
             icon={<ReloadOutlined />}
-            onClick={onRefresh}
+            onClick={() => fetchImages()}
             loading={loading}
           >
             刷新
           </Button>
         </Space>
       </div>
+
+      {/* 目录信息展示 */}
+      {dir && (
+        <div
+          style={{
+            background: "#f6f8fa",
+            border: "1px solid #e1e4e8",
+            borderRadius: "6px",
+            padding: "12px 16px",
+            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <FolderOutlined style={{ color: "#586069" }} />
+          <Text type="secondary" style={{ fontSize: "14px" }}>
+            当前目录：
+          </Text>
+          <Tag color="blue" style={{ fontSize: "13px" }}>
+            {dir}
+          </Tag>
+          <Text
+            type="secondary"
+            style={{ fontSize: "12px", marginLeft: "auto" }}
+          >
+            共 {filteredImages.length} 张图片
+          </Text>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: "center", padding: "50px" }}>
@@ -172,7 +236,7 @@ const ImageGallery = ({ images, loading, onDelete, onRefresh }) => {
                   />,
                   <Popconfirm
                     title="确定要删除这张图片吗？"
-                    onConfirm={() => handleDelete(image.filename)}
+                    onConfirm={() => handleDelete(image.relPath)}
                     okText="确定"
                     cancelText="取消"
                   >
@@ -193,6 +257,24 @@ const ImageGallery = ({ images, loading, onDelete, onRefresh }) => {
                   }
                   description={
                     <Space direction="vertical" size="small">
+                      {/* 子目录显示 */}
+                      {image.relPath && image.relPath.includes("/") && (
+                        <Text type="secondary" style={{ fontSize: "12px" }}>
+                          <span
+                            style={{
+                              background: "#f6f8fa",
+                              borderRadius: 4,
+                              padding: "2px 6px",
+                              marginRight: 4,
+                            }}
+                          >
+                            {image.relPath.substring(
+                              0,
+                              image.relPath.lastIndexOf("/")
+                            )}
+                          </span>
+                        </Text>
+                      )}
                       <Text type="secondary" style={{ fontSize: "12px" }}>
                         {dayjs(image.uploadTime).format("YYYY-MM-DD HH:mm:ss")}
                       </Text>

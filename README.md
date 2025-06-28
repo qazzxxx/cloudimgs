@@ -1,180 +1,175 @@
-# CloudImgs - 现代图床应用
+# CloudImgs - 云图片管理系统
 
-一个基于 Node.js + React + Ant Design 的现代化图床应用，支持图片上传、管理、预览和 API 接口。
+一个简单易用的云图片管理系统，支持图片上传、管理、预览和分享。
 
 ## 功能特性
 
-- 🖼️ **图片上传**: 支持拖拽上传和文件选择，保持原文件名
-- 📱 **响应式设计**: 基于 Ant Design 的现代化 UI 界面
-- 🔍 **图片管理**: 支持预览、下载、删除、搜索图片
-- 📊 **统计信息**: 实时显示存储使用情况和图片统计
-- 🔌 **API 接口**: 提供完整的 RESTful API 接口
-- 🐳 **Docker 部署**: 支持一键 Docker 部署
-- ⚙️ **可配置存储**: 支持自定义图片存储路径
-- 📦 **Docker Hub**: 支持发布到 Docker Hub
+### 🚀 核心功能
+
+- **图片上传**: 支持拖拽上传，多种图片格式
+- **图片管理**: 浏览、预览、下载、删除图片
+- **图片分享**: 一键复制图片链接
+- **统计信息**: 实时显示存储使用情况
+
+### 📁 子目录管理 (新增)
+
+- **智能目录选择**: 可选择现有目录或输入新目录
+- **目录信息展示**: 在图片管理页面显示当前目录信息
+- **目录统计**: 支持按目录统计图片数量和存储大小
 
 ## 技术栈
-
-### 后端
-
-- Node.js
-- Express.js
-- Multer (文件上传)
-- fs-extra (文件系统操作)
 
 ### 前端
 
 - React 18
 - Ant Design 5
-- Axios (HTTP 客户端)
-- Day.js (日期处理)
+- Axios
+- Day.js
 
-## 🚀 快速开始
+### 后端
 
-### 使用 Docker Compose（推荐）
+- Node.js
+- Express
+- Multer
+- fs-extra
 
-1. **克隆项目**
+## 快速开始
+
+### 环境要求
+
+- Node.js 16+
+- npm 或 yarn
+
+### 安装依赖
 
 ```bash
-git clone https://github.com/Qazzxxx/cloudimgs.git
-cd cloudimgs
+# 安装后端依赖
+npm install
+
+# 安装前端依赖
+cd client
+npm install
 ```
 
-2. **启动应用**
+### 启动服务
 
 ```bash
-# 使用本地构建
+# 启动后端服务 (端口 3001)
+node server/index.js
+
+# 启动前端开发服务器 (端口 3000)
+cd client
+npm start
+```
+
+### 生产环境部署
+
+```bash
+# 构建前端
+cd client
+npm run build
+
+# 使用 Docker 部署
 docker-compose up -d
-
-# 或使用 Docker Hub 镜像
-docker-compose -f docker-compose.prod.yml up -d
 ```
 
-3. **访问应用**
+## 使用说明
 
-- 应用地址: http://localhost:3001
+### 图片上传
 
-### 使用 Docker 直接运行
+1. 点击"上传图片"菜单
+2. 选择或输入子目录（可选）
+   - 可以从下拉列表选择现有目录
+   - 可以输入新目录路径（如：2024/06/10）
+3. 拖拽或点击选择图片文件
+4. 支持批量上传
 
-```bash
-# 拉取镜像
-docker pull qazzxxx/cloudimgs:latest
+### 图片管理
 
-# 运行容器
-docker run -d \
-  --name cloudimgs \
-  -p 3001:3001 \
-  -v $(pwd)/uploads:/app/uploads \
-  qazzxxx/cloudimgs:latest
+1. 点击"图片管理"菜单
+2. 选择要浏览的目录
+3. 支持搜索图片名称
+4. 可以预览、下载、复制链接或删除图片
+5. 当前目录信息会显示在页面顶部
+
+### 统计信息
+
+1. 点击"统计信息"菜单
+2. 查看总体存储使用情况
+3. 支持按目录查看统计信息
+
+## 配置说明
+
+### 环境变量
+
+创建 `.env` 文件：
+
+```env
+PORT=3001
+STORAGE_PATH=./uploads
 ```
 
-### 环境变量配置
+### 存储路径
 
-复制 `env.example` 为 `.env` 并修改配置：
+- 默认存储路径：`./uploads`
+- 支持多层目录结构
+- 自动创建不存在的目录
 
-```bash
-cp env.example .env
-```
+## 文件格式支持
 
-可配置的环境变量：
-
-- `PORT`: 服务器端口 (默认: 3001)
-- `STORAGE_PATH`: 图片存储路径 (默认: ./uploads)
-- `NODE_ENV`: 环境模式 (production/development)
+- **图片格式**: JPG, PNG, GIF, WebP, BMP, SVG
+- **文件大小**: 最大 10MB
+- **目录结构**: 支持无限层级的子目录
 
 ## API 接口
 
-### 上传图片
+### 图片上传
 
-```http
-POST /api/upload
-Content-Type: multipart/form-data
-
-参数: image (文件)
+```
+POST /api/upload?dir=子目录路径
 ```
 
 ### 获取图片列表
 
-```http
-GET /api/images
+```
+GET /api/images?dir=子目录路径
 ```
 
-### 获取随机图片
+### 获取目录列表
 
-```http
-GET /api/random
+```
+GET /api/directories
 ```
 
 ### 获取统计信息
 
-```http
-GET /api/stats
+```
+GET /api/stats?dir=子目录路径
 ```
 
 ### 删除图片
 
-```http
-DELETE /api/images/:filename
+```
+DELETE /api/images/图片路径
 ```
 
-### 获取指定图片
+## 更新日志
 
-```http
-GET /api/images/:filename
-```
+### v1.1.0 (最新)
 
-## 项目结构
+- ✨ 新增子目录管理功能
+- ✨ 智能目录选择器
+- ✨ 目录信息展示
+- ✨ 支持输入新目录
+- 🎨 优化用户界面
 
-```
-cloudimgs/
-├── server/                 # 后端代码
-│   └── index.js           # 服务器主文件
-├── client/                # 前端代码
-│   ├── public/            # 静态资源
-│   ├── src/               # 源代码
-│   │   ├── components/    # React组件
-│   │   ├── App.js         # 主应用组件
-│   │   └── index.js       # 入口文件
-│   └── package.json       # 前端依赖
-├── uploads/               # 图片存储目录
-├── Dockerfile             # Docker配置
-├── docker-compose.yml     # Docker Compose配置
-├── docker-compose.prod.yml # 生产环境配置
-├── .github/workflows/     # GitHub Actions
-└── README.md              # 项目说明
-```
+### v1.0.0
 
-## 功能模块
-
-### 1. 图片上传
-
-- 支持拖拽上传
-- 文件类型验证 (JPG, PNG, GIF, WebP, BMP, SVG)
-- 文件大小限制 (10MB)
-- 保持原文件名
-- 上传进度显示
-
-### 2. 图片管理
-
-- 图片列表展示
-- 图片预览
-- 图片下载
-- 图片删除
-- 搜索功能
-- 复制图片链接
-
-### 3. 统计信息
-
-- 总图片数量
-- 总存储大小
-- 存储使用率
-- 平均图片大小
-- 系统信息展示
+- 🎉 初始版本发布
+- 📤 图片上传功能
+- 🖼️ 图片管理功能
+- 📊 统计信息功能
 
 ## 许可证
 
 MIT License
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
