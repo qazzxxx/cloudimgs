@@ -36,7 +36,7 @@
 1. **克隆项目**
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Qazzxxx/cloudimgs.git
 cd cloudimgs
 ```
 
@@ -81,31 +81,6 @@ cp env.example .env
 - `PORT`: 服务器端口 (默认: 3001)
 - `STORAGE_PATH`: 图片存储路径 (默认: ./uploads)
 - `NODE_ENV`: 环境模式 (production/development)
-
-## 🐳 Docker 发布
-
-### 发布到 Docker Hub
-
-1. **准备工作**
-
-```bash
-# 登录 Docker Hub
-docker login
-
-# 构建镜像
-docker build -t your-username/cloudimgs:latest .
-```
-
-2. **发布镜像**
-
-```bash
-# 推送镜像
-docker push your-username/cloudimgs:latest
-
-# 发布版本标签
-docker build -t your-username/cloudimgs:v1.0.0 .
-docker push your-username/cloudimgs:v1.0.0
-```
 
 ## API 接口
 
@@ -195,49 +170,6 @@ cloudimgs/
 - 存储使用率
 - 平均图片大小
 - 系统信息展示
-
-## 部署说明
-
-### 生产环境部署
-
-1. **使用 Docker Compose（推荐）**
-
-```bash
-# 本地构建
-docker-compose up -d
-
-# 或使用 Docker Hub 镜像
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-2. **使用 Docker 直接运行**
-
-```bash
-docker run -d \
-  --name cloudimgs \
-  -p 3001:3001 \
-  -v $(pwd)/uploads:/app/uploads \
-  qazzxxx/cloudimgs:latest
-```
-
-### 配置说明
-
-- **存储路径**: 通过 `STORAGE_PATH` 环境变量配置
-- **端口配置**: 通过 `PORT` 环境变量配置
-- **文件限制**: 最大 10MB，支持常见图片格式
-
-## 开发说明
-
-### 添加新功能
-
-1. 在 `server/index.js` 中添加新的 API 路由
-2. 在 `client/src/components/` 中创建新的 React 组件
-3. 在 `client/src/App.js` 中集成新组件
-
-### 样式定制
-
-- 使用 Ant Design 主题定制
-- 在 `client/src/App.js` 中配置 ConfigProvider
 
 ## 许可证
 
