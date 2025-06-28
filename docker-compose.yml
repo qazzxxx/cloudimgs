@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  cloudimgs:
+    # 使用 Docker Hub 上的镜像
+    image: qazzxxx/cloudimgs:latest
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - STORAGE_PATH=/app/uploads
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    restart: unless-stopped
+    container_name: cloudimgs-app
+    # 添加健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
