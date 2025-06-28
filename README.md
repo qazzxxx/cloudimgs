@@ -62,15 +62,26 @@ cd client
 npm start
 ```
 
-### 生产环境部署
+### 快速部署 - docker-componse.yml
 
-```bash
-# 构建前端
-cd client
-npm run build
+```yaml
+version: "3.8"
 
-# 使用 Docker 部署
-docker-compose up -d
+services:
+  cloudimgs:
+    # 使用 Docker Hub 上的镜像
+    image: qazzxxx/cloudimgs:latest
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - STORAGE_PATH=/app/uploads
+    volumes:
+      - ./uploads:/app/uploads # 上传目录配置
+      - ./logs:/app/logs
+    restart: unless-stopped
+    container_name: cloudimgs-app
 ```
 
 ## 使用说明
