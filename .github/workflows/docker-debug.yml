@@ -1,0 +1,93 @@
+name: Docker Build Debug
+
+on:
+  workflow_dispatch:
+    inputs:
+      debug_level:
+        description: "Debug level"
+        required: true
+        default: "verbose"
+        type: choice
+        options:
+          - basic
+          - verbose
+          - full
+
+jobs:
+  debug-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Show environment info
+        run: |
+          echo "=== GitHub Actions Environment ==="
+          echo "Runner: ${{ runner.os }}"
+          echo "Architecture: ${{ runner.arch }}"
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Docker version: $(docker --version)"
+          echo "Available memory: $(free -h || echo 'Memory info not available')"
+          echo "Available disk space: $(df -h)"
+
+      - name: Show repository structure
+        run: |
+          echo "=== Repository Structure ==="
+          find . -type f -name "package.json" -o -name "Dockerfile*" -o -name "*.yml" -o -name "*.yaml" | head -20
+          echo "=== Client directory ==="
+          ls -la client/
+          echo "=== Client package.json ==="
+          cat client/package.json
+
+      - name: Test npm install locally
+        run: |
+          echo "=== Testing npm install locally ==="
+          cd client
+          npm ci --verbose
+          echo "=== Client dependencies installed successfully ==="
+
+      - name: Test client build locally
+        run: |
+          echo "=== Testing client build locally ==="
+          cd client
+          npm run build
+          echo "=== Client build completed successfully ==="
+          ls -la build/
+
+      - name: Build Docker image with debug output
+        run: |
+          echo "=== Building Docker image with debug output ==="
+          docker build --progress=plain --no-cache -t cloudimgs-debug:latest . 2>&1 | tee build.log
+
+          if [ $? -eq 0 ]; then
+            echo "✅ Docker build completed successfully!"
+          else
+            echo "❌ Docker build failed!"
+            echo "=== Last 50 lines of build log ==="
+            tail -50 build.log
+            echo "=== Full build log saved to build.log ==="
+            exit 1
+          fi
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-build-logs
+          path: build.log
+          retention-days: 7
+
+      - name: Test container startup
+        if: success()
+        run: |
+          echo "=== Testing container startup ==="
+          docker run -d --name cloudimgs-debug-test -p 3001:3001 cloudimgs-debug:latest
+          sleep 10
+          docker ps
+          docker logs cloudimgs-debug-test
+          docker stop cloudimgs-debug-test
+          docker rm cloudimgs-debug-test

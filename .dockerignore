@@ -35,9 +35,8 @@ coverage
 .nyc_output
 *.lcov
 
-# Build outputs
+# Build outputs (exclude node_modules but keep build directory)
 client/node_modules
-client/build
 client/coverage
 
 # Logs

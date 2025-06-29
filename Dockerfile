@@ -4,23 +4,51 @@ FROM node:18-alpine AS builder
 # 设置工作目录
 WORKDIR /app
 
+# 安装构建工具
+RUN apk add --no-cache git
+
+# 设置Node.js内存限制（避免OOM）
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 # 复制package.json文件
 COPY package*.json ./
 
-# 安装依赖
-RUN npm ci --only=production
+# 安装所有依赖（包括开发依赖，用于构建）
+RUN npm ci --no-audit --no-fund
 
 # 复制客户端package.json
 COPY client/package*.json ./client/
 
-# 安装客户端依赖
-RUN cd client && npm ci
+# 安装客户端依赖（添加详细输出）
+RUN cd client && npm ci --no-audit --no-fund --verbose
 
 # 复制源代码
 COPY . .
 
-# 构建客户端
-RUN cd client && npm run build
+# 显示构建环境信息
+RUN echo "=== Build Environment Info ===" && \
+    node --version && \
+    npm --version && \
+    echo "=== Current Directory ===" && \
+    pwd && \
+    ls -la && \
+    echo "=== Client Directory ===" && \
+    ls -la client/
+
+# 构建客户端（添加详细输出和错误处理）
+RUN cd client && \
+    echo "=== Starting client build ===" && \
+    echo "=== Available memory ===" && \
+    free -h || echo "Memory info not available" && \
+    echo "=== Node options ===" && \
+    echo $NODE_OPTIONS && \
+    npm run build || (echo "Build failed, checking for errors..." && exit 1)
+
+# 验证构建结果
+RUN echo "=== Build Result ===" && \
+    ls -la client/build/ && \
+    echo "=== Build files count ===" && \
+    find client/build -type f | wc -l
 
 # 生产阶段
 FROM node:18-alpine AS production
@@ -42,6 +70,12 @@ COPY --from=builder --chown=cloudimgs:nodejs /app/client/build ./client/build
 # 创建上传目录并设置权限
 RUN mkdir -p uploads logs && \
     chown -R cloudimgs:nodejs uploads logs
+
+# 验证文件复制
+RUN echo "=== Production Image Verification ===" && \
+    ls -la client/build/ && \
+    echo "=== Node modules verification ===" && \
+    ls -la node_modules/ | head -10
 
 # 切换到非root用户
 USER cloudimgs
