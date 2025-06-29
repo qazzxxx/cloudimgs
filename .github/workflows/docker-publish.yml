@@ -38,6 +38,11 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=CloudImgs
+            org.opencontainers.image.description=A modern image hosting application with React frontend and Node.js backend
+            org.opencontainers.image.vendor=CloudImgs
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -48,6 +53,22 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
 
       - name: Image digest
-        run: echo ${{ steps.meta.outputs.tags }}
+        run: echo "Image tags: ${{ steps.meta.outputs.tags }}"
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Docker image published successfully!"
+          echo "Image: ${{ secrets.DOCKER_USERNAME }}/cloudimgs"
+          echo "Tags: ${{ steps.meta.outputs.tags }}"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Docker image publish failed!"
+          echo "Please check the logs above for details."
