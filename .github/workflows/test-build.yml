@@ -1,0 +1,39 @@
+name: Test Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd client && npm ci
+
+      - name: Test client build
+        run: |
+          cd client
+          echo "=== Testing client build ==="
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Available memory:"
+          free -h || echo "Memory info not available"
+          npm run build
+          echo "=== Build completed successfully ==="
+
+      - name: Test Docker build
+        run: |
+          echo "=== Testing Docker build ==="
+          docker build --no-cache --progress=plain -t test-build .
+          echo "=== Docker build completed successfully ==="

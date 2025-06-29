@@ -62,7 +62,7 @@ RUN cd client && \
     echo "=== Node version ===" && \
     node --version && \
     echo "=== Starting build process ===" && \
-    npm run build
+    npm run build || (echo "Build failed with exit code $?" && exit 1)
 
 # 验证构建结果
 RUN echo "=== Build Result ===" && \

@@ -91,3 +91,5 @@ jobs:
           echo "1. Check if all dependencies are properly installed"
           echo "2. Verify client build process"
           echo "3. Ensure .dockerignore doesn't exclude necessary files"
+          echo "4. Check for memory issues during build"
+          echo "5. Verify BuildKit version compatibility"
