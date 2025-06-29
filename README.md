@@ -95,15 +95,19 @@ version: "3.8"
 
 services:
   cloudimgs:
-    # 使用 Docker Hub 上的镜像
     image: qazzxxx/cloudimgs:latest
     ports:
-      - "33021:3001"
+      - "3001:3001"
     volumes:
-      - ./uploads:/app/uploads # 上传目录配置
-      - ./logs:/app/logs
+      - ./uploads:/app/uploads:rw # 上传目录配置，明确读写权限
     restart: unless-stopped
     container_name: cloudimgs-app
+    # 使用 root 用户运行以解决权限问题
+    user: "root"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - STORAGE_PATH=/app/uploads
 ```
 
 ### 文件格式支持
