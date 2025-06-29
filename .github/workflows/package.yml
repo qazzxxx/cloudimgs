@@ -20,14 +20,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:v0.13.0
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -62,23 +57,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           platforms: linux/amd64
           build-args: |
-            BUILDKIT_INLINE_CACHE=1
             NODE_OPTIONS=--max-old-space-size=4096
           provenance: false
-          outputs: type=docker,dest=/tmp/image.tar
 
-      - name: Verify image
-        run: |
-          echo "Verifying built image..."
-          docker load < /tmp/image.tar
-          docker images | grep cloudimgs
-          echo "Image verification completed"
-
-      - name: Image digest
+      - name: Success notification
         run: |
           echo "✅ GitHub Packages image published successfully!"
           echo "Image: ghcr.io/${{ github.repository }}"
@@ -91,16 +75,14 @@ jobs:
           echo "❌ GitHub Packages publish failed!"
           echo "Please check the logs above for details."
           echo ""
-          echo "Common issues and solutions:"
-          echo "1. Memory issues: Check NODE_OPTIONS and increase memory limit"
-          echo "2. Dependency issues: Verify all packages are compatible"
-          echo "3. Build process: Check for syntax errors in React components"
-          echo "4. Docker context: Ensure .dockerignore doesn't exclude necessary files"
-          echo "5. BuildKit: Try updating to latest BuildKit version"
-          echo "6. Platform issues: Try building for single platform first"
+          echo "Debug information:"
+          echo "- Build context: ${{ github.workspace }}"
+          echo "- Repository: ${{ github.repository }}"
+          echo "- SHA: ${{ github.sha }}"
+          echo "- Event: ${{ github.event_name }}"
           echo ""
-          echo "Debug steps:"
-          echo "- Run 'npm run build' locally to test client build"
-          echo "- Check for any console errors in the build output"
-          echo "- Verify all imports and dependencies are correct"
-          echo "- Test with a simpler Dockerfile first"
+          echo "Common solutions:"
+          echo "1. Check if PAT_TOKEN secret is properly configured"
+          echo "2. Verify repository permissions for packages"
+          echo "3. Try building locally first with: ./test-build.sh"
+          echo "4. Check for any syntax errors in the codebase"

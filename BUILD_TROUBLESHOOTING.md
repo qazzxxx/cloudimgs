@@ -4,8 +4,8 @@
 
 在 GitHub Actions 中推送 Docker 镜像到 GitHub Packages 时，构建失败并出现以下错误：
 
-```buildx failed with: ERROR: failed to build: failed to solve: process "/bin/sh -c cd client && npm run build" did not complete successfully: exit code: 1
-
+```
+buildx failed with: ERROR: failed to build: failed to solve: process "/bin/sh -c cd client && npm run build" did not complete successfully: exit code: 1
 ```
 
 ## 常见原因和解决方案
@@ -44,6 +44,15 @@
 - 在 Dockerfile 中安装必要的构建工具：`python3 make g++`
 - 确保使用正确的 Node.js 版本
 
+### 5. GitHub Actions 特定问题
+
+**症状**: 在 GitHub Actions 中失败，但本地测试成功
+**解决方案**:
+
+- 检查 PAT_TOKEN 权限配置
+- 验证仓库包权限设置
+- 使用简化的构建配置
+
 ## 已实施的修复
 
 ### 1. 优化的 Dockerfile
@@ -63,6 +72,8 @@
 
 - 创建了本地测试脚本 `test-build.sh`
 - 创建了简化的测试 Dockerfile `Dockerfile.test`
+- 创建了 GitHub Actions 专用 Dockerfile `Dockerfile.gha`
+- 创建了调试脚本 `debug-gha.sh`
 
 ## 调试步骤
 
@@ -71,6 +82,9 @@
 ```bash
 # 运行本地测试脚本
 ./test-build.sh
+
+# 运行 GitHub Actions 环境调试脚本
+./debug-gha.sh
 
 # 或者手动测试
 cd client
@@ -81,8 +95,11 @@ CI=false npm run build
 ### 2. 使用简化的 Dockerfile 测试
 
 ```bash
-# 使用简化的Dockerfile进行测试
+# 使用简化的 Dockerfile 进行测试
 docker build -f Dockerfile.test -t test-build .
+
+# 使用 GitHub Actions 专用 Dockerfile
+docker build -f Dockerfile.gha -t gha-test .
 ```
 
 ### 3. 检查构建日志
@@ -103,7 +120,6 @@ platforms: linux/amd64 # 而不是 linux/amd64,linux/arm64
 
 ```yaml
 build-args: |
-  BUILDKIT_INLINE_CACHE=1
   NODE_OPTIONS=--max-old-space-size=4096
 ```
 
@@ -112,6 +128,10 @@ build-args: |
 ```yaml
 timeout: 30m # 增加构建超时时间
 ```
+
+### 4. 使用简化的工作流
+
+尝试使用 `.github/workflows/package-simple.yml` 进行测试。
 
 ## 预防措施
 
@@ -130,6 +150,32 @@ timeout: 30m # 增加构建超时时间
 - 设置构建失败通知
 - 定期检查构建日志
 
+## 故障排除检查清单
+
+### 1. 权限检查
+
+- [ ] PAT_TOKEN 是否具有 `write:packages` 权限
+- [ ] 仓库是否启用了 GitHub Packages
+- [ ] 工作流是否具有正确的权限配置
+
+### 2. 环境检查
+
+- [ ] Node.js 版本是否兼容
+- [ ] 内存是否足够
+- [ ] 网络连接是否正常
+
+### 3. 代码检查
+
+- [ ] 所有依赖是否正确安装
+- [ ] 是否有语法错误
+- [ ] 构建脚本是否正确
+
+### 4. 配置检查
+
+- [ ] Dockerfile 是否正确
+- [ ] .dockerignore 是否排除必要文件
+- [ ] GitHub Actions 工作流配置是否正确
+
 ## 联系支持
 
 如果问题仍然存在，请：
@@ -137,11 +183,15 @@ timeout: 30m # 增加构建超时时间
 1. 运行本地测试脚本并分享输出
 2. 提供 GitHub Actions 的完整构建日志
 3. 检查是否有特定的错误模式
+4. 验证 PAT_TOKEN 权限配置
 
 ## 相关文件
 
 - `Dockerfile` - 主要的 Docker 构建文件
 - `Dockerfile.test` - 简化的测试 Dockerfile
+- `Dockerfile.gha` - GitHub Actions 专用 Dockerfile
 - `test-build.sh` - 本地测试脚本
+- `debug-gha.sh` - GitHub Actions 环境调试脚本
 - `.github/workflows/package.yml` - GitHub Packages 工作流
+- `.github/workflows/package-simple.yml` - 简化的工作流
 - `.github/workflows/test-build.yml` - 测试构建工作流
