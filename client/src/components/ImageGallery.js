@@ -13,6 +13,8 @@ import {
   Input,
   Empty,
   Spin,
+  Grid,
+  theme,
 } from "antd";
 import {
   DeleteOutlined,
@@ -31,6 +33,13 @@ const { Title, Text } = Typography;
 const { Search } = Input;
 
 const ImageGallery = () => {
+  const {
+    token: { colorBgContainer, colorBorder },
+  } = theme.useToken();
+  const { useBreakpoint } = Grid;
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
+
   const [searchText, setSearchText] = useState("");
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
@@ -109,24 +118,30 @@ const ImageGallery = () => {
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 24,
+          flexDirection: isMobile ? "column" : "row",
+          justifyContent: isMobile ? "flex-start" : "space-between",
+          alignItems: isMobile ? "stretch" : "center",
+          marginBottom: isMobile ? 16 : 24,
+          gap: isMobile ? 12 : 0,
         }}
       >
-        <Title level={2}>图片管理</Title>
-        <Space>
+        <Title level={isMobile ? 3 : 2}>图片管理</Title>
+        <Space
+          direction={isMobile ? "vertical" : "horizontal"}
+          style={{ width: isMobile ? "100%" : "auto" }}
+          size={isMobile ? "small" : "middle"}
+        >
           <DirectorySelector
             value={dir}
             onChange={setDir}
             placeholder="选择或输入子目录"
-            style={{ width: 260 }}
+            style={{ width: isMobile ? "100%" : 260 }}
             allowInput={false}
           />
           <Search
             placeholder="搜索图片名称"
             allowClear
-            style={{ width: 200 }}
+            style={{ width: isMobile ? "100%" : 200 }}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             prefix={<SearchOutlined />}
@@ -135,8 +150,9 @@ const ImageGallery = () => {
             icon={<ReloadOutlined />}
             onClick={() => fetchImages()}
             loading={loading}
+            style={{ width: isMobile ? "100%" : "auto" }}
           >
-            刷新
+            {isMobile ? "刷新列表" : "刷新"}
           </Button>
         </Space>
       </div>
@@ -145,26 +161,35 @@ const ImageGallery = () => {
       {dir && (
         <div
           style={{
-            background: "#f6f8fa",
-            border: "1px solid #e1e4e8",
+            background: colorBgContainer,
+            border: `1px solid ${colorBorder}`,
             borderRadius: "6px",
-            padding: "12px 16px",
-            marginBottom: "16px",
+            padding: isMobile ? "8px 12px" : "12px 16px",
+            marginBottom: isMobile ? "12px" : "16px",
             display: "flex",
-            alignItems: "center",
-            gap: "8px",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "flex-start" : "center",
+            gap: isMobile ? "4px" : "8px",
           }}
         >
-          <FolderOutlined style={{ color: "#586069" }} />
-          <Text type="secondary" style={{ fontSize: "14px" }}>
-            当前目录：
-          </Text>
-          <Tag color="blue" style={{ fontSize: "13px" }}>
-            {dir}
-          </Tag>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <FolderOutlined style={{ color: "#586069" }} />
+            <Text
+              type="secondary"
+              style={{ fontSize: isMobile ? "13px" : "14px" }}
+            >
+              当前目录：
+            </Text>
+            <Tag color="blue" style={{ fontSize: isMobile ? "12px" : "13px" }}>
+              {dir}
+            </Tag>
+          </div>
           <Text
             type="secondary"
-            style={{ fontSize: "12px", marginLeft: "auto" }}
+            style={{
+              fontSize: isMobile ? "11px" : "12px",
+              marginLeft: isMobile ? "0" : "auto",
+            }}
           >
             共 {filteredImages.length} 张图片
           </Text>
@@ -172,25 +197,33 @@ const ImageGallery = () => {
       )}
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: "50px" }}>
+        <div
+          style={{ textAlign: "center", padding: isMobile ? "30px" : "50px" }}
+        >
           <Spin size="large" />
-          <div style={{ marginTop: 16 }}>加载中...</div>
+          <div style={{ marginTop: 16, fontSize: isMobile ? "14px" : "16px" }}>
+            加载中...
+          </div>
         </div>
       ) : filteredImages.length === 0 ? (
-        <Empty description="暂无图片" style={{ marginTop: 50 }} />
+        <Empty
+          description="暂无图片"
+          style={{ marginTop: isMobile ? 30 : 50 }}
+        />
       ) : (
-        <Row gutter={[16, 16]}>
+        <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
           {filteredImages.map((image, index) => (
             <Col xs={24} sm={12} md={8} lg={6} xl={4} key={index}>
               <Card
                 hoverable
+                size={isMobile ? "small" : "default"}
                 cover={
                   <div style={{ position: "relative" }}>
                     <img
                       alt={image.filename}
                       src={image.url}
                       style={{
-                        height: 200,
+                        height: isMobile ? 150 : 200,
                         width: "100%",
                         objectFit: "cover",
                         cursor: "pointer",
@@ -200,14 +233,19 @@ const ImageGallery = () => {
                     <div
                       style={{
                         position: "absolute",
-                        top: 8,
-                        right: 8,
+                        top: isMobile ? 4 : 8,
+                        right: isMobile ? 4 : 8,
                         background: "rgba(0,0,0,0.6)",
                         borderRadius: "4px",
-                        padding: "2px 6px",
+                        padding: isMobile ? "1px 4px" : "2px 6px",
                       }}
                     >
-                      <Text style={{ color: "white", fontSize: "12px" }}>
+                      <Text
+                        style={{
+                          color: "white",
+                          fontSize: isMobile ? "10px" : "12px",
+                        }}
+                      >
                         {formatFileSize(image.size)}
                       </Text>
                     </div>
@@ -216,18 +254,21 @@ const ImageGallery = () => {
                 actions={[
                   <Button
                     type="text"
+                    size={isMobile ? "small" : "middle"}
                     icon={<EyeOutlined />}
                     onClick={() => handlePreview(image)}
                     title="预览"
                   />,
                   <Button
                     type="text"
+                    size={isMobile ? "small" : "middle"}
                     icon={<DownloadOutlined />}
                     onClick={() => handleDownload(image)}
                     title="下载"
                   />,
                   <Button
                     type="text"
+                    size={isMobile ? "small" : "middle"}
                     icon={<CopyOutlined />}
                     onClick={() =>
                       copyToClipboard(`${window.location.origin}${image.url}`)
@@ -242,6 +283,7 @@ const ImageGallery = () => {
                   >
                     <Button
                       type="text"
+                      size={isMobile ? "small" : "middle"}
                       danger
                       icon={<DeleteOutlined />}
                       title="删除"
@@ -251,7 +293,13 @@ const ImageGallery = () => {
               >
                 <Card.Meta
                   title={
-                    <Text ellipsis style={{ maxWidth: "100%" }}>
+                    <Text
+                      ellipsis
+                      style={{
+                        maxWidth: "100%",
+                        fontSize: isMobile ? "13px" : "14px",
+                      }}
+                    >
                       {image.filename}
                     </Text>
                   }
@@ -259,12 +307,16 @@ const ImageGallery = () => {
                     <Space direction="vertical" size="small">
                       {/* 子目录显示 */}
                       {image.relPath && image.relPath.includes("/") && (
-                        <Text type="secondary" style={{ fontSize: "12px" }}>
+                        <Text
+                          type="secondary"
+                          style={{ fontSize: isMobile ? "11px" : "12px" }}
+                        >
                           <span
                             style={{
-                              background: "#f6f8fa",
+                              background: colorBgContainer,
+                              border: `1px solid ${colorBorder}`,
                               borderRadius: 4,
-                              padding: "2px 6px",
+                              padding: isMobile ? "1px 4px" : "2px 6px",
                               marginRight: 4,
                             }}
                           >
@@ -275,10 +327,18 @@ const ImageGallery = () => {
                           </span>
                         </Text>
                       )}
-                      <Text type="secondary" style={{ fontSize: "12px" }}>
+                      <Text
+                        type="secondary"
+                        style={{ fontSize: isMobile ? "11px" : "12px" }}
+                      >
                         {dayjs(image.uploadTime).format("YYYY-MM-DD HH:mm:ss")}
                       </Text>
-                      <Tag color="blue">{formatFileSize(image.size)}</Tag>
+                      <Tag
+                        color="blue"
+                        style={{ fontSize: isMobile ? "11px" : "12px" }}
+                      >
+                        {formatFileSize(image.size)}
+                      </Tag>
                     </Space>
                   }
                 />
@@ -293,10 +353,25 @@ const ImageGallery = () => {
         title={previewTitle}
         footer={null}
         onCancel={() => setPreviewVisible(false)}
-        width="80%"
-        style={{ top: 20 }}
+        width={isMobile ? "95%" : "80%"}
+        style={{
+          top: isMobile ? 10 : 20,
+          maxWidth: isMobile ? "100vw" : "1200px",
+        }}
+        bodyStyle={{
+          padding: isMobile ? "12px" : "24px",
+          textAlign: "center",
+        }}
       >
-        <img alt="preview" style={{ width: "100%" }} src={previewImage} />
+        <img
+          alt="preview"
+          style={{
+            width: "100%",
+            maxHeight: isMobile ? "70vh" : "80vh",
+            objectFit: "contain",
+          }}
+          src={previewImage}
+        />
       </Modal>
     </div>
   );

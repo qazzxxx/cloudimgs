@@ -12,6 +12,7 @@ import {
   Col,
   Alert,
   theme,
+  Grid,
 } from "antd";
 import { InboxOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import DirectorySelector from "./DirectorySelector";
@@ -32,6 +33,9 @@ const UploadComponent = ({ onUploadSuccess }) => {
   const {
     token: { colorBgContainer, colorText, colorBorder },
   } = theme.useToken();
+  const { useBreakpoint } = Grid;
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -153,12 +157,12 @@ const UploadComponent = ({ onUploadSuccess }) => {
 
   return (
     <div>
-      <Title level={2}>上传图片</Title>
+      <Title level={isMobile ? 3 : 2}>上传图片</Title>
 
       <Space
         direction="vertical"
-        style={{ width: "100%", marginBottom: 16 }}
-        size="middle"
+        style={{ width: "100%", marginBottom: isMobile ? 12 : 16 }}
+        size={isMobile ? "small" : "middle"}
       >
         <DirectorySelector
           value={dir}
@@ -167,7 +171,7 @@ const UploadComponent = ({ onUploadSuccess }) => {
         />
       </Space>
 
-      <Card>
+      <Card style={{ marginBottom: isMobile ? 16 : 24 }}>
         <Dragger {...uploadProps} disabled={uploading}>
           <p className="ant-upload-drag-icon">
             <InboxOutlined />
@@ -178,7 +182,7 @@ const UploadComponent = ({ onUploadSuccess }) => {
           </p>
           <p
             style={{
-              fontSize: "12px",
+              fontSize: isMobile ? "11px" : "12px",
               color: "#999",
               marginTop: "8px",
               marginBottom: "0",
@@ -198,8 +202,8 @@ const UploadComponent = ({ onUploadSuccess }) => {
       </Card>
 
       {uploadedFiles.length > 0 && (
-        <Card title="最近上传" style={{ marginTop: 24 }}>
-          <Row gutter={[16, 16]}>
+        <Card title="最近上传" style={{ marginTop: isMobile ? 16 : 24 }}>
+          <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
             {uploadedFiles
               .slice(-6)
               .reverse()
@@ -212,20 +216,24 @@ const UploadComponent = ({ onUploadSuccess }) => {
                       <img
                         alt={file.originalName}
                         src={file.url}
-                        style={{ height: 120, objectFit: "cover" }}
+                        style={{
+                          height: isMobile ? 100 : 120,
+                          objectFit: "cover",
+                        }}
                       />
                     }
                     actions={[
                       <Button
                         type="text"
                         icon={<CheckCircleOutlined />}
+                        size={isMobile ? "small" : "middle"}
                         onClick={() =>
                           copyToClipboard(
                             `${window.location.origin}${file.url}`
                           )
                         }
                       >
-                        复制链接
+                        {isMobile ? "复制" : "复制链接"}
                       </Button>,
                     ]}
                   >
@@ -237,10 +245,18 @@ const UploadComponent = ({ onUploadSuccess }) => {
                       }
                       description={
                         <Space direction="vertical" size="small">
-                          <Text type="secondary" style={{ fontSize: "12px" }}>
+                          <Text
+                            type="secondary"
+                            style={{ fontSize: isMobile ? "11px" : "12px" }}
+                          >
                             {formatFileSize(file.size)}
                           </Text>
-                          <Tag color="blue">{file.mimetype}</Tag>
+                          <Tag
+                            color="blue"
+                            style={{ fontSize: isMobile ? "11px" : "12px" }}
+                          >
+                            {file.mimetype}
+                          </Tag>
                         </Space>
                       }
                     />
@@ -251,14 +267,18 @@ const UploadComponent = ({ onUploadSuccess }) => {
         </Card>
       )}
 
-      <Card title="API 接口" style={{ marginTop: 24 }}>
-        <Space direction="vertical" style={{ width: "100%" }} size="large">
+      <Card title="API 接口" style={{ marginTop: isMobile ? 16 : 24 }}>
+        <Space
+          direction="vertical"
+          style={{ width: "100%" }}
+          size={isMobile ? "middle" : "large"}
+        >
           <div>
-            <Title level={4}>📤 上传图片</Title>
+            <Title level={isMobile ? 5 : 4}>📤 上传图片</Title>
             <Text code>POST /api/upload</Text>
             <br />
             <Text strong>参数说明：</Text>
-            <ul style={{ marginTop: 8 }}>
+            <ul style={{ marginTop: 8, fontSize: isMobile ? "13px" : "14px" }}>
               <li>
                 <Text code>image</Text> (必需): 图片文件，支持
                 multipart/form-data
@@ -277,24 +297,44 @@ const UploadComponent = ({ onUploadSuccess }) => {
               style={{
                 backgroundColor: colorBgContainer,
                 border: `1px solid ${colorBorder}`,
-                padding: "12px",
+                padding: isMobile ? "8px" : "12px",
                 borderRadius: "4px",
-                fontSize: "12px",
+                fontSize: isMobile ? "11px" : "12px",
                 overflow: "auto",
                 marginTop: "8px",
               }}
             >
-              <Text code style={{ display: "block", marginBottom: "4px" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  marginBottom: "4px",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 上传到根目录
 curl -X POST http://localhost:3001/api/upload \\
   -F "image=@/path/to/your/image.jpg"`}
               </Text>
-              <Text code style={{ display: "block", marginBottom: "4px" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  marginBottom: "4px",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 上传到指定子目录
 curl -X POST "http://localhost:3001/api/upload?dir=2024/06/10" \\
   -F "image=@/path/to/your/image.jpg"`}
               </Text>
-              <Text code style={{ display: "block" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 上传中文文件名图片
 curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \\
   -F "image=@/path/to/你的图片.jpg"`}
@@ -305,14 +345,14 @@ curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \\
               style={{
                 backgroundColor: colorBgContainer,
                 border: `1px solid ${colorBorder}`,
-                padding: "12px",
+                padding: isMobile ? "8px" : "12px",
                 borderRadius: "4px",
-                fontSize: "12px",
+                fontSize: isMobile ? "11px" : "12px",
                 overflow: "auto",
                 marginTop: "8px",
               }}
             >
-              <Text code>
+              <Text code style={{ fontSize: isMobile ? "11px" : "12px" }}>
                 {`{
   "success": true,
   "message": "图片上传成功",
@@ -331,11 +371,11 @@ curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \\
           </div>
 
           <div>
-            <Title level={4}>📋 获取图片列表</Title>
+            <Title level={isMobile ? 5 : 4}>📋 获取图片列表</Title>
             <Text code>GET /api/images</Text>
             <br />
             <Text strong>参数说明：</Text>
-            <ul style={{ marginTop: 8 }}>
+            <ul style={{ marginTop: 8, fontSize: isMobile ? "13px" : "14px" }}>
               <li>
                 <Text code>dir</Text> (可选): 指定目录路径，如 "2024/06/10"
               </li>
@@ -345,18 +385,31 @@ curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \\
               style={{
                 backgroundColor: colorBgContainer,
                 border: `1px solid ${colorBorder}`,
-                padding: "12px",
+                padding: isMobile ? "8px" : "12px",
                 borderRadius: "4px",
-                fontSize: "12px",
+                fontSize: isMobile ? "11px" : "12px",
                 overflow: "auto",
                 marginTop: "8px",
               }}
             >
-              <Text code style={{ display: "block", marginBottom: "4px" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  marginBottom: "4px",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 获取根目录所有图片
 curl http://localhost:3001/api/images`}
               </Text>
-              <Text code style={{ display: "block" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 获取指定目录图片
 curl "http://localhost:3001/api/images?dir=2024/06/10"`}
               </Text>
@@ -364,11 +417,11 @@ curl "http://localhost:3001/api/images?dir=2024/06/10"`}
           </div>
 
           <div>
-            <Title level={4}>🎲 获取随机图片</Title>
+            <Title level={isMobile ? 5 : 4}>🎲 获取随机图片</Title>
             <Text code>GET /api/random</Text>
             <br />
             <Text strong>参数说明：</Text>
-            <ul style={{ marginTop: 8 }}>
+            <ul style={{ marginTop: 8, fontSize: isMobile ? "13px" : "14px" }}>
               <li>
                 <Text code>dir</Text> (可选): 指定目录路径
               </li>
@@ -378,18 +431,31 @@ curl "http://localhost:3001/api/images?dir=2024/06/10"`}
               style={{
                 backgroundColor: colorBgContainer,
                 border: `1px solid ${colorBorder}`,
-                padding: "12px",
+                padding: isMobile ? "8px" : "12px",
                 borderRadius: "4px",
-                fontSize: "12px",
+                fontSize: isMobile ? "11px" : "12px",
                 overflow: "auto",
                 marginTop: "8px",
               }}
             >
-              <Text code style={{ display: "block", marginBottom: "4px" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  marginBottom: "4px",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 获取根目录随机图片
 curl http://localhost:3001/api/random`}
               </Text>
-              <Text code style={{ display: "block" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 获取指定目录随机图片
 curl "http://localhost:3001/api/random?dir=2024/06/10"`}
               </Text>
@@ -397,11 +463,11 @@ curl "http://localhost:3001/api/random?dir=2024/06/10"`}
           </div>
 
           <div>
-            <Title level={4}>📊 获取统计信息</Title>
+            <Title level={isMobile ? 5 : 4}>📊 获取统计信息</Title>
             <Text code>GET /api/stats</Text>
             <br />
             <Text strong>参数说明：</Text>
-            <ul style={{ marginTop: 8 }}>
+            <ul style={{ marginTop: 8, fontSize: isMobile ? "13px" : "14px" }}>
               <li>
                 <Text code>dir</Text> (可选): 指定目录路径
               </li>
@@ -411,18 +477,31 @@ curl "http://localhost:3001/api/random?dir=2024/06/10"`}
               style={{
                 backgroundColor: colorBgContainer,
                 border: `1px solid ${colorBorder}`,
-                padding: "12px",
+                padding: isMobile ? "8px" : "12px",
                 borderRadius: "4px",
-                fontSize: "12px",
+                fontSize: isMobile ? "11px" : "12px",
                 overflow: "auto",
                 marginTop: "8px",
               }}
             >
-              <Text code style={{ display: "block", marginBottom: "4px" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  marginBottom: "4px",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 获取总体统计
 curl http://localhost:3001/api/stats`}
               </Text>
-              <Text code style={{ display: "block" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 获取指定目录统计
 curl "http://localhost:3001/api/stats?dir=2024/06/10"`}
               </Text>
@@ -430,11 +509,11 @@ curl "http://localhost:3001/api/stats?dir=2024/06/10"`}
           </div>
 
           <div>
-            <Title level={4}>📁 获取目录列表</Title>
+            <Title level={isMobile ? 5 : 4}>📁 获取目录列表</Title>
             <Text code>GET /api/directories</Text>
             <br />
             <Text strong>参数说明：</Text>
-            <ul style={{ marginTop: 8 }}>
+            <ul style={{ marginTop: 8, fontSize: isMobile ? "13px" : "14px" }}>
               <li>
                 <Text code>dir</Text> (可选): 指定父目录路径
               </li>
@@ -444,18 +523,31 @@ curl "http://localhost:3001/api/stats?dir=2024/06/10"`}
               style={{
                 backgroundColor: colorBgContainer,
                 border: `1px solid ${colorBorder}`,
-                padding: "12px",
+                padding: isMobile ? "8px" : "12px",
                 borderRadius: "4px",
-                fontSize: "12px",
+                fontSize: isMobile ? "11px" : "12px",
                 overflow: "auto",
                 marginTop: "8px",
               }}
             >
-              <Text code style={{ display: "block", marginBottom: "4px" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  marginBottom: "4px",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 获取根目录下的子目录
 curl http://localhost:3001/api/directories`}
               </Text>
-              <Text code style={{ display: "block" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 获取指定目录下的子目录
 curl "http://localhost:3001/api/directories?dir=2024"`}
               </Text>
@@ -463,11 +555,11 @@ curl "http://localhost:3001/api/directories?dir=2024"`}
           </div>
 
           <div>
-            <Title level={4}>🗑️ 删除图片</Title>
+            <Title level={isMobile ? 5 : 4}>🗑️ 删除图片</Title>
             <Text code>DELETE /api/images/{"{图片路径}"}</Text>
             <br />
             <Text strong>参数说明：</Text>
-            <ul style={{ marginTop: 8 }}>
+            <ul style={{ marginTop: 8, fontSize: isMobile ? "13px" : "14px" }}>
               <li>
                 <Text code>图片路径</Text> (必需): 图片的相对路径，如
                 "image.jpg" 或 "2024/06/10/image.jpg"
@@ -478,18 +570,31 @@ curl "http://localhost:3001/api/directories?dir=2024"`}
               style={{
                 backgroundColor: colorBgContainer,
                 border: `1px solid ${colorBorder}`,
-                padding: "12px",
+                padding: isMobile ? "8px" : "12px",
                 borderRadius: "4px",
-                fontSize: "12px",
+                fontSize: isMobile ? "11px" : "12px",
                 overflow: "auto",
                 marginTop: "8px",
               }}
             >
-              <Text code style={{ display: "block", marginBottom: "4px" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  marginBottom: "4px",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 删除根目录图片
 curl -X DELETE "http://localhost:3001/api/images/image.jpg"`}
               </Text>
-              <Text code style={{ display: "block" }}>
+              <Text
+                code
+                style={{
+                  display: "block",
+                  fontSize: isMobile ? "11px" : "12px",
+                }}
+              >
                 {`# 删除子目录图片
 curl -X DELETE "http://localhost:3001/api/images/2024/06/10/image.jpg"`}
               </Text>
@@ -501,6 +606,7 @@ curl -X DELETE "http://localhost:3001/api/images/2024/06/10/image.jpg"`}
             description="所有API都支持中文文件名和目录名，会自动进行URL编码处理。图片访问URL可以直接在浏览器中打开。"
             type="info"
             showIcon
+            style={{ fontSize: isMobile ? "13px" : "14px" }}
           />
         </Space>
       </Card>

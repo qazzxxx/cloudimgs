@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Layout, Menu, theme, message, ConfigProvider } from "antd";
+import {
+  Layout,
+  Menu,
+  theme,
+  message,
+  ConfigProvider,
+  Grid,
+  Button,
+  Drawer,
+} from "antd";
 import {
   BrowserRouter as Router,
   Routes,
@@ -14,6 +23,7 @@ import {
   CodeOutlined,
   FileZipOutlined,
   ToolOutlined,
+  MenuOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./components/UploadComponent";
 import ImageGallery from "./components/ImageGallery";
@@ -33,12 +43,18 @@ function AppContent({ currentTheme, onThemeChange }) {
   const [stats, setStats] = useState({});
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { useBreakpoint } = Grid;
+  const screens = useBreakpoint();
 
   const {
     token: { colorBgContainer, borderRadiusLG, colorBorder },
   } = theme.useToken();
+
+  // 判断是否为移动端
+  const isMobile = !screens.md;
 
   // 根据当前路由设置选中的菜单项
   useEffect(() => {
@@ -135,6 +151,12 @@ function AppContent({ currentTheme, onThemeChange }) {
     setOpenKeys(keys);
   };
 
+  // 移动端菜单点击后自动关闭抽屉
+  const handleMobileMenuClick = ({ key }) => {
+    handleMenuClick({ key });
+    setMobileMenuOpen(false);
+  };
+
   useEffect(() => {
     fetchStats();
     fetchImages();
@@ -184,39 +206,87 @@ function AppContent({ currentTheme, onThemeChange }) {
           justifyContent: "space-between",
           background: colorBgContainer,
           borderBottom: `1px solid ${colorBorder}`,
-          padding: "0 24px",
+          padding: isMobile ? "0 16px" : "0 24px",
+          height: isMobile ? "56px" : "64px",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
+          {isMobile && (
+            <Button
+              type="text"
+              icon={<MenuOutlined />}
+              onClick={() => setMobileMenuOpen(true)}
+              style={{
+                marginRight: 12,
+                fontSize: "16px",
+                color: "inherit",
+              }}
+            />
+          )}
           <LogoWithText
-            size={32}
-            titleLevel={3}
+            size={isMobile ? 24 : 32}
+            titleLevel={isMobile ? 4 : 3}
             style={{ verticalAlign: "middle" }}
           />
         </div>
         <ThemeSwitcher theme={currentTheme} onThemeChange={onThemeChange} />
       </Header>
       <Layout>
-        <Sider width={200} style={{ background: colorBgContainer }}>
-          <Menu
-            mode="inline"
-            selectedKeys={[selectedKey]}
-            openKeys={openKeys}
-            style={{
-              height: "100%",
-              borderRight: 0,
+        {/* 桌面端侧边栏 */}
+        {!isMobile && (
+          <Sider width={200} style={{ background: colorBgContainer }}>
+            <Menu
+              mode="inline"
+              selectedKeys={[selectedKey]}
+              openKeys={openKeys}
+              style={{
+                height: "100%",
+                borderRight: 0,
+                background: colorBgContainer,
+              }}
+              items={menuItems}
+              onClick={handleMenuClick}
+              onOpenChange={handleOpenChange}
+              theme={currentTheme}
+            />
+          </Sider>
+        )}
+
+        {/* 移动端抽屉菜单 */}
+        {isMobile && (
+          <Drawer
+            title="菜单"
+            placement="left"
+            onClose={() => setMobileMenuOpen(false)}
+            open={mobileMenuOpen}
+            width={280}
+            bodyStyle={{ padding: 0 }}
+            headerStyle={{
               background: colorBgContainer,
+              borderBottom: `1px solid ${colorBorder}`,
             }}
-            items={menuItems}
-            onClick={handleMenuClick}
-            onOpenChange={handleOpenChange}
-            theme={currentTheme}
-          />
-        </Sider>
-        <Layout style={{ padding: "24px" }}>
+          >
+            <Menu
+              mode="inline"
+              selectedKeys={[selectedKey]}
+              openKeys={openKeys}
+              style={{
+                height: "100%",
+                borderRight: 0,
+                background: colorBgContainer,
+              }}
+              items={menuItems}
+              onClick={handleMobileMenuClick}
+              onOpenChange={handleOpenChange}
+              theme={currentTheme}
+            />
+          </Drawer>
+        )}
+
+        <Layout style={{ padding: isMobile ? "16px" : "24px" }}>
           <Content
             style={{
-              padding: 24,
+              padding: isMobile ? 16 : 24,
               margin: 0,
               minHeight: 280,
               background: colorBgContainer,
