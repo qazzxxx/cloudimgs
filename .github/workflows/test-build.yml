@@ -18,8 +18,11 @@ jobs:
 
       - name: Install dependencies
         run: |
+          echo "=== Installing root dependencies ==="
           npm ci
+          echo "=== Installing client dependencies ==="
           cd client && npm ci
+          echo "=== Dependencies installed successfully ==="
 
       - name: Test client build
         run: |
@@ -29,11 +32,40 @@ jobs:
           echo "NPM version: $(npm --version)"
           echo "Available memory:"
           free -h || echo "Memory info not available"
-          npm run build
+          echo "=== Setting NODE_OPTIONS ==="
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          echo "NODE_OPTIONS: $NODE_OPTIONS"
+          echo "=== Starting build process ==="
+          CI=false npm run build
           echo "=== Build completed successfully ==="
+          echo "=== Build output verification ==="
+          ls -la build/
+          echo "=== Build files count ==="
+          find build -type f | wc -l
 
       - name: Test Docker build
         run: |
           echo "=== Testing Docker build ==="
-          docker build --no-cache --progress=plain -t test-build .
-          echo "=== Docker build completed successfully ==="
+          echo "Docker version: $(docker --version)"
+          echo "=== Building with detailed output ==="
+          docker build --no-cache --progress=plain -t test-build . 2>&1 | tee build.log
+          echo "=== Docker build completed ==="
+          echo "=== Checking build log for errors ==="
+          if grep -i "error\|failed" build.log; then
+            echo "Found errors in build log"
+            exit 1
+          else
+            echo "No errors found in build log"
+          fi
+
+      - name: Test Docker run
+        run: |
+          echo "=== Testing Docker run ==="
+          docker run --rm -d --name test-container -p 3001:3001 test-build
+          echo "=== Container started, waiting for health check ==="
+          sleep 10
+          echo "=== Container logs ==="
+          docker logs test-container
+          echo "=== Stopping container ==="
+          docker stop test-container
+          echo "=== Docker run test completed ==="

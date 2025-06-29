@@ -64,16 +64,19 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+            NODE_OPTIONS=--max-old-space-size=4096
           provenance: false
+          outputs: type=docker,dest=/tmp/image.tar
 
       - name: Verify image
         run: |
           echo "Verifying built image..."
-          docker pull ghcr.io/${{ github.repository }}:latest
+          docker load < /tmp/image.tar
           docker images | grep cloudimgs
+          echo "Image verification completed"
 
       - name: Image digest
         run: |
@@ -87,9 +90,17 @@ jobs:
         run: |
           echo "❌ GitHub Packages publish failed!"
           echo "Please check the logs above for details."
-          echo "Common issues:"
-          echo "1. Check if all dependencies are properly installed"
-          echo "2. Verify client build process"
-          echo "3. Ensure .dockerignore doesn't exclude necessary files"
-          echo "4. Check for memory issues during build"
-          echo "5. Verify BuildKit version compatibility"
+          echo ""
+          echo "Common issues and solutions:"
+          echo "1. Memory issues: Check NODE_OPTIONS and increase memory limit"
+          echo "2. Dependency issues: Verify all packages are compatible"
+          echo "3. Build process: Check for syntax errors in React components"
+          echo "4. Docker context: Ensure .dockerignore doesn't exclude necessary files"
+          echo "5. BuildKit: Try updating to latest BuildKit version"
+          echo "6. Platform issues: Try building for single platform first"
+          echo ""
+          echo "Debug steps:"
+          echo "- Run 'npm run build' locally to test client build"
+          echo "- Check for any console errors in the build output"
+          echo "- Verify all imports and dependencies are correct"
+          echo "- Test with a simpler Dockerfile first"

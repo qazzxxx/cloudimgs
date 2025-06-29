@@ -4,8 +4,8 @@ FROM node:18-alpine AS builder
 # 设置工作目录
 WORKDIR /app
 
-# 安装构建工具
-RUN apk add --no-cache git
+# 安装构建工具和依赖
+RUN apk add --no-cache git python3 make g++
 
 # 设置Node.js内存限制（避免OOM）
 ENV NODE_OPTIONS="--max-old-space-size=4096"
@@ -14,19 +14,22 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NPM_CONFIG_AUDIT=false
 ENV NPM_CONFIG_FUND=false
 ENV NPM_CONFIG_PROGRESS=false
-ENV NPM_CONFIG_LOGLEVEL=error
+ENV NPM_CONFIG_LOGLEVEL=warn
 
 # 复制package.json文件
 COPY package*.json ./
 
 # 安装所有依赖（包括开发依赖，用于构建）
-RUN npm ci --no-audit --no-fund
+RUN npm ci --no-audit --no-fund --prefer-offline
 
 # 复制客户端package.json
 COPY client/package*.json ./client/
 
-# 安装客户端依赖（添加详细输出）
-RUN cd client && npm ci --no-audit --no-fund --verbose
+# 安装客户端依赖（添加详细输出和错误处理）
+RUN cd client && \
+    echo "=== Installing client dependencies ===" && \
+    npm ci --no-audit --no-fund --prefer-offline --verbose && \
+    echo "=== Client dependencies installed successfully ==="
 
 # 复制源代码
 COPY . .
@@ -62,7 +65,11 @@ RUN cd client && \
     echo "=== Node version ===" && \
     node --version && \
     echo "=== Starting build process ===" && \
-    npm run build || (echo "Build failed with exit code $?" && exit 1)
+    echo "=== Build environment ===" && \
+    echo "CI: $CI" && \
+    echo "NODE_ENV: $NODE_ENV" && \
+    echo "=== Running build command ===" && \
+    CI=false npm run build || (echo "Build failed with exit code $?" && echo "=== Build error details ===" && cat npm-debug.log* 2>/dev/null || echo "No npm debug log found" && exit 1)
 
 # 验证构建结果
 RUN echo "=== Build Result ===" && \

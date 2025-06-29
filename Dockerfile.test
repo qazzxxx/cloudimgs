@@ -1,0 +1,44 @@
+# 简化的测试Dockerfile
+FROM node:18-alpine
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装构建工具
+RUN apk add --no-cache git python3 make g++
+
+# 设置环境变量
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV CI=false
+ENV NODE_ENV=production
+
+# 复制package.json文件
+COPY package*.json ./
+COPY client/package*.json ./client/
+
+# 安装依赖
+RUN npm ci --no-audit --no-fund
+RUN cd client && npm ci --no-audit --no-fund
+
+# 复制源代码
+COPY . .
+
+# 构建客户端
+RUN cd client && \
+    echo "=== Build environment ===" && \
+    node --version && \
+    npm --version && \
+    echo "NODE_OPTIONS: $NODE_OPTIONS" && \
+    echo "CI: $CI" && \
+    echo "NODE_ENV: $NODE_ENV" && \
+    echo "=== Starting build ===" && \
+    npm run build
+
+# 验证构建结果
+RUN echo "=== Build verification ===" && \
+    ls -la client/build/ && \
+    echo "Build completed successfully"
+
+# 启动应用
+EXPOSE 3001
+CMD ["npm", "start"] 
