@@ -219,23 +219,221 @@ const UploadComponent = ({ onUploadSuccess }) => {
       )}
 
       <Card title="API 接口" style={{ marginTop: 24 }}>
-        <Space direction="vertical" style={{ width: "100%" }}>
+        <Space direction="vertical" style={{ width: "100%" }} size="large">
           <div>
-            <Text strong>上传图片：</Text>
+            <Title level={4}>📤 上传图片</Title>
             <Text code>POST /api/upload</Text>
+            <br />
+            <Text strong>参数说明：</Text>
+            <ul style={{ marginTop: 8 }}>
+              <li>
+                <Text code>image</Text> (必需): 图片文件，支持
+                multipart/form-data
+              </li>
+              <li>
+                <Text code>dir</Text> (可选): 子目录路径，如 "2024/06/10" 或
+                "相册/家庭"
+              </li>
+            </ul>
+            <Text strong>支持格式：</Text> JPG, PNG, GIF, WebP, BMP, SVG
+            <br />
+            <Text strong>文件大小限制：</Text> 最大 10MB
+            <br />
+            <Text strong>curl 示例：</Text>
+            <pre
+              style={{
+                backgroundColor: "#f5f5f5",
+                padding: "12px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                overflow: "auto",
+              }}
+            >
+              {`# 上传到根目录
+curl -X POST http://localhost:3001/api/upload \\
+  -F "image=@/path/to/your/image.jpg"
+
+# 上传到指定子目录
+curl -X POST "http://localhost:3001/api/upload?dir=2024/06/10" \\
+  -F "image=@/path/to/your/image.jpg"
+
+# 上传中文文件名图片
+curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \\
+  -F "image=@/path/to/你的图片.jpg"`}
+            </pre>
+            <Text strong>响应示例：</Text>
+            <pre
+              style={{
+                backgroundColor: "#f5f5f5",
+                padding: "12px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                overflow: "auto",
+              }}
+            >
+              {`{
+  "success": true,
+  "message": "图片上传成功",
+  "data": {
+    "filename": "image.jpg",
+    "originalName": "原始文件名.jpg",
+    "size": 1024000,
+    "mimetype": "image/jpeg",
+    "uploadTime": "2024-01-01T12:00:00.000Z",
+    "url": "/api/images/image.jpg",
+    "relPath": "image.jpg"
+  }
+}`}
+            </pre>
           </div>
+
           <div>
-            <Text strong>获取随机图片：</Text>
-            <Text code>GET /api/random</Text>
-          </div>
-          <div>
-            <Text strong>获取图片列表：</Text>
+            <Title level={4}>📋 获取图片列表</Title>
             <Text code>GET /api/images</Text>
+            <br />
+            <Text strong>参数说明：</Text>
+            <ul style={{ marginTop: 8 }}>
+              <li>
+                <Text code>dir</Text> (可选): 指定目录路径，如 "2024/06/10"
+              </li>
+            </ul>
+            <Text strong>curl 示例：</Text>
+            <pre
+              style={{
+                backgroundColor: "#f5f5f5",
+                padding: "12px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                overflow: "auto",
+              }}
+            >
+              {`# 获取根目录所有图片
+curl http://localhost:3001/api/images
+
+# 获取指定目录图片
+curl "http://localhost:3001/api/images?dir=2024/06/10"`}
+            </pre>
           </div>
+
           <div>
-            <Text strong>获取统计信息：</Text>
-            <Text code>GET /api/stats</Text>
+            <Title level={4}>🎲 获取随机图片</Title>
+            <Text code>GET /api/random</Text>
+            <br />
+            <Text strong>参数说明：</Text>
+            <ul style={{ marginTop: 8 }}>
+              <li>
+                <Text code>dir</Text> (可选): 指定目录路径
+              </li>
+            </ul>
+            <Text strong>curl 示例：</Text>
+            <pre
+              style={{
+                backgroundColor: "#f5f5f5",
+                padding: "12px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                overflow: "auto",
+              }}
+            >
+              {`# 获取根目录随机图片
+curl http://localhost:3001/api/random
+
+# 获取指定目录随机图片
+curl "http://localhost:3001/api/random?dir=2024/06/10"`}
+            </pre>
           </div>
+
+          <div>
+            <Title level={4}>📊 获取统计信息</Title>
+            <Text code>GET /api/stats</Text>
+            <br />
+            <Text strong>参数说明：</Text>
+            <ul style={{ marginTop: 8 }}>
+              <li>
+                <Text code>dir</Text> (可选): 指定目录路径
+              </li>
+            </ul>
+            <Text strong>curl 示例：</Text>
+            <pre
+              style={{
+                backgroundColor: "#f5f5f5",
+                padding: "12px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                overflow: "auto",
+              }}
+            >
+              {`# 获取总体统计
+curl http://localhost:3001/api/stats
+
+# 获取指定目录统计
+curl "http://localhost:3001/api/stats?dir=2024/06/10"`}
+            </pre>
+          </div>
+
+          <div>
+            <Title level={4}>📁 获取目录列表</Title>
+            <Text code>GET /api/directories</Text>
+            <br />
+            <Text strong>参数说明：</Text>
+            <ul style={{ marginTop: 8 }}>
+              <li>
+                <Text code>dir</Text> (可选): 指定父目录路径
+              </li>
+            </ul>
+            <Text strong>curl 示例：</Text>
+            <pre
+              style={{
+                backgroundColor: "#f5f5f5",
+                padding: "12px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                overflow: "auto",
+              }}
+            >
+              {`# 获取根目录下的子目录
+curl http://localhost:3001/api/directories
+
+# 获取指定目录下的子目录
+curl "http://localhost:3001/api/directories?dir=2024"`}
+            </pre>
+          </div>
+
+          <div>
+            <Title level={4}>🗑️ 删除图片</Title>
+            <Text code>DELETE /api/images/{"{图片路径}"}</Text>
+            <br />
+            <Text strong>参数说明：</Text>
+            <ul style={{ marginTop: 8 }}>
+              <li>
+                <Text code>图片路径</Text> (必需): 图片的相对路径，如
+                "image.jpg" 或 "2024/06/10/image.jpg"
+              </li>
+            </ul>
+            <Text strong>curl 示例：</Text>
+            <pre
+              style={{
+                backgroundColor: "#f5f5f5",
+                padding: "12px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                overflow: "auto",
+              }}
+            >
+              {`# 删除根目录图片
+curl -X DELETE "http://localhost:3001/api/images/image.jpg"
+
+# 删除子目录图片
+curl -X DELETE "http://localhost:3001/api/images/2024/06/10/image.jpg"`}
+            </pre>
+          </div>
+
+          <Alert
+            message="注意事项"
+            description="所有API都支持中文文件名和目录名，会自动进行URL编码处理。图片访问URL可以直接在浏览器中打开。"
+            type="info"
+            showIcon
+          />
         </Space>
       </Card>
     </div>

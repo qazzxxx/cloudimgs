@@ -196,50 +196,6 @@ const StatsComponent = () => {
           </Col>
         </Row>
       </Card>
-
-      <Card title="API 接口说明" style={{ marginTop: 24 }}>
-        <Space direction="vertical" style={{ width: "100%" }}>
-          <div>
-            <Text strong>上传图片：</Text>
-            <br />
-            <Text code>POST /api/upload</Text>
-            <br />
-            <Text type="secondary">
-              使用 multipart/form-data 格式，字段名为 image
-            </Text>
-          </div>
-
-          <Divider />
-
-          <div>
-            <Text strong>获取随机图片：</Text>
-            <br />
-            <Text code>GET /api/random</Text>
-            <br />
-            <Text type="secondary">返回随机一张图片的信息</Text>
-          </div>
-
-          <Divider />
-
-          <div>
-            <Text strong>获取图片列表：</Text>
-            <br />
-            <Text code>GET /api/images</Text>
-            <br />
-            <Text type="secondary">返回所有图片的列表信息</Text>
-          </div>
-
-          <Divider />
-
-          <div>
-            <Text strong>获取统计信息：</Text>
-            <br />
-            <Text code>GET /api/stats</Text>
-            <br />
-            <Text type="secondary">返回存储统计信息</Text>
-          </div>
-        </Space>
-      </Card>
     </div>
   );
 };

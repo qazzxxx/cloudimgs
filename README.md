@@ -134,35 +134,224 @@ STORAGE_PATH=./uploads
 
 ## API 接口
 
-### 图片上传
+### 📤 图片上传
 
 ```
-POST /api/upload?dir=子目录路径
+POST /api/upload
 ```
 
-### 获取图片列表
+**参数说明：**
+
+- `image` (必需): 图片文件，支持 multipart/form-data
+- `dir` (可选): 子目录路径，如 "2024/06/10" 或 "相册/家庭"
+
+**支持格式：** JPG, PNG, GIF, WebP, BMP, SVG  
+**文件大小限制：** 最大 10MB
+
+**curl 示例：**
+
+```bash
+# 上传到根目录
+curl -X POST http://localhost:3001/api/upload \
+  -F "image=@/path/to/your/image.jpg"
+
+# 上传到指定子目录
+curl -X POST "http://localhost:3001/api/upload?dir=2024/06/10" \
+  -F "image=@/path/to/your/image.jpg"
+
+# 上传中文文件名图片
+curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \
+  -F "image=@/path/to/你的图片.jpg"
+```
+
+**响应示例：**
+
+```json
+{
+  "success": true,
+  "message": "图片上传成功",
+  "data": {
+    "filename": "image.jpg",
+    "originalName": "原始文件名.jpg",
+    "size": 1024000,
+    "mimetype": "image/jpeg",
+    "uploadTime": "2024-01-01T12:00:00.000Z",
+    "url": "/api/images/image.jpg",
+    "relPath": "image.jpg"
+  }
+}
+```
+
+### 📋 获取图片列表
 
 ```
-GET /api/images?dir=子目录路径
+GET /api/images
 ```
 
-### 获取目录列表
+**参数说明：**
+
+- `dir` (可选): 指定目录路径，如 "2024/06/10"
+
+**curl 示例：**
+
+```bash
+# 获取根目录所有图片
+curl http://localhost:3001/api/images
+
+# 获取指定目录图片
+curl "http://localhost:3001/api/images?dir=2024/06/10"
+```
+
+**响应示例：**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "filename": "image.jpg",
+      "relPath": "image.jpg",
+      "size": 1024000,
+      "uploadTime": "2024-01-01T12:00:00.000Z",
+      "url": "/api/images/image.jpg"
+    }
+  ]
+}
+```
+
+### 🎲 获取随机图片
+
+```
+GET /api/random
+```
+
+**参数说明：**
+
+- `dir` (可选): 指定目录路径
+
+**curl 示例：**
+
+```bash
+# 获取根目录随机图片
+curl http://localhost:3001/api/random
+
+# 获取指定目录随机图片
+curl "http://localhost:3001/api/random?dir=2024/06/10"
+```
+
+### 📊 获取统计信息
+
+```
+GET /api/stats
+```
+
+**参数说明：**
+
+- `dir` (可选): 指定目录路径
+
+**curl 示例：**
+
+```bash
+# 获取总体统计
+curl http://localhost:3001/api/stats
+
+# 获取指定目录统计
+curl "http://localhost:3001/api/stats?dir=2024/06/10"
+```
+
+**响应示例：**
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalImages": 100,
+    "totalSize": 104857600,
+    "storagePath": "/app/uploads"
+  }
+}
+```
+
+### 📁 获取目录列表
 
 ```
 GET /api/directories
 ```
 
-### 获取统计信息
+**参数说明：**
+
+- `dir` (可选): 指定父目录路径
+
+**curl 示例：**
+
+```bash
+# 获取根目录下的子目录
+curl http://localhost:3001/api/directories
+
+# 获取指定目录下的子目录
+curl "http://localhost:3001/api/directories?dir=2024"
+```
+
+**响应示例：**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "name": "2024",
+      "path": "2024",
+      "fullPath": "/app/uploads/2024"
+    }
+  ]
+}
+```
+
+### 🗑️ 删除图片
 
 ```
-GET /api/stats?dir=子目录路径
+DELETE /api/images/{图片路径}
 ```
 
-### 删除图片
+**参数说明：**
+
+- `图片路径` (必需): 图片的相对路径，如 "image.jpg" 或 "2024/06/10/image.jpg"
+
+**curl 示例：**
+
+```bash
+# 删除根目录图片
+curl -X DELETE "http://localhost:3001/api/images/image.jpg"
+
+# 删除子目录图片
+curl -X DELETE "http://localhost:3001/api/images/2024/06/10/image.jpg"
+```
+
+### 📖 图片访问
 
 ```
-DELETE /api/images/图片路径
+GET /api/images/{图片路径}
 ```
+
+**说明：** 直接访问图片文件，支持中文文件名和目录名
+
+**示例：**
+
+```bash
+# 访问根目录图片
+curl http://localhost:3001/api/images/image.jpg
+
+# 访问子目录图片
+curl http://localhost:3001/api/images/2024/06/10/image.jpg
+```
+
+### ⚠️ 注意事项
+
+- 所有 API 都支持中文文件名和目录名，会自动进行 URL 编码处理
+- 图片访问 URL 可以直接在浏览器中打开
+- 目录路径支持无限层级嵌套
+- 文件名会自动处理特殊字符，但保留中文字符
+- 上传时会自动检查文件类型和大小限制
 
 ## 更新日志
 
