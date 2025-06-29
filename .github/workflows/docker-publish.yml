@@ -78,7 +78,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest
 
       - name: Extract metadata for Docker Hub
         id: meta-dockerhub
@@ -90,7 +90,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest
 
       - name: Build and push to GitHub Packages
         if: github.event.inputs.registry == 'ghcr' || github.event.inputs.registry == 'both' || github.event_name == 'push'
