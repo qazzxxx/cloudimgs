@@ -67,6 +67,8 @@ buildx failed with: ERROR: failed to build: invalid tag "ghcr.io/Qazzxxx/cloudim
 - 使用 `github.repository_owner` 而不是 `github.repository`
 - 确保镜像名称全部小写
 - 运行 `./validate-image-name.sh` 验证正确的镜像名称
+- 使用 `tr '[:upper:]' '[:lower:]'` 强制转换为小写
+- 或者直接硬编码小写名称：`ghcr.io/qazzxxx/cloudimgs:latest`
 
 ## 已实施的修复
 
@@ -83,6 +85,7 @@ buildx failed with: ERROR: failed to build: invalid tag "ghcr.io/Qazzxxx/cloudim
 - 增加了详细的错误报告
 - 添加了构建参数传递
 - 修复了镜像标签大小写问题
+- 添加了动态小写转换逻辑
 
 ### 3. 测试脚本
 
@@ -91,6 +94,7 @@ buildx failed with: ERROR: failed to build: invalid tag "ghcr.io/Qazzxxx/cloudim
 - 创建了 GitHub Actions 专用 Dockerfile `Dockerfile.gha`
 - 创建了调试脚本 `debug-gha.sh`
 - 创建了镜像名称验证脚本 `validate-image-name.sh`
+- 创建了小写转换测试脚本 `test-lowercase.sh`
 
 ## 调试步骤
 
@@ -105,6 +109,9 @@ buildx failed with: ERROR: failed to build: invalid tag "ghcr.io/Qazzxxx/cloudim
 
 # 验证镜像名称
 ./validate-image-name.sh
+
+# 测试小写转换逻辑
+./test-lowercase.sh
 
 # 或者手动测试
 cd client
@@ -151,15 +158,23 @@ timeout: 30m # 增加构建超时时间
 
 ### 4. 使用简化的工作流
 
-尝试使用 `.github/workflows/package-simple.yml` 进行测试。
+尝试使用以下工作流之一：
+
+- `.github/workflows/package-simple.yml` - 动态小写转换
+- `.github/workflows/package-fixed.yml` - 硬编码小写名称
 
 ### 5. 正确的镜像名称格式
 
 ```yaml
-# 使用 repository_owner 确保小写
-images: ghcr.io/${{ github.repository_owner }}/cloudimgs
-# 或者
-tags: ghcr.io/${{ github.repository_owner }}/cloudimgs:latest
+# 方法1: 动态小写转换
+- name: Generate lowercase image name
+  id: image_name
+  run: |
+    OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+    echo "image_name=ghcr.io/$OWNER/cloudimgs" >> $GITHUB_OUTPUT
+
+# 方法2: 直接使用小写
+tags: ghcr.io/qazzxxx/cloudimgs:latest
 ```
 
 ## 预防措施
@@ -215,6 +230,7 @@ tags: ghcr.io/${{ github.repository_owner }}/cloudimgs:latest
 3. 检查是否有特定的错误模式
 4. 验证 PAT_TOKEN 权限配置
 5. 运行 `./validate-image-name.sh` 验证镜像名称
+6. 运行 `./test-lowercase.sh` 测试小写转换
 
 ## 相关文件
 
@@ -224,6 +240,8 @@ tags: ghcr.io/${{ github.repository_owner }}/cloudimgs:latest
 - `test-build.sh` - 本地测试脚本
 - `debug-gha.sh` - GitHub Actions 环境调试脚本
 - `validate-image-name.sh` - 镜像名称验证脚本
+- `test-lowercase.sh` - 小写转换测试脚本
 - `.github/workflows/package.yml` - GitHub Packages 工作流
-- `.github/workflows/package-simple.yml` - 简化的工作流
+- `.github/workflows/package-simple.yml` - 简化的工作流（动态小写）
+- `.github/workflows/package-fixed.yml` - 固定工作流（硬编码小写）
 - `.github/workflows/test-build.yml` - 测试构建工作流
