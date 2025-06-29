@@ -393,3 +393,14 @@ app.get("/api/config", (req, res) => {
     res.status(500).json({ error: "获取配置失败" });
   }
 });
+
+// 路由回退处理 - 所有非API路由都返回React应用
+app.get("*", (req, res) => {
+  // 如果是API路由，不处理
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ error: "API接口不存在" });
+  }
+
+  // 对于所有其他路由，返回React应用的index.html
+  res.sendFile(path.join(__dirname, "../client/build/index.html"));
+});

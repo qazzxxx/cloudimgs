@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Layout, Menu, theme, message } from "antd";
 import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
+import {
   UploadOutlined,
   PictureOutlined,
   DashboardOutlined,
@@ -13,15 +20,30 @@ import axios from "axios";
 
 const { Header, Content, Sider } = Layout;
 
-function App() {
+// 主应用组件
+function AppContent() {
   const [selectedKey, setSelectedKey] = useState("upload");
   const [stats, setStats] = useState({});
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
+
+  // 根据当前路由设置选中的菜单项
+  useEffect(() => {
+    const path = location.pathname;
+    if (path === "/" || path === "/upload") {
+      setSelectedKey("upload");
+    } else if (path === "/gallery") {
+      setSelectedKey("gallery");
+    } else if (path === "/stats") {
+      setSelectedKey("stats");
+    }
+  }, [location.pathname]);
 
   // 获取统计信息
   const fetchStats = async () => {
@@ -68,6 +90,24 @@ function App() {
     fetchStats();
   };
 
+  // 菜单点击处理
+  const handleMenuClick = ({ key }) => {
+    setSelectedKey(key);
+    switch (key) {
+      case "upload":
+        navigate("/upload");
+        break;
+      case "gallery":
+        navigate("/gallery");
+        break;
+      case "stats":
+        navigate("/stats");
+        break;
+      default:
+        navigate("/upload");
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchImages();
@@ -90,26 +130,6 @@ function App() {
       label: "统计信息",
     },
   ];
-
-  const renderContent = () => {
-    switch (selectedKey) {
-      case "upload":
-        return <UploadComponent onUploadSuccess={handleUploadSuccess} />;
-      case "gallery":
-        return (
-          <ImageGallery
-            images={images}
-            loading={loading}
-            onDelete={handleDeleteImage}
-            onRefresh={fetchImages}
-          />
-        );
-      case "stats":
-        return <StatsComponent stats={stats} />;
-      default:
-        return <UploadComponent onUploadSuccess={handleUploadSuccess} />;
-    }
-  };
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -136,7 +156,7 @@ function App() {
             selectedKeys={[selectedKey]}
             style={{ height: "100%", borderRight: 0 }}
             items={menuItems}
-            onClick={({ key }) => setSelectedKey(key)}
+            onClick={handleMenuClick}
           />
         </Sider>
         <Layout style={{ padding: "24px" }}>
@@ -149,11 +169,51 @@ function App() {
               borderRadius: borderRadiusLG,
             }}
           >
-            {renderContent()}
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <UploadComponent onUploadSuccess={handleUploadSuccess} />
+                }
+              />
+              <Route
+                path="/upload"
+                element={
+                  <UploadComponent onUploadSuccess={handleUploadSuccess} />
+                }
+              />
+              <Route
+                path="/gallery"
+                element={
+                  <ImageGallery
+                    images={images}
+                    loading={loading}
+                    onDelete={handleDeleteImage}
+                    onRefresh={fetchImages}
+                  />
+                }
+              />
+              <Route path="/stats" element={<StatsComponent stats={stats} />} />
+              <Route
+                path="*"
+                element={
+                  <UploadComponent onUploadSuccess={handleUploadSuccess} />
+                }
+              />
+            </Routes>
           </Content>
         </Layout>
       </Layout>
     </Layout>
+  );
+}
+
+// 主App组件
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 
