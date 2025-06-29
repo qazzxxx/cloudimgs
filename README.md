@@ -88,7 +88,25 @@ cd client
 npm start
 ```
 
-### 快速部署 - docker-componse.yml
+### 快速部署 - docker-compose.yml
+
+```yaml
+version: "3.8"
+
+services:
+  cloudimgs:
+    # 使用 GitHub Packages 镜像
+    image: ghcr.io/qazzxxx/cloudimgs:latest
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./uploads:/app/uploads # 上传目录配置
+      - ./logs:/app/logs
+    restart: unless-stopped
+    container_name: cloudimgs-app
+```
+
+### 快速部署 - Docker Hub
 
 ```yaml
 version: "3.8"
