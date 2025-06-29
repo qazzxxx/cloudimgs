@@ -80,6 +80,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_tag}}
 
       - name: Extract metadata for Docker Hub
         id: meta-dockerhub
@@ -93,6 +94,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_tag}}
 
       - name: Build and push to GitHub Packages
         if: github.event.inputs.registry == 'ghcr' || github.event.inputs.registry == 'both' || github.event_name == 'push'
@@ -124,8 +126,12 @@ jobs:
           if [[ "${{ github.event.inputs.registry }}" == "ghcr" || "${{ github.event.inputs.registry }}" == "both" || "${{ github.event_name }}" == "push" ]]; then
             echo "GitHub Packages: ${{ steps.image_names.outputs.ghcr_image }}"
             echo "Tags: ${{ steps.meta-ghcr.outputs.tags }}"
+            echo "Debug - GitHub Packages tags:"
+            echo "${{ steps.meta-ghcr.outputs.tags }}" | tr ',' '\n' | sed 's/^/  /'
           fi
           if [[ "${{ github.event.inputs.registry }}" == "dockerhub" || "${{ github.event.inputs.registry }}" == "both" || "${{ github.event_name }}" == "push" ]]; then
             echo "Docker Hub: ${{ steps.image_names.outputs.dockerhub_image }}"
             echo "Tags: ${{ steps.meta-dockerhub.outputs.tags }}"
+            echo "Debug - Docker Hub tags:"
+            echo "${{ steps.meta-dockerhub.outputs.tags }}" | tr ',' '\n' | sed 's/^/  /'
           fi
