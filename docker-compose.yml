@@ -10,10 +10,3 @@ services:
       - ./uploads:/app/uploads:rw # 上传目录配置，明确读写权限
     restart: unless-stopped
     container_name: cloudimgs-app
-    # 添加健康检查
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/stats"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
