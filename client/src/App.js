@@ -243,6 +243,7 @@ function AppContent({ currentTheme, onThemeChange }) {
                 height: "100%",
                 borderRight: 0,
                 background: colorBgContainer,
+                color: currentTheme === "dark" ? "#ffffff" : "#000000",
               }}
               items={menuItems}
               onClick={handleMenuClick}
@@ -274,6 +275,7 @@ function AppContent({ currentTheme, onThemeChange }) {
                 height: "100%",
                 borderRight: 0,
                 background: colorBgContainer,
+                color: currentTheme === "dark" ? "#ffffff" : "#000000",
               }}
               items={menuItems}
               onClick={handleMobileMenuClick}
@@ -398,16 +400,46 @@ function App() {
             itemSelectedColor: currentTheme === "dark" ? "#177ddc" : "#1677ff",
             itemColor: currentTheme === "dark" ? "#ffffff" : "#000000",
             itemHoverColor: currentTheme === "dark" ? "#177ddc" : "#1677ff",
-            // 子菜单样式
-            subMenuItemBg: currentTheme === "dark" ? "#1a1a1a" : "#fafafa",
+            // 子菜单样式 - 修复暗黑模式下的背景色
+            subMenuItemBg: currentTheme === "dark" ? "#141414" : "#fafafa",
             darkItemBg: currentTheme === "dark" ? "#141414" : "#ffffff",
             darkItemSelectedBg:
               currentTheme === "dark" ? "#177ddc30" : "#e6f4ff",
             darkItemHoverBg: currentTheme === "dark" ? "#177ddc20" : "#f5f5f5",
+            // 子菜单展开时的背景色
+            darkSubMenuItemBg: currentTheme === "dark" ? "#141414" : "#fafafa",
+            // 确保子菜单背景色一致
+            popupBg: currentTheme === "dark" ? "#141414" : "#ffffff",
+            darkPopupBg: currentTheme === "dark" ? "#141414" : "#ffffff",
           },
         },
       }}
     >
+      {/* 添加自定义样式确保子菜单背景色一致 */}
+      <style>
+        {`
+          .ant-menu-submenu-popup .ant-menu {
+            background-color: ${
+              currentTheme === "dark" ? "#141414" : "#ffffff"
+            } !important;
+          }
+          .ant-menu-submenu-popup .ant-menu-item {
+            background-color: ${
+              currentTheme === "dark" ? "#141414" : "#ffffff"
+            } !important;
+          }
+          .ant-menu-submenu-popup .ant-menu-item:hover {
+            background-color: ${
+              currentTheme === "dark" ? "#177ddc20" : "#f5f5f5"
+            } !important;
+          }
+          .ant-menu-submenu-popup .ant-menu-item-selected {
+            background-color: ${
+              currentTheme === "dark" ? "#177ddc30" : "#e6f4ff"
+            } !important;
+          }
+        `}
+      </style>
       <Router>
         <AppContent
           currentTheme={currentTheme}
