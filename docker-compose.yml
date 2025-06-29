@@ -2,15 +2,12 @@ version: "3.8"
 
 services:
   cloudimgs:
-    # 使用本地构建（开发模式）
-    build: .
-    # 或使用 Docker Hub 上的镜像（生产模式）
-    # image: qazzxxx/cloudimgs:latest
+    # 使用 GitHub Packages 镜像
+    image: qazzxxx/cloudimgs:latest
     ports:
       - "3001:3001"
     volumes:
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
+      - ./uploads:/app/uploads:rw # 上传目录配置，明确读写权限
     restart: unless-stopped
     container_name: cloudimgs-app
     # 添加健康检查
