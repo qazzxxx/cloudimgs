@@ -11,10 +11,15 @@ import {
   UploadOutlined,
   PictureOutlined,
   DashboardOutlined,
+  CodeOutlined,
+  FileZipOutlined,
+  ToolOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./components/UploadComponent";
 import ImageGallery from "./components/ImageGallery";
 import StatsComponent from "./components/StatsComponent";
+import SvgToPngTool from "./components/SvgToPngTool";
+import ImageCompressor from "./components/ImageCompressor";
 import LogoWithText from "./components/LogoWithText";
 import axios from "axios";
 
@@ -23,6 +28,7 @@ const { Header, Content, Sider } = Layout;
 // 主应用组件
 function AppContent() {
   const [selectedKey, setSelectedKey] = useState("upload");
+  const [openKeys, setOpenKeys] = useState([]);
   const [stats, setStats] = useState({});
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -38,10 +44,19 @@ function AppContent() {
     const path = location.pathname;
     if (path === "/" || path === "/upload") {
       setSelectedKey("upload");
+      setOpenKeys([]);
     } else if (path === "/gallery") {
       setSelectedKey("gallery");
+      setOpenKeys([]);
     } else if (path === "/stats") {
       setSelectedKey("stats");
+      setOpenKeys([]);
+    } else if (path === "/svg-tool") {
+      setSelectedKey("svg-tool");
+      setOpenKeys(["tools"]);
+    } else if (path === "/compressor") {
+      setSelectedKey("compressor");
+      setOpenKeys(["tools"]);
     }
   }, [location.pathname]);
 
@@ -103,9 +118,20 @@ function AppContent() {
       case "stats":
         navigate("/stats");
         break;
+      case "svg-tool":
+        navigate("/svg-tool");
+        break;
+      case "compressor":
+        navigate("/compressor");
+        break;
       default:
         navigate("/upload");
     }
+  };
+
+  // 菜单展开/收起处理
+  const handleOpenChange = (keys) => {
+    setOpenKeys(keys);
   };
 
   useEffect(() => {
@@ -128,6 +154,23 @@ function AppContent() {
       key: "stats",
       icon: <DashboardOutlined />,
       label: "统计信息",
+    },
+    {
+      key: "tools",
+      icon: <ToolOutlined />,
+      label: "辅助工具",
+      children: [
+        {
+          key: "svg-tool",
+          icon: <CodeOutlined />,
+          label: "SVG工具",
+        },
+        {
+          key: "compressor",
+          icon: <FileZipOutlined />,
+          label: "图片压缩",
+        },
+      ],
     },
   ];
 
@@ -154,9 +197,11 @@ function AppContent() {
           <Menu
             mode="inline"
             selectedKeys={[selectedKey]}
+            openKeys={openKeys}
             style={{ height: "100%", borderRight: 0 }}
             items={menuItems}
             onClick={handleMenuClick}
+            onOpenChange={handleOpenChange}
           />
         </Sider>
         <Layout style={{ padding: "24px" }}>
@@ -194,6 +239,16 @@ function AppContent() {
                 }
               />
               <Route path="/stats" element={<StatsComponent stats={stats} />} />
+              <Route
+                path="/svg-tool"
+                element={<SvgToPngTool onUploadSuccess={handleUploadSuccess} />}
+              />
+              <Route
+                path="/compressor"
+                element={
+                  <ImageCompressor onUploadSuccess={handleUploadSuccess} />
+                }
+              />
               <Route
                 path="*"
                 element={
