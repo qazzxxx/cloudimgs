@@ -79,7 +79,6 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
 
       - name: Extract metadata for Docker Hub
         id: meta-dockerhub
@@ -92,7 +91,21 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
+
+      - name: Add latest tags
+        id: latest_tags
+        run: |
+          # Add latest tag to GitHub Packages tags
+          if [[ "${{ github.event.inputs.registry }}" == "ghcr" || "${{ github.event.inputs.registry }}" == "both" || "${{ github.event_name }}" == "push" ]]; then
+            GHCR_TAGS="${{ steps.meta-ghcr.outputs.tags }},${{ steps.image_names.outputs.ghcr_image }}:latest"
+            echo "ghcr_tags_with_latest=$GHCR_TAGS" >> $GITHUB_OUTPUT
+          fi
+
+          # Add latest tag to Docker Hub tags
+          if [[ "${{ github.event.inputs.registry }}" == "dockerhub" || "${{ github.event.inputs.registry }}" == "both" || "${{ github.event_name }}" == "push" ]]; then
+            DOCKERHUB_TAGS="${{ steps.meta-dockerhub.outputs.tags }},${{ steps.image_names.outputs.dockerhub_image }}:latest"
+            echo "dockerhub_tags_with_latest=$DOCKERHUB_TAGS" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build and push to GitHub Packages
         if: github.event.inputs.registry == 'ghcr' || github.event.inputs.registry == 'both' || github.event_name == 'push'
@@ -101,7 +114,7 @@ jobs:
           context: .
           file: ./Dockerfile.gha
           push: true
-          tags: ${{ steps.meta-ghcr.outputs.tags }}
+          tags: ${{ steps.latest_tags.outputs.ghcr_tags_with_latest }}
           platforms: ${{ github.event.inputs.platforms || 'linux/amd64' }}
           build-args: |
             NODE_OPTIONS=--max-old-space-size=4096
@@ -113,7 +126,7 @@ jobs:
           context: .
           file: ./Dockerfile.gha
           push: true
-          tags: ${{ steps.meta-dockerhub.outputs.tags }}
+          tags: ${{ steps.latest_tags.outputs.dockerhub_tags_with_latest }}
           platforms: ${{ github.event.inputs.platforms || 'linux/amd64' }}
           build-args: |
             NODE_OPTIONS=--max-old-space-size=4096
@@ -123,13 +136,13 @@ jobs:
           echo "✅ Docker images published successfully!"
           if [[ "${{ github.event.inputs.registry }}" == "ghcr" || "${{ github.event.inputs.registry }}" == "both" || "${{ github.event_name }}" == "push" ]]; then
             echo "GitHub Packages: ${{ steps.image_names.outputs.ghcr_image }}"
-            echo "Tags: ${{ steps.meta-ghcr.outputs.tags }}"
+            echo "Tags: ${{ steps.latest_tags.outputs.ghcr_tags_with_latest }}"
             echo "Debug - GitHub Packages tags:"
-            echo "${{ steps.meta-ghcr.outputs.tags }}" | tr ',' '\n' | sed 's/^/  /'
+            echo "${{ steps.latest_tags.outputs.ghcr_tags_with_latest }}" | tr ',' '\n' | sed 's/^/  /'
           fi
           if [[ "${{ github.event.inputs.registry }}" == "dockerhub" || "${{ github.event.inputs.registry }}" == "both" || "${{ github.event_name }}" == "push" ]]; then
             echo "Docker Hub: ${{ steps.image_names.outputs.dockerhub_image }}"
-            echo "Tags: ${{ steps.meta-dockerhub.outputs.tags }}"
+            echo "Tags: ${{ steps.latest_tags.outputs.dockerhub_tags_with_latest }}"
             echo "Debug - Docker Hub tags:"
-            echo "${{ steps.meta-dockerhub.outputs.tags }}" | tr ',' '\n' | sed 's/^/  /'
+            echo "${{ steps.latest_tags.outputs.dockerhub_tags_with_latest }}" | tr ',' '\n' | sed 's/^/  /'
           fi
