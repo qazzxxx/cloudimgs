@@ -4,10 +4,11 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs-extra");
 const { v4: uuidv4 } = require("uuid");
+const config = require("../config");
 require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = config.server.port;
 
 // 中间件
 app.use(cors());
@@ -15,8 +16,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "../client/build")));
 
 // 配置存储路径
-const STORAGE_PATH =
-  process.env.STORAGE_PATH || path.join(__dirname, "../uploads");
+const STORAGE_PATH = config.storage.path;
 
 // 确保存储目录存在
 fs.ensureDirSync(STORAGE_PATH);
@@ -42,13 +42,29 @@ function sanitizeFilename(filename) {
       filename = filename.toString("utf8");
     }
     // 移除或替换不安全的字符，但保留中文字符
-    filename = filename.replace(/[<>:"/\\|?*]/g, "_");
+    if (config.storage.filename.sanitizeSpecialChars) {
+      filename = filename.replace(
+        /[<>:"/\\|?*]/g,
+        config.storage.filename.specialCharReplacement
+      );
+    }
     return filename;
   } catch (error) {
     console.warn("文件名处理错误:", error);
     // 如果解码失败，使用原始文件名但清理不安全字符
-    return filename.replace(/[<>:"/\\|?*]/g, "_");
+    return filename.replace(
+      /[<>:"/\\|?*]/g,
+      config.storage.filename.specialCharReplacement
+    );
   }
+}
+
+// 检查文件格式是否允许
+function isAllowedFile(file) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const isAllowedExt = config.upload.allowedExtensions.includes(ext);
+  const isAllowedMime = config.upload.allowedMimeTypes.includes(file.mimetype);
+  return isAllowedExt && isAllowedMime;
 }
 
 // 配置multer，支持多层目录和中文文件名
@@ -60,7 +76,9 @@ const storage = multer.diskStorage({
     const dest = safeJoin(STORAGE_PATH, dir);
     // 使用同步方式确保目录存在
     try {
-      fs.ensureDirSync(dest);
+      if (config.storage.autoCreateDirs) {
+        fs.ensureDirSync(dest);
+      }
       cb(null, dest);
     } catch (error) {
       cb(error);
@@ -86,9 +104,18 @@ const storage = multer.diskStorage({
     dir = dir.replace(/\\/g, "/");
     const dest = safeJoin(STORAGE_PATH, dir);
 
-    while (fs.existsSync(path.join(dest, finalName))) {
-      finalName = `${nameWithoutExt}_${Date.now()}_${counter}${ext}`;
-      counter++;
+    // 处理文件名冲突
+    if (!config.upload.allowDuplicateNames) {
+      while (fs.existsSync(path.join(dest, finalName))) {
+        if (config.upload.duplicateStrategy === "timestamp") {
+          finalName = `${nameWithoutExt}_${Date.now()}_${counter}${ext}`;
+        } else if (config.upload.duplicateStrategy === "counter") {
+          finalName = `${nameWithoutExt}_${counter}${ext}`;
+        } else if (config.upload.duplicateStrategy === "overwrite") {
+          break; // 直接覆盖
+        }
+        counter++;
+      }
     }
 
     console.log("保存文件名:", finalName, "原始文件名:", file.originalname);
@@ -99,19 +126,15 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp|bmp|svg/;
-    const extname = allowedTypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
-    const mimetype = allowedTypes.test(file.mimetype);
-    if (mimetype && extname) {
+    if (isAllowedFile(file)) {
       return cb(null, true);
     } else {
-      cb(new Error("只支持图片文件格式"));
+      const allowedFormats = config.upload.allowedExtensions.join(", ");
+      cb(new Error(`只支持以下图片格式: ${allowedFormats}`));
     }
   },
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB限制
+    fileSize: config.upload.maxFileSize,
   },
 });
 
@@ -128,9 +151,7 @@ async function getAllImages(dir = "") {
       results = results.concat(await getAllImages(relPath));
     } else {
       const ext = path.extname(file).toLowerCase();
-      if (
-        [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"].includes(ext)
-      ) {
+      if (config.upload.allowedExtensions.includes(ext)) {
         // 确保文件名编码正确
         const safeFilename = sanitizeFilename(file);
         results.push({
@@ -341,4 +362,34 @@ app.get("/api/stats", async (req, res) => {
 // 启动服务
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// 配置API接口
+app.get("/api/config", (req, res) => {
+  try {
+    // 返回前端需要的配置信息
+    const frontendConfig = {
+      upload: {
+        allowedExtensions: config.upload.allowedExtensions,
+        maxFileSize: config.upload.maxFileSize,
+        maxFileSizeMB:
+          Math.round((config.upload.maxFileSize / (1024 * 1024)) * 100) / 100,
+        allowedFormats: config.upload.allowedExtensions
+          .map((ext) => ext.replace(".", ""))
+          .join(", ")
+          .toUpperCase(),
+      },
+      storage: {
+        path: config.storage.path,
+      },
+    };
+
+    res.json({
+      success: true,
+      data: frontendConfig,
+    });
+  } catch (error) {
+    console.error("获取配置错误:", error);
+    res.status(500).json({ error: "获取配置失败" });
+  }
 });

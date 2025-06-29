@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Upload,
   Button,
@@ -36,20 +36,51 @@ const UploadComponent = ({ onUploadSuccess }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [dir, setDir] = useState("");
+  const [config, setConfig] = useState({
+    allowedExtensions: [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".gif",
+      ".webp",
+      ".bmp",
+      ".svg",
+    ],
+    maxFileSize: 10 * 1024 * 1024,
+    maxFileSizeMB: 10,
+    allowedFormats: "JPG, JPEG, PNG, GIF, WEBP, BMP, SVG",
+  });
+
+  // 获取配置
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await axios.get("/api/config");
+        if (response.data.success) {
+          setConfig(response.data.data.upload);
+        }
+      } catch (error) {
+        console.warn("获取配置失败，使用默认配置:", error);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   const uploadProps = {
     name: "image",
     multiple: true,
-    accept: "image/*",
+    accept: config.allowedExtensions
+      .map((ext) => `image/${ext.replace(".", "")}`)
+      .join(","),
     beforeUpload: (file) => {
       const isImage = file.type.startsWith("image/");
       if (!isImage) {
         message.error("只能上传图片文件！");
         return false;
       }
-      const isLt10M = file.size / 1024 / 1024 < 10;
-      if (!isLt10M) {
-        message.error("图片大小不能超过10MB！");
+      const isLtMax = file.size <= config.maxFileSize;
+      if (!isLtMax) {
+        message.error(`图片大小不能超过${config.maxFileSizeMB}MB！`);
         return false;
       }
       return true;
@@ -138,7 +169,7 @@ const UploadComponent = ({ onUploadSuccess }) => {
 
       <Alert
         message="上传说明"
-        description="支持 JPG、PNG、GIF、WebP、BMP、SVG 格式，单个文件最大 10MB"
+        description={`支持 ${config.allowedFormats} 格式，单个文件最大 ${config.maxFileSizeMB}MB`}
         type="info"
         showIcon
         icon={<InfoCircleOutlined />}

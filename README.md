@@ -116,9 +116,56 @@ services:
 创建 `.env` 文件：
 
 ```env
+# 服务器配置
 PORT=3001
+HOST=0.0.0.0
+
+# 存储配置
 STORAGE_PATH=./uploads
+
+# 上传配置（可选）
+MAX_FILE_SIZE=10485760  # 10MB in bytes
+ALLOWED_EXTENSIONS=.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg
+ALLOW_DUPLICATE_NAMES=false
+DUPLICATE_STRATEGY=timestamp  # timestamp, counter, overwrite
+
+# 存储配置（可选）
+AUTO_CREATE_DIRS=true
+KEEP_ORIGINAL_NAME=true
+SANITIZE_SPECIAL_CHARS=true
+SPECIAL_CHAR_REPLACEMENT=_
+
+# 安全配置（可选）
+ENABLE_PATH_VALIDATION=true
+FORBIDDEN_PATH_CHARS=..,\\
+MAX_DIRECTORY_DEPTH=10
+
+# 环境
+NODE_ENV=production
 ```
+
+### 配置文件
+
+项目使用 `config.js` 文件进行配置管理，支持以下配置项：
+
+#### 上传配置
+
+- `allowedExtensions`: 允许的文件格式扩展名数组
+- `maxFileSize`: 文件大小限制（字节）
+- `allowDuplicateNames`: 是否允许重复文件名
+- `duplicateStrategy`: 文件名冲突处理策略
+
+#### 存储配置
+
+- `path`: 存储路径
+- `autoCreateDirs`: 是否自动创建目录
+- `filename`: 文件名处理配置
+
+#### 安全配置
+
+- `enablePathValidation`: 是否启用路径安全检查
+- `forbiddenPathChars`: 禁止的路径字符
+- `maxDirectoryDepth`: 最大目录深度
 
 ### 存储路径
 
@@ -126,11 +173,11 @@ STORAGE_PATH=./uploads
 - 支持多层目录结构
 - 自动创建不存在的目录
 
-## 文件格式支持
+### 文件格式支持
 
-- **图片格式**: JPG, PNG, GIF, WebP, BMP, SVG
-- **文件大小**: 最大 10MB
-- **目录结构**: 支持无限层级的子目录
+- **默认格式**: JPG, PNG, GIF, WebP, BMP, SVG
+- **可配置**: 通过 `ALLOWED_EXTENSIONS` 环境变量自定义
+- **文件大小**: 默认最大 10MB，可通过 `MAX_FILE_SIZE` 配置
 
 ## API 接口
 
@@ -277,99 +324,3 @@ curl "http://localhost:3001/api/stats?dir=2024/06/10"
 ```
 GET /api/directories
 ```
-
-**参数说明：**
-
-- `dir` (可选): 指定父目录路径
-
-**curl 示例：**
-
-```bash
-# 获取根目录下的子目录
-curl http://localhost:3001/api/directories
-
-# 获取指定目录下的子目录
-curl "http://localhost:3001/api/directories?dir=2024"
-```
-
-**响应示例：**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "name": "2024",
-      "path": "2024",
-      "fullPath": "/app/uploads/2024"
-    }
-  ]
-}
-```
-
-### 🗑️ 删除图片
-
-```
-DELETE /api/images/{图片路径}
-```
-
-**参数说明：**
-
-- `图片路径` (必需): 图片的相对路径，如 "image.jpg" 或 "2024/06/10/image.jpg"
-
-**curl 示例：**
-
-```bash
-# 删除根目录图片
-curl -X DELETE "http://localhost:3001/api/images/image.jpg"
-
-# 删除子目录图片
-curl -X DELETE "http://localhost:3001/api/images/2024/06/10/image.jpg"
-```
-
-### 📖 图片访问
-
-```
-GET /api/images/{图片路径}
-```
-
-**说明：** 直接访问图片文件，支持中文文件名和目录名
-
-**示例：**
-
-```bash
-# 访问根目录图片
-curl http://localhost:3001/api/images/image.jpg
-
-# 访问子目录图片
-curl http://localhost:3001/api/images/2024/06/10/image.jpg
-```
-
-### ⚠️ 注意事项
-
-- 所有 API 都支持中文文件名和目录名，会自动进行 URL 编码处理
-- 图片访问 URL 可以直接在浏览器中打开
-- 目录路径支持无限层级嵌套
-- 文件名会自动处理特殊字符，但保留中文字符
-- 上传时会自动检查文件类型和大小限制
-
-## 更新日志
-
-### v1.1.0 (最新)
-
-- ✨ 新增子目录管理功能
-- ✨ 智能目录选择器
-- ✨ 目录信息展示
-- ✨ 支持输入新目录
-- 🎨 优化用户界面
-
-### v1.0.0
-
-- 🎉 初始版本发布
-- 📤 图片上传功能
-- 🖼️ 图片管理功能
-- 📊 统计信息功能
-
-## 许可证
-
-MIT License

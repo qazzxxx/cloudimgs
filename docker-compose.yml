@@ -8,10 +8,6 @@ services:
     # image: qazzxxx/cloudimgs:latest
     ports:
       - "3001:3001"
-    environment:
-      - NODE_ENV=production
-      - PORT=3001
-      - STORAGE_PATH=/app/uploads
     volumes:
       - ./uploads:/app/uploads
       - ./logs:/app/logs
