@@ -8,7 +8,6 @@ import {
   message,
   Row,
   Col,
-  Alert,
   Slider,
   Upload,
 } from "antd";
