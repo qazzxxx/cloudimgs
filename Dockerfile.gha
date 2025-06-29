@@ -20,18 +20,15 @@ COPY client/package*.json ./client/
 RUN npm ci --no-audit --no-fund --prefer-offline
 RUN cd client && npm ci --no-audit --no-fund --prefer-offline
 
-# 复制源代码 - 分步复制以确保所有文件都被正确复制
-COPY server ./server
-COPY config.js ./
-COPY .npmrc ./
-COPY client/src ./client/src
-COPY client/public ./client/public
-COPY client/package.json ./client/
-COPY client/.npmrc ./client/
+# 复制源代码
+COPY . .
 
-# 确保public目录存在
-RUN echo "=== Checking public directory ===" && \
+# 调试：检查复制的文件
+RUN echo "=== Checking copied files ===" && \
+    ls -la && \
+    echo "=== Client directory ===" && \
     ls -la client/ && \
+    echo "=== Client public directory ===" && \
     ls -la client/public/ && \
     echo "=== Public directory contents ===" && \
     find client/public -type f
