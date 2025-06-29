@@ -13,12 +13,20 @@ on:
       registry:
         description: "Registry to publish to"
         required: true
-        default: "ghcr"
+        default: "both"
         type: choice
         options:
           - ghcr
           - dockerhub
           - both
+      platforms:
+        description: "Target platforms"
+        required: true
+        default: "linux/amd64"
+        type: choice
+        options:
+          - linux/amd64
+          - linux/amd64,linux/arm64
 
 jobs:
   publish:
@@ -32,9 +40,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:v0.13.0
 
       - name: Login to GitHub Container Registry
         if: github.event.inputs.registry == 'ghcr' || github.event.inputs.registry == 'both' || github.event_name == 'push'
@@ -51,94 +56,71 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Generate image names
+        id: image_names
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "ghcr_image=ghcr.io/$OWNER/cloudimgs" >> $GITHUB_OUTPUT
+          echo "dockerhub_image=${{ secrets.DOCKER_USERNAME }}/cloudimgs" >> $GITHUB_OUTPUT
+
       - name: Extract metadata for GitHub Packages
         id: meta-ghcr
         if: github.event.inputs.registry == 'ghcr' || github.event.inputs.registry == 'both' || github.event_name == 'push'
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ steps.image_names.outputs.ghcr_image }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
-          labels: |
-            org.opencontainers.image.title=CloudImgs
-            org.opencontainers.image.description=A modern image hosting application with React frontend and Node.js backend
-            org.opencontainers.image.vendor=CloudImgs
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
       - name: Extract metadata for Docker Hub
         id: meta-dockerhub
         if: github.event.inputs.registry == 'dockerhub' || github.event.inputs.registry == 'both'
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/cloudimgs
+          images: ${{ steps.image_names.outputs.dockerhub_image }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
-          labels: |
-            org.opencontainers.image.title=CloudImgs
-            org.opencontainers.image.description=A modern image hosting application with React frontend and Node.js backend
-            org.opencontainers.image.vendor=CloudImgs
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Build and push to GitHub Packages
         if: github.event.inputs.registry == 'ghcr' || github.event.inputs.registry == 'both' || github.event_name == 'push'
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile.gha
           push: true
           tags: ${{ steps.meta-ghcr.outputs.tags }}
-          labels: ${{ steps.meta-ghcr.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ github.event.inputs.platforms || 'linux/amd64' }}
           build-args: |
-            BUILDKIT_INLINE_CACHE=1
+            NODE_OPTIONS=--max-old-space-size=4096
 
       - name: Build and push to Docker Hub
         if: github.event.inputs.registry == 'dockerhub' || github.event.inputs.registry == 'both'
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile.gha
           push: true
           tags: ${{ steps.meta-dockerhub.outputs.tags }}
-          labels: ${{ steps.meta-dockerhub.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ github.event.inputs.platforms || 'linux/amd64' }}
           build-args: |
-            BUILDKIT_INLINE_CACHE=1
+            NODE_OPTIONS=--max-old-space-size=4096
 
-      - name: Image digest - GitHub Packages
-        if: github.event.inputs.registry == 'ghcr' || github.event.inputs.registry == 'both' || github.event_name == 'push'
+      - name: Success notification
         run: |
-          echo "✅ GitHub Packages image published successfully!"
-          echo "Image: ghcr.io/${{ github.repository }}"
-          echo "Tags: ${{ steps.meta-ghcr.outputs.tags }}"
-          echo "Package URL: https://github.com/${{ github.repository }}/pkgs/container/cloudimgs"
-
-      - name: Image digest - Docker Hub
-        if: github.event.inputs.registry == 'dockerhub' || github.event.inputs.registry == 'both'
-        run: |
-          echo "✅ Docker Hub image published successfully!"
-          echo "Image: ${{ secrets.DOCKER_USERNAME }}/cloudimgs"
-          echo "Tags: ${{ steps.meta-dockerhub.outputs.tags }}"
-
-      - name: Notify failure
-        if: failure()
-        run: |
-          echo "❌ Docker image publish failed!"
-          echo "Please check the logs above for details."
-          echo "Common issues:"
-          echo "1. Check if all dependencies are properly installed"
-          echo "2. Verify client build process"
-          echo "3. Ensure .dockerignore doesn't exclude necessary files"
-          echo "4. Check for memory issues during build"
+          echo "✅ Docker images published successfully!"
+          if [[ "${{ github.event.inputs.registry }}" == "ghcr" || "${{ github.event.inputs.registry }}" == "both" || "${{ github.event_name }}" == "push" ]]; then
+            echo "GitHub Packages: ${{ steps.image_names.outputs.ghcr_image }}"
+            echo "Tags: ${{ steps.meta-ghcr.outputs.tags }}"
+          fi
+          if [[ "${{ github.event.inputs.registry }}" == "dockerhub" || "${{ github.event.inputs.registry }}" == "both" ]]; then
+            echo "Docker Hub: ${{ steps.image_names.outputs.dockerhub_image }}"
+            echo "Tags: ${{ steps.meta-dockerhub.outputs.tags }}"
+          fi
