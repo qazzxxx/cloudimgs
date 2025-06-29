@@ -200,15 +200,7 @@ const SvgToPngTool = ({ onUploadSuccess }) => {
         <CodeOutlined /> SVG转PNG工具
       </Title>
 
-      <Alert
-        message="使用说明"
-        description="输入SVG代码，转换为PNG图片，支持直接上传到图床。支持所有标准的SVG元素和属性。可以自定义上传和下载的文件名。"
-        type="info"
-        showIcon
-        style={{ marginBottom: 24 }}
-      />
-
-      <Row gutter={[24, 24]}>
+      <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
         {/* 左侧：SVG输入 */}
         <Col xs={24} lg={12}>
           <Card title="SVG代码输入" size="small">

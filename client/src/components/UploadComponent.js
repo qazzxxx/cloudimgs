@@ -12,11 +12,7 @@ import {
   Col,
   Alert,
 } from "antd";
-import {
-  InboxOutlined,
-  CheckCircleOutlined,
-  InfoCircleOutlined,
-} from "@ant-design/icons";
+import { InboxOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import DirectorySelector from "./DirectorySelector";
 import axios from "axios";
 
@@ -167,15 +163,6 @@ const UploadComponent = ({ onUploadSuccess }) => {
         />
       </Space>
 
-      <Alert
-        message="上传说明"
-        description={`支持 ${config.allowedFormats} 格式，单个文件最大 ${config.maxFileSizeMB}MB`}
-        type="info"
-        showIcon
-        icon={<InfoCircleOutlined />}
-        style={{ marginBottom: 24 }}
-      />
-
       <Card>
         <Dragger {...uploadProps} disabled={uploading}>
           <p className="ant-upload-drag-icon">
@@ -184,6 +171,17 @@ const UploadComponent = ({ onUploadSuccess }) => {
           <p className="ant-upload-text">点击或拖拽图片到此区域上传</p>
           <p className="ant-upload-hint">
             支持单个或批量上传，严禁上传非图片文件
+          </p>
+          <p
+            style={{
+              fontSize: "12px",
+              color: "#999",
+              marginTop: "8px",
+              marginBottom: "0",
+            }}
+          >
+            支持 {config.allowedFormats} 格式，单个文件最大{" "}
+            {config.maxFileSizeMB}MB
           </p>
         </Dragger>
 

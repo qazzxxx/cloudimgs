@@ -242,15 +242,7 @@ const ImageCompressor = ({ onUploadSuccess }) => {
         <FileZipOutlined /> 图片压缩工具
       </Title>
 
-      <Alert
-        message="使用说明"
-        description="上传图片，设置尺寸和质量参数进行压缩，支持预览和直接上传到图床。支持JPEG格式压缩。"
-        type="info"
-        showIcon
-        style={{ marginBottom: 24 }}
-      />
-
-      <Row gutter={[24, 24]}>
+      <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
         {/* 左侧：图片上传和参数设置 */}
         <Col xs={24} lg={12}>
           <Card title="图片上传" size="small" style={{ marginBottom: 16 }}>
