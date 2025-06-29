@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Layout, Menu, theme, message } from "antd";
+import { Layout, Menu, theme, message, ConfigProvider } from "antd";
 import {
   BrowserRouter as Router,
   Routes,
@@ -21,12 +21,13 @@ import StatsComponent from "./components/StatsComponent";
 import SvgToPngTool from "./components/SvgToPngTool";
 import ImageCompressor from "./components/ImageCompressor";
 import LogoWithText from "./components/LogoWithText";
+import ThemeSwitcher from "./components/ThemeSwitcher";
 import axios from "axios";
 
 const { Header, Content, Sider } = Layout;
 
 // 主应用组件
-function AppContent() {
+function AppContent({ currentTheme, onThemeChange }) {
   const [selectedKey, setSelectedKey] = useState("upload");
   const [openKeys, setOpenKeys] = useState([]);
   const [stats, setStats] = useState({});
@@ -36,7 +37,7 @@ function AppContent() {
   const location = useLocation();
 
   const {
-    token: { colorBgContainer, borderRadiusLG },
+    token: { colorBgContainer, borderRadiusLG, colorBorder },
   } = theme.useToken();
 
   // 根据当前路由设置选中的菜单项
@@ -180,8 +181,10 @@ function AppContent() {
         style={{
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
           background: colorBgContainer,
-          borderBottom: "1px solid #f0f0f0",
+          borderBottom: `1px solid ${colorBorder}`,
+          padding: "0 24px",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
@@ -191,6 +194,7 @@ function AppContent() {
             style={{ verticalAlign: "middle" }}
           />
         </div>
+        <ThemeSwitcher theme={currentTheme} onThemeChange={onThemeChange} />
       </Header>
       <Layout>
         <Sider width={200} style={{ background: colorBgContainer }}>
@@ -198,10 +202,15 @@ function AppContent() {
             mode="inline"
             selectedKeys={[selectedKey]}
             openKeys={openKeys}
-            style={{ height: "100%", borderRight: 0 }}
+            style={{
+              height: "100%",
+              borderRight: 0,
+              background: colorBgContainer,
+            }}
             items={menuItems}
             onClick={handleMenuClick}
             onOpenChange={handleOpenChange}
+            theme={currentTheme}
           />
         </Sider>
         <Layout style={{ padding: "24px" }}>
@@ -265,10 +274,77 @@ function AppContent() {
 
 // 主App组件
 function App() {
+  const [currentTheme, setCurrentTheme] = useState("light");
+
+  // 从localStorage加载主题设置
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme) {
+      setCurrentTheme(savedTheme);
+    }
+  }, []);
+
+  // 主题切换处理
+  const handleThemeChange = (theme) => {
+    setCurrentTheme(theme);
+  };
+
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <ConfigProvider
+      theme={{
+        algorithm:
+          currentTheme === "dark"
+            ? theme.darkAlgorithm
+            : theme.defaultAlgorithm,
+        token: {
+          // 自定义菜单选中效果
+          colorPrimary: currentTheme === "dark" ? "#177ddc" : "#1677ff",
+          colorPrimaryHover: currentTheme === "dark" ? "#1890ff" : "#4096ff",
+          colorPrimaryActive: currentTheme === "dark" ? "#0958d9" : "#0958d9",
+          // 菜单相关token
+          colorBgContainer: currentTheme === "dark" ? "#141414" : "#ffffff",
+          colorBgElevated: currentTheme === "dark" ? "#1f1f1f" : "#ffffff",
+          colorBgLayout: currentTheme === "dark" ? "#000000" : "#f5f5f5",
+          colorBorder: currentTheme === "dark" ? "#303030" : "#d9d9d9",
+          colorBorderSecondary: currentTheme === "dark" ? "#262626" : "#f0f0f0",
+          colorText: currentTheme === "dark" ? "#ffffff" : "#000000",
+          colorTextSecondary: currentTheme === "dark" ? "#a6a6a6" : "#666666",
+          // 菜单选中状态
+          controlItemBgHover: currentTheme === "dark" ? "#177ddc20" : "#e6f4ff",
+          controlItemBgActive:
+            currentTheme === "dark" ? "#177ddc40" : "#bae0ff",
+          controlItemBgSelected:
+            currentTheme === "dark" ? "#177ddc30" : "#e6f4ff",
+          controlItemBgSelectedHover:
+            currentTheme === "dark" ? "#177ddc50" : "#bae0ff",
+        },
+        components: {
+          Menu: {
+            // 菜单组件特定样式
+            itemBg: currentTheme === "dark" ? "#141414" : "#ffffff",
+            itemSelectedBg: currentTheme === "dark" ? "#177ddc30" : "#e6f4ff",
+            itemHoverBg: currentTheme === "dark" ? "#177ddc20" : "#f5f5f5",
+            itemActiveBg: currentTheme === "dark" ? "#177ddc40" : "#e6f4ff",
+            itemSelectedColor: currentTheme === "dark" ? "#177ddc" : "#1677ff",
+            itemColor: currentTheme === "dark" ? "#ffffff" : "#000000",
+            itemHoverColor: currentTheme === "dark" ? "#177ddc" : "#1677ff",
+            // 子菜单样式
+            subMenuItemBg: currentTheme === "dark" ? "#1a1a1a" : "#fafafa",
+            darkItemBg: currentTheme === "dark" ? "#141414" : "#ffffff",
+            darkItemSelectedBg:
+              currentTheme === "dark" ? "#177ddc30" : "#e6f4ff",
+            darkItemHoverBg: currentTheme === "dark" ? "#177ddc20" : "#f5f5f5",
+          },
+        },
+      }}
+    >
+      <Router>
+        <AppContent
+          currentTheme={currentTheme}
+          onThemeChange={handleThemeChange}
+        />
+      </Router>
+    </ConfigProvider>
   );
 }
 

@@ -11,6 +11,7 @@ import {
   Row,
   Col,
   Alert,
+  theme,
 } from "antd";
 import { InboxOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import DirectorySelector from "./DirectorySelector";
@@ -28,6 +29,9 @@ function sanitizeDir(input) {
 }
 
 const UploadComponent = ({ onUploadSuccess }) => {
+  const {
+    token: { colorBgContainer, colorText, colorBorder },
+  } = theme.useToken();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -269,38 +273,47 @@ const UploadComponent = ({ onUploadSuccess }) => {
             <Text strong>文件大小限制：</Text> 最大 10MB
             <br />
             <Text strong>curl 示例：</Text>
-            <pre
+            <div
               style={{
-                backgroundColor: "#f5f5f5",
+                backgroundColor: colorBgContainer,
+                border: `1px solid ${colorBorder}`,
                 padding: "12px",
                 borderRadius: "4px",
                 fontSize: "12px",
                 overflow: "auto",
+                marginTop: "8px",
               }}
             >
-              {`# 上传到根目录
+              <Text code style={{ display: "block", marginBottom: "4px" }}>
+                {`# 上传到根目录
 curl -X POST http://localhost:3001/api/upload \\
-  -F "image=@/path/to/your/image.jpg"
-
-# 上传到指定子目录
+  -F "image=@/path/to/your/image.jpg"`}
+              </Text>
+              <Text code style={{ display: "block", marginBottom: "4px" }}>
+                {`# 上传到指定子目录
 curl -X POST "http://localhost:3001/api/upload?dir=2024/06/10" \\
-  -F "image=@/path/to/your/image.jpg"
-
-# 上传中文文件名图片
+  -F "image=@/path/to/your/image.jpg"`}
+              </Text>
+              <Text code style={{ display: "block" }}>
+                {`# 上传中文文件名图片
 curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \\
   -F "image=@/path/to/你的图片.jpg"`}
-            </pre>
+              </Text>
+            </div>
             <Text strong>响应示例：</Text>
-            <pre
+            <div
               style={{
-                backgroundColor: "#f5f5f5",
+                backgroundColor: colorBgContainer,
+                border: `1px solid ${colorBorder}`,
                 padding: "12px",
                 borderRadius: "4px",
                 fontSize: "12px",
                 overflow: "auto",
+                marginTop: "8px",
               }}
             >
-              {`{
+              <Text code>
+                {`{
   "success": true,
   "message": "图片上传成功",
   "data": {
@@ -313,7 +326,8 @@ curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \\
     "relPath": "image.jpg"
   }
 }`}
-            </pre>
+              </Text>
+            </div>
           </div>
 
           <div>
@@ -327,21 +341,26 @@ curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \\
               </li>
             </ul>
             <Text strong>curl 示例：</Text>
-            <pre
+            <div
               style={{
-                backgroundColor: "#f5f5f5",
+                backgroundColor: colorBgContainer,
+                border: `1px solid ${colorBorder}`,
                 padding: "12px",
                 borderRadius: "4px",
                 fontSize: "12px",
                 overflow: "auto",
+                marginTop: "8px",
               }}
             >
-              {`# 获取根目录所有图片
-curl http://localhost:3001/api/images
-
-# 获取指定目录图片
+              <Text code style={{ display: "block", marginBottom: "4px" }}>
+                {`# 获取根目录所有图片
+curl http://localhost:3001/api/images`}
+              </Text>
+              <Text code style={{ display: "block" }}>
+                {`# 获取指定目录图片
 curl "http://localhost:3001/api/images?dir=2024/06/10"`}
-            </pre>
+              </Text>
+            </div>
           </div>
 
           <div>
@@ -355,21 +374,26 @@ curl "http://localhost:3001/api/images?dir=2024/06/10"`}
               </li>
             </ul>
             <Text strong>curl 示例：</Text>
-            <pre
+            <div
               style={{
-                backgroundColor: "#f5f5f5",
+                backgroundColor: colorBgContainer,
+                border: `1px solid ${colorBorder}`,
                 padding: "12px",
                 borderRadius: "4px",
                 fontSize: "12px",
                 overflow: "auto",
+                marginTop: "8px",
               }}
             >
-              {`# 获取根目录随机图片
-curl http://localhost:3001/api/random
-
-# 获取指定目录随机图片
+              <Text code style={{ display: "block", marginBottom: "4px" }}>
+                {`# 获取根目录随机图片
+curl http://localhost:3001/api/random`}
+              </Text>
+              <Text code style={{ display: "block" }}>
+                {`# 获取指定目录随机图片
 curl "http://localhost:3001/api/random?dir=2024/06/10"`}
-            </pre>
+              </Text>
+            </div>
           </div>
 
           <div>
@@ -383,21 +407,26 @@ curl "http://localhost:3001/api/random?dir=2024/06/10"`}
               </li>
             </ul>
             <Text strong>curl 示例：</Text>
-            <pre
+            <div
               style={{
-                backgroundColor: "#f5f5f5",
+                backgroundColor: colorBgContainer,
+                border: `1px solid ${colorBorder}`,
                 padding: "12px",
                 borderRadius: "4px",
                 fontSize: "12px",
                 overflow: "auto",
+                marginTop: "8px",
               }}
             >
-              {`# 获取总体统计
-curl http://localhost:3001/api/stats
-
-# 获取指定目录统计
+              <Text code style={{ display: "block", marginBottom: "4px" }}>
+                {`# 获取总体统计
+curl http://localhost:3001/api/stats`}
+              </Text>
+              <Text code style={{ display: "block" }}>
+                {`# 获取指定目录统计
 curl "http://localhost:3001/api/stats?dir=2024/06/10"`}
-            </pre>
+              </Text>
+            </div>
           </div>
 
           <div>
@@ -411,21 +440,26 @@ curl "http://localhost:3001/api/stats?dir=2024/06/10"`}
               </li>
             </ul>
             <Text strong>curl 示例：</Text>
-            <pre
+            <div
               style={{
-                backgroundColor: "#f5f5f5",
+                backgroundColor: colorBgContainer,
+                border: `1px solid ${colorBorder}`,
                 padding: "12px",
                 borderRadius: "4px",
                 fontSize: "12px",
                 overflow: "auto",
+                marginTop: "8px",
               }}
             >
-              {`# 获取根目录下的子目录
-curl http://localhost:3001/api/directories
-
-# 获取指定目录下的子目录
+              <Text code style={{ display: "block", marginBottom: "4px" }}>
+                {`# 获取根目录下的子目录
+curl http://localhost:3001/api/directories`}
+              </Text>
+              <Text code style={{ display: "block" }}>
+                {`# 获取指定目录下的子目录
 curl "http://localhost:3001/api/directories?dir=2024"`}
-            </pre>
+              </Text>
+            </div>
           </div>
 
           <div>
@@ -440,21 +474,26 @@ curl "http://localhost:3001/api/directories?dir=2024"`}
               </li>
             </ul>
             <Text strong>curl 示例：</Text>
-            <pre
+            <div
               style={{
-                backgroundColor: "#f5f5f5",
+                backgroundColor: colorBgContainer,
+                border: `1px solid ${colorBorder}`,
                 padding: "12px",
                 borderRadius: "4px",
                 fontSize: "12px",
                 overflow: "auto",
+                marginTop: "8px",
               }}
             >
-              {`# 删除根目录图片
-curl -X DELETE "http://localhost:3001/api/images/image.jpg"
-
-# 删除子目录图片
+              <Text code style={{ display: "block", marginBottom: "4px" }}>
+                {`# 删除根目录图片
+curl -X DELETE "http://localhost:3001/api/images/image.jpg"`}
+              </Text>
+              <Text code style={{ display: "block" }}>
+                {`# 删除子目录图片
 curl -X DELETE "http://localhost:3001/api/images/2024/06/10/image.jpg"`}
-            </pre>
+              </Text>
+            </div>
           </div>
 
           <Alert
