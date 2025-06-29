@@ -27,7 +27,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: |
-            image=moby/buildkit:v0.12.0
+            image=moby/buildkit:v0.13.0
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -68,12 +68,11 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
           provenance: false
-          outputs: type=docker,dest=/tmp/image.tar
 
       - name: Verify image
         run: |
           echo "Verifying built image..."
-          docker load < /tmp/image.tar
+          docker pull ghcr.io/${{ github.repository }}:latest
           docker images | grep cloudimgs
 
       - name: Image digest

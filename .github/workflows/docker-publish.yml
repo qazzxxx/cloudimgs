@@ -32,6 +32,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:v0.13.0
 
       - name: Login to GitHub Container Registry
         if: github.event.inputs.registry == 'ghcr' || github.event.inputs.registry == 'both' || github.event_name == 'push'
@@ -134,3 +137,8 @@ jobs:
         run: |
           echo "❌ Docker image publish failed!"
           echo "Please check the logs above for details."
+          echo "Common issues:"
+          echo "1. Check if all dependencies are properly installed"
+          echo "2. Verify client build process"
+          echo "3. Ensure .dockerignore doesn't exclude necessary files"
+          echo "4. Check for memory issues during build"

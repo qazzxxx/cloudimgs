@@ -10,6 +10,12 @@ RUN apk add --no-cache git
 # 设置Node.js内存限制（避免OOM）
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
+# 设置npm配置
+ENV NPM_CONFIG_AUDIT=false
+ENV NPM_CONFIG_FUND=false
+ENV NPM_CONFIG_PROGRESS=false
+ENV NPM_CONFIG_LOGLEVEL=error
+
 # 复制package.json文件
 COPY package*.json ./
 
@@ -35,6 +41,15 @@ RUN echo "=== Build Environment Info ===" && \
     echo "=== Client Directory ===" && \
     ls -la client/
 
+# 验证客户端依赖安装
+RUN echo "=== Client Dependencies Check ===" && \
+    cd client && \
+    ls -la node_modules/ | head -10 && \
+    echo "=== React version ===" && \
+    npm list react && \
+    echo "=== React-scripts version ===" && \
+    npm list react-scripts
+
 # 构建客户端（添加详细输出和错误处理）
 RUN cd client && \
     echo "=== Starting client build ===" && \
@@ -42,13 +57,21 @@ RUN cd client && \
     free -h || echo "Memory info not available" && \
     echo "=== Node options ===" && \
     echo $NODE_OPTIONS && \
-    npm run build || (echo "Build failed, checking for errors..." && exit 1)
+    echo "=== NPM version ===" && \
+    npm --version && \
+    echo "=== Node version ===" && \
+    node --version && \
+    echo "=== Starting build process ===" && \
+    npm run build
 
 # 验证构建结果
 RUN echo "=== Build Result ===" && \
     ls -la client/build/ && \
     echo "=== Build files count ===" && \
-    find client/build -type f | wc -l
+    find client/build -type f | wc -l && \
+    echo "=== Main JS file size ===" && \
+    ls -lh client/build/static/js/ && \
+    echo "=== Build successful ==="
 
 # 生产阶段
 FROM node:18-alpine AS production

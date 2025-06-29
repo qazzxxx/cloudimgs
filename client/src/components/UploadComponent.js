@@ -31,7 +31,7 @@ function sanitizeDir(input) {
 
 const UploadComponent = ({ onUploadSuccess }) => {
   const {
-    token: { colorBgContainer, colorText, colorBorder },
+    token: { colorBgContainer, colorBorder },
   } = theme.useToken();
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
