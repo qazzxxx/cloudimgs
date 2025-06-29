@@ -50,7 +50,7 @@ jobs:
           password: ${{ secrets.PAT_TOKEN }}
 
       - name: Login to Docker Hub
-        if: github.event.inputs.registry == 'dockerhub' || github.event.inputs.registry == 'both'
+        if: github.event.inputs.registry == 'dockerhub' || github.event.inputs.registry == 'both' || github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -62,6 +62,11 @@ jobs:
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "ghcr_image=ghcr.io/$OWNER/cloudimgs" >> $GITHUB_OUTPUT
           echo "dockerhub_image=${{ secrets.DOCKER_USERNAME }}/cloudimgs" >> $GITHUB_OUTPUT
+          echo "Debug info:"
+          echo "- Event: ${{ github.event_name }}"
+          echo "- Ref: ${{ github.ref }}"
+          echo "- Tag: ${{ github.ref_name }}"
+          echo "- SHA: ${{ github.sha }}"
 
       - name: Extract metadata for GitHub Packages
         id: meta-ghcr
@@ -78,7 +83,7 @@ jobs:
 
       - name: Extract metadata for Docker Hub
         id: meta-dockerhub
-        if: github.event.inputs.registry == 'dockerhub' || github.event.inputs.registry == 'both'
+        if: github.event.inputs.registry == 'dockerhub' || github.event.inputs.registry == 'both' || github.event_name == 'push'
         uses: docker/metadata-action@v5
         with:
           images: ${{ steps.image_names.outputs.dockerhub_image }}
@@ -102,7 +107,7 @@ jobs:
             NODE_OPTIONS=--max-old-space-size=4096
 
       - name: Build and push to Docker Hub
-        if: github.event.inputs.registry == 'dockerhub' || github.event.inputs.registry == 'both'
+        if: github.event.inputs.registry == 'dockerhub' || github.event.inputs.registry == 'both' || github.event_name == 'push'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -120,7 +125,7 @@ jobs:
             echo "GitHub Packages: ${{ steps.image_names.outputs.ghcr_image }}"
             echo "Tags: ${{ steps.meta-ghcr.outputs.tags }}"
           fi
-          if [[ "${{ github.event.inputs.registry }}" == "dockerhub" || "${{ github.event.inputs.registry }}" == "both" ]]; then
+          if [[ "${{ github.event.inputs.registry }}" == "dockerhub" || "${{ github.event.inputs.registry }}" == "both" || "${{ github.event_name }}" == "push" ]]; then
             echo "Docker Hub: ${{ steps.image_names.outputs.dockerhub_image }}"
             echo "Tags: ${{ steps.meta-dockerhub.outputs.tags }}"
           fi
