@@ -1,4 +1,4 @@
-name: GitHub Packages (Simple)
+name: GitHub Packages (Fixed)
 
 on:
   workflow_dispatch:
@@ -23,21 +23,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.PAT_TOKEN }}
 
-      - name: Generate lowercase image name
-        id: image_name
-        run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "owner=$OWNER" >> $GITHUB_OUTPUT
-          echo "image_name=ghcr.io/$OWNER/cloudimgs" >> $GITHUB_OUTPUT
-          echo "Generated image name: ghcr.io/$OWNER/cloudimgs"
-
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile.gha
           push: true
-          tags: ${{ steps.image_name.outputs.image_name }}:latest
+          tags: ghcr.io/qazzxxx/cloudimgs:latest
           platforms: linux/amd64
           build-args: |
             NODE_OPTIONS=--max-old-space-size=4096
@@ -45,4 +37,4 @@ jobs:
       - name: Success notification
         run: |
           echo "✅ GitHub Packages image published successfully!"
-          echo "Image: ${{ steps.image_name.outputs.image_name }}:latest"
+          echo "Image: ghcr.io/qazzxxx/cloudimgs:latest"
