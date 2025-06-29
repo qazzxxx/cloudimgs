@@ -35,7 +35,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository_owner }}/cloudimgs
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -65,7 +65,7 @@ jobs:
       - name: Success notification
         run: |
           echo "✅ GitHub Packages image published successfully!"
-          echo "Image: ghcr.io/${{ github.repository }}"
+          echo "Image: ghcr.io/${{ github.repository_owner }}/cloudimgs"
           echo "Tags: ${{ steps.meta.outputs.tags }}"
           echo "Package URL: https://github.com/${{ github.repository }}/pkgs/container/cloudimgs"
 
@@ -78,6 +78,7 @@ jobs:
           echo "Debug information:"
           echo "- Build context: ${{ github.workspace }}"
           echo "- Repository: ${{ github.repository }}"
+          echo "- Repository Owner: ${{ github.repository_owner }}"
           echo "- SHA: ${{ github.sha }}"
           echo "- Event: ${{ github.event_name }}"
           echo ""

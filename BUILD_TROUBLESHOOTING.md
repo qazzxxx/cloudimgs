@@ -8,6 +8,12 @@
 buildx failed with: ERROR: failed to build: failed to solve: process "/bin/sh -c cd client && npm run build" did not complete successfully: exit code: 1
 ```
 
+或者：
+
+```
+buildx failed with: ERROR: failed to build: invalid tag "ghcr.io/Qazzxxx/cloudimgs:latest": repository name must be lowercase
+```
+
 ## 常见原因和解决方案
 
 ### 1. 内存不足问题
@@ -53,6 +59,15 @@ buildx failed with: ERROR: failed to build: failed to solve: process "/bin/sh -c
 - 验证仓库包权限设置
 - 使用简化的构建配置
 
+### 6. Docker 镜像标签大小写问题
+
+**症状**: `invalid tag: repository name must be lowercase`
+**解决方案**:
+
+- 使用 `github.repository_owner` 而不是 `github.repository`
+- 确保镜像名称全部小写
+- 运行 `./validate-image-name.sh` 验证正确的镜像名称
+
 ## 已实施的修复
 
 ### 1. 优化的 Dockerfile
@@ -67,6 +82,7 @@ buildx failed with: ERROR: failed to build: failed to solve: process "/bin/sh -c
 - 简化了平台构建（只构建 linux/amd64）
 - 增加了详细的错误报告
 - 添加了构建参数传递
+- 修复了镜像标签大小写问题
 
 ### 3. 测试脚本
 
@@ -74,6 +90,7 @@ buildx failed with: ERROR: failed to build: failed to solve: process "/bin/sh -c
 - 创建了简化的测试 Dockerfile `Dockerfile.test`
 - 创建了 GitHub Actions 专用 Dockerfile `Dockerfile.gha`
 - 创建了调试脚本 `debug-gha.sh`
+- 创建了镜像名称验证脚本 `validate-image-name.sh`
 
 ## 调试步骤
 
@@ -85,6 +102,9 @@ buildx failed with: ERROR: failed to build: failed to solve: process "/bin/sh -c
 
 # 运行 GitHub Actions 环境调试脚本
 ./debug-gha.sh
+
+# 验证镜像名称
+./validate-image-name.sh
 
 # 或者手动测试
 cd client
@@ -133,6 +153,15 @@ timeout: 30m # 增加构建超时时间
 
 尝试使用 `.github/workflows/package-simple.yml` 进行测试。
 
+### 5. 正确的镜像名称格式
+
+```yaml
+# 使用 repository_owner 确保小写
+images: ghcr.io/${{ github.repository_owner }}/cloudimgs
+# 或者
+tags: ghcr.io/${{ github.repository_owner }}/cloudimgs:latest
+```
+
 ## 预防措施
 
 ### 1. 定期更新依赖
@@ -175,6 +204,7 @@ timeout: 30m # 增加构建超时时间
 - [ ] Dockerfile 是否正确
 - [ ] .dockerignore 是否排除必要文件
 - [ ] GitHub Actions 工作流配置是否正确
+- [ ] 镜像名称是否全部小写
 
 ## 联系支持
 
@@ -184,6 +214,7 @@ timeout: 30m # 增加构建超时时间
 2. 提供 GitHub Actions 的完整构建日志
 3. 检查是否有特定的错误模式
 4. 验证 PAT_TOKEN 权限配置
+5. 运行 `./validate-image-name.sh` 验证镜像名称
 
 ## 相关文件
 
@@ -192,6 +223,7 @@ timeout: 30m # 增加构建超时时间
 - `Dockerfile.gha` - GitHub Actions 专用 Dockerfile
 - `test-build.sh` - 本地测试脚本
 - `debug-gha.sh` - GitHub Actions 环境调试脚本
+- `validate-image-name.sh` - 镜像名称验证脚本
 - `.github/workflows/package.yml` - GitHub Packages 工作流
 - `.github/workflows/package-simple.yml` - 简化的工作流
 - `.github/workflows/test-build.yml` - 测试构建工作流
