@@ -87,8 +87,11 @@ FROM node:18 AS production
 RUN apt-get update && \
     apt-get install -y libvips fontconfig fonts-dejavu-core fonts-freefont-ttf fonts-liberation fonts-noto fonts-noto-cjk fonts-noto-color-emoji && \
     mkdir -p /usr/share/fonts && \
+    mkdir -p /etc/fonts && chmod 755 /etc/fonts && \
     fc-cache -f -v && \
-    if [ ! -f /etc/fonts/fonts.conf ]; then fc-cache -f -v; fi
+    if [ ! -f /etc/fonts/fonts.conf ]; then \
+    echo '<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "fonts.dtd"><fontconfig></fontconfig>' > /etc/fonts/fonts.conf; \
+    fi
 
 # 显式设置 fontconfig 路径
 ENV FONTCONFIG_PATH=/etc/fonts
