@@ -18,11 +18,10 @@ import {
   FolderOutlined,
   CloudOutlined,
 } from "@ant-design/icons";
-import axios from "axios";
 
 const { Title, Text } = Typography;
 
-const StatsComponent = () => {
+const StatsComponent = ({ api }) => {
   const [dir, setDir] = useState("");
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(false);
@@ -30,7 +29,7 @@ const StatsComponent = () => {
   const fetchStats = async (targetDir = dir) => {
     setLoading(true);
     try {
-      const res = await axios.get("/api/stats", {
+      const res = await api.get("/stats", {
         params: targetDir ? { dir: targetDir } : {},
       });
       if (res.data.success) {

@@ -142,12 +142,18 @@ function AppContent({ currentTheme, onThemeChange }) {
     if (!isAuthenticated) return;
 
     try {
+      console.log("Fetching stats, isAuthenticated:", isAuthenticated);
+      console.log(
+        "Password from localStorage:",
+        localStorage.getItem("cloudimgs_password")
+      );
       const response = await api.get("/stats");
       if (response.data.success) {
         setStats(response.data.data);
       }
     } catch (error) {
       console.error("获取统计信息失败:", error);
+      console.error("Error details:", error.response?.data);
     }
   }, [isAuthenticated]);
 
@@ -432,9 +438,15 @@ function AppContent({ currentTheme, onThemeChange }) {
                   />
                 }
               />
-              <Route path="/stats" element={<StatsComponent stats={stats} />} />
-              <Route path="/svg-tool" element={<SvgToPngTool />} />
-              <Route path="/compressor" element={<ImageCompressor />} />
+              <Route
+                path="/stats"
+                element={<StatsComponent stats={stats} api={api} />}
+              />
+              <Route path="/svg-tool" element={<SvgToPngTool api={api} />} />
+              <Route
+                path="/compressor"
+                element={<ImageCompressor api={api} />}
+              />
             </Routes>
           </Content>
         </Layout>

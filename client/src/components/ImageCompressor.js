@@ -18,12 +18,12 @@ import {
   CopyOutlined,
   PictureOutlined,
 } from "@ant-design/icons";
-import axios from "axios";
+// import axios from "axios";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
-const ImageCompressor = ({ onUploadSuccess }) => {
+const ImageCompressor = ({ onUploadSuccess, api }) => {
   const [originalImage, setOriginalImage] = useState(null);
   const [compressedImage, setCompressedImage] = useState(null);
   const [isCompressing, setIsCompressing] = useState(false);
@@ -183,7 +183,7 @@ const ImageCompressor = ({ onUploadSuccess }) => {
       formData.append("image", blob, `${fileName}-compressed.jpg`);
 
       // 上传到服务器
-      const uploadResponse = await axios.post("/api/upload", formData, {
+      const uploadResponse = await api.post("/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

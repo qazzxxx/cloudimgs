@@ -17,12 +17,11 @@ import {
   CopyOutlined,
   ClearOutlined,
 } from "@ant-design/icons";
-import axios from "axios";
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
-const SvgToPngTool = ({ onUploadSuccess }) => {
+const SvgToPngTool = ({ onUploadSuccess, api }) => {
   const [svgCode, setSvgCode] = useState("");
   const [pngDataUrl, setPngDataUrl] = useState("");
   const [isConverting, setIsConverting] = useState(false);
@@ -129,7 +128,7 @@ const SvgToPngTool = ({ onUploadSuccess }) => {
       formData.append("image", blob, fileName + ".png");
 
       // 上传到服务器
-      const uploadResponse = await axios.post("/api/upload", formData, {
+      const uploadResponse = await api.post("/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

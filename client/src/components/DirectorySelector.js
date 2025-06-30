@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Select, Input, Space, Typography, Divider } from "antd";
 import { FolderOutlined, PlusOutlined } from "@ant-design/icons";
-import axios from "axios";
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -15,6 +14,7 @@ const DirectorySelector = ({
   showSearch = true,
   size = "middle",
   allowInput = true,
+  api,
 }) => {
   const [directories, setDirectories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ const DirectorySelector = ({
   const fetchDirectories = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/directories");
+      const response = await api.get("/directories");
       if (response.data.success) {
         setDirectories(response.data.data);
       }

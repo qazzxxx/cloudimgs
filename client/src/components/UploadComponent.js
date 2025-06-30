@@ -167,6 +167,7 @@ const UploadComponent = ({ onUploadSuccess, api }) => {
           value={dir}
           onChange={setDir}
           placeholder="选择或输入子目录（如 2024/06/10 或 相册/家庭，可留空）"
+          api={api}
         />
       </Space>
 

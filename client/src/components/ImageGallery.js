@@ -139,6 +139,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
             placeholder="选择或输入子目录"
             style={{ width: isMobile ? "100%" : 260 }}
             allowInput={false}
+            api={api}
           />
           <Search
             placeholder="搜索图片名称"
