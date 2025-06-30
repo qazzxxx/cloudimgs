@@ -81,11 +81,13 @@ RUN echo "=== Build Result ===" && \
     echo "=== Build successful ==="
 
 # 生产阶段
-FROM node:18-alpine AS production
+FROM node:18-slim AS production
+
+# 安装 sharp 依赖
+RUN apt-get update && apt-get install -y libvips
 
 # 创建非root用户
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S cloudimgs -u 1001
+RUN addgroup --gid 1001 nodejs && adduser --uid 1001 --gid 1001 --disabled-password cloudimgs
 
 # 设置工作目录
 WORKDIR /app
@@ -120,7 +122,7 @@ ENV STORAGE_PATH=/app/uploads
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/api/stats', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+    CMD node -e "require('http').get('http://localhost:3001/api/stats', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # 启动应用
 CMD ["npm", "start"] 
