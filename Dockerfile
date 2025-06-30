@@ -81,13 +81,17 @@ RUN echo "=== Build Result ===" && \
     echo "=== Build successful ==="
 
 # 生产阶段
-FROM node:18-slim AS production
+FROM node:18 AS production
 
-# 安装 sharp 依赖和字体支持，并生成字体缓存
+# 安装 sharp 依赖和所有常用字体包，并生成字体缓存
 RUN apt-get update && \
-    apt-get install -y libvips fontconfig fonts-dejavu-core fonts-freefont-ttf && \
+    apt-get install -y libvips fontconfig fonts-dejavu-core fonts-freefont-ttf fonts-liberation fonts-noto fonts-noto-cjk fonts-noto-color-emoji && \
     mkdir -p /usr/share/fonts && \
-    fc-cache -f -v
+    fc-cache -f -v && \
+    if [ ! -f /etc/fonts/fonts.conf ]; then fc-cache -f -v; fi
+
+# 显式设置 fontconfig 路径
+ENV FONTCONFIG_PATH=/etc/fonts
 
 # 创建非root用户
 RUN addgroup --gid 1001 nodejs && adduser --uid 1001 --gid 1001 --disabled-password cloudimgs
