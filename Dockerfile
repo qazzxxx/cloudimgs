@@ -83,8 +83,9 @@ RUN echo "=== Build Result ===" && \
 # 生产阶段
 FROM node:18-slim AS production
 
-# 安装 sharp 依赖
-RUN apt-get update && apt-get install -y libvips
+# 安装 sharp 依赖和字体支持
+RUN apt-get update && \
+    apt-get install -y libvips fontconfig fonts-dejavu-core fonts-freefont-ttf
 
 # 创建非root用户
 RUN addgroup --gid 1001 nodejs && adduser --uid 1001 --gid 1001 --disabled-password cloudimgs
