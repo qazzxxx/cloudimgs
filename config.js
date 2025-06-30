@@ -71,5 +71,14 @@ module.exports = {
     maxDirectoryDepth: process.env.MAX_DIRECTORY_DEPTH
       ? parseInt(process.env.MAX_DIRECTORY_DEPTH)
       : 10,
+
+    // 密码保护配置
+    password: {
+      // 访问密码
+      accessPassword: process.env.PASSWORD || null,
+
+      // 是否启用密码保护
+      enabled: !!process.env.PASSWORD,
+    },
   },
 };

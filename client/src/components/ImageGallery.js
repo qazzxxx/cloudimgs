@@ -27,12 +27,11 @@ import {
 } from "@ant-design/icons";
 import DirectorySelector from "./DirectorySelector";
 import dayjs from "dayjs";
-import axios from "axios";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
 
-const ImageGallery = () => {
+const ImageGallery = ({ onDelete, onRefresh, api }) => {
   const {
     token: { colorBgContainer, colorBorder },
   } = theme.useToken();
@@ -51,7 +50,7 @@ const ImageGallery = () => {
   const fetchImages = async (targetDir = dir) => {
     setLoading(true);
     try {
-      const res = await axios.get("/api/images", {
+      const res = await api.get("/images", {
         params: targetDir ? { dir: targetDir } : {},
       });
       if (res.data.success) {
@@ -71,9 +70,12 @@ const ImageGallery = () => {
 
   const handleDelete = async (relPath) => {
     try {
-      await axios.delete(`/api/images/${encodeURIComponent(relPath)}`);
+      await api.delete(`/images/${encodeURIComponent(relPath)}`);
       message.success("删除成功");
       fetchImages();
+      if (onDelete) {
+        onDelete(relPath);
+      }
     } catch (error) {
       message.error("删除失败");
     }

@@ -16,3 +16,5 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - STORAGE_PATH=/app/uploads
+      # 密码保护配置（可选）
+      # - PASSWORD=your_password_here

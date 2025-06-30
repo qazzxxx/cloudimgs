@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
@@ -5,7 +7,6 @@ const path = require("path");
 const fs = require("fs-extra");
 const { v4: uuidv4 } = require("uuid");
 const config = require("../config");
-require("dotenv").config();
 
 const app = express();
 const PORT = config.server.port;
@@ -20,6 +21,26 @@ const STORAGE_PATH = config.storage.path;
 
 // 确保存储目录存在
 fs.ensureDirSync(STORAGE_PATH);
+
+// 密码验证中间件
+function requirePassword(req, res, next) {
+  if (!config.security.password.enabled) {
+    return next();
+  }
+
+  const password =
+    req.headers["x-access-password"] || req.body.password || req.query.password;
+
+  if (!password) {
+    return res.status(401).json({ error: "需要提供访问密码" });
+  }
+
+  if (password !== config.security.password.accessPassword) {
+    return res.status(401).json({ error: "密码错误" });
+  }
+
+  next();
+}
 
 // 路径安全校验，防止目录穿越
 function safeJoin(base, target) {
@@ -168,45 +189,50 @@ async function getAllImages(dir = "") {
 }
 
 // 1. 上传图片接口
-app.post("/api/upload", upload.single("image"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "没有选择文件" });
-    }
-    let dir = req.body.dir || req.query.dir || "";
-    dir = dir.replace(/\\/g, "/");
-    const relPath = path.join(dir, req.file.filename).replace(/\\/g, "/");
-
-    // 这里要对 originalName 做转码
-    let originalName = req.file.originalname;
+app.post(
+  "/api/upload",
+  requirePassword,
+  upload.single("image"),
+  async (req, res) => {
     try {
-      originalName = Buffer.from(originalName, "latin1").toString("utf8");
-    } catch (e) {}
+      if (!req.file) {
+        return res.status(400).json({ error: "没有选择文件" });
+      }
+      let dir = req.body.dir || req.query.dir || "";
+      dir = dir.replace(/\\/g, "/");
+      const relPath = path.join(dir, req.file.filename).replace(/\\/g, "/");
 
-    const safeFilename = sanitizeFilename(req.file.filename);
+      // 这里要对 originalName 做转码
+      let originalName = req.file.originalname;
+      try {
+        originalName = Buffer.from(originalName, "latin1").toString("utf8");
+      } catch (e) {}
 
-    const fileInfo = {
-      filename: safeFilename,
-      originalName: originalName, // 用转码后的
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      uploadTime: new Date().toISOString(),
-      url: `/api/images/${encodeURIComponent(relPath)}`,
-      relPath,
-    };
-    res.json({
-      success: true,
-      message: "图片上传成功",
-      data: fileInfo,
-    });
-  } catch (error) {
-    console.error("上传错误:", error);
-    res.status(500).json({ error: "上传失败" });
+      const safeFilename = sanitizeFilename(req.file.filename);
+
+      const fileInfo = {
+        filename: safeFilename,
+        originalName: originalName, // 用转码后的
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        uploadTime: new Date().toISOString(),
+        url: `/api/images/${encodeURIComponent(relPath)}`,
+        relPath,
+      };
+      res.json({
+        success: true,
+        message: "图片上传成功",
+        data: fileInfo,
+      });
+    } catch (error) {
+      console.error("上传错误:", error);
+      res.status(500).json({ error: "上传失败" });
+    }
   }
-});
+);
 
 // 2. 获取图片列表（支持dir参数，递归）
-app.get("/api/images", async (req, res) => {
+app.get("/api/images", requirePassword, async (req, res) => {
   try {
     let dir = req.query.dir || "";
     dir = dir.replace(/\\/g, "/");
@@ -224,7 +250,7 @@ app.get("/api/images", async (req, res) => {
 });
 
 // 3. 获取随机图片（支持dir参数）
-app.get("/api/random", async (req, res) => {
+app.get("/api/random", requirePassword, async (req, res) => {
   try {
     let dir = req.query.dir || "";
     dir = dir.replace(/\\/g, "/");
@@ -259,7 +285,7 @@ app.get("/api/images/*", (req, res) => {
 });
 
 // 5. 删除图片（支持多层目录）
-app.delete("/api/images/*", async (req, res) => {
+app.delete("/api/images/*", requirePassword, async (req, res) => {
   const relPath = decodeURIComponent(req.params[0]);
   try {
     const filePath = safeJoin(STORAGE_PATH, relPath);
@@ -302,7 +328,7 @@ async function getDirectories(dir = "") {
   return directories;
 }
 
-app.get("/api/directories", async (req, res) => {
+app.get("/api/directories", requirePassword, async (req, res) => {
   try {
     let dir = req.query.dir || "";
     dir = dir.replace(/\\/g, "/");
@@ -344,7 +370,7 @@ async function getStats(dir = "") {
   return { totalImages, totalSize, storagePath };
 }
 
-app.get("/api/stats", async (req, res) => {
+app.get("/api/stats", requirePassword, async (req, res) => {
   try {
     let dir = req.query.dir || "";
     dir = dir.replace(/\\/g, "/");
@@ -362,6 +388,33 @@ app.get("/api/stats", async (req, res) => {
 // 启动服务
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// 认证相关接口
+// 1. 检查是否需要密码保护
+app.get("/api/auth/status", (req, res) => {
+  res.json({
+    requiresPassword: config.security.password.enabled,
+  });
+});
+
+// 2. 验证密码
+app.post("/api/auth/verify", (req, res) => {
+  const { password } = req.body;
+
+  if (!config.security.password.enabled) {
+    return res.json({ success: true, message: "无需密码保护" });
+  }
+
+  if (!password) {
+    return res.status(400).json({ error: "请提供密码" });
+  }
+
+  if (password !== config.security.password.accessPassword) {
+    return res.status(401).json({ error: "密码错误" });
+  }
+
+  res.json({ success: true, message: "密码验证成功" });
 });
 
 // 配置API接口

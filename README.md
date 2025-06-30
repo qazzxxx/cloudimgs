@@ -11,6 +11,14 @@
 - **图片分享**: 一键复制图片链接
 - **统计信息**: 实时显示存储使用情况
 
+### 🔐 密码保护 (新增)
+
+- **访问控制**: 可设置访问密码，保护图片安全
+- **登录界面**: 美观的登录界面，支持密码验证
+- **会话管理**: 登录状态自动保存，支持退出登录
+- **API 保护**: 所有管理接口都需要密码验证
+- **可选启用**: 通过环境变量控制是否启用密码保护
+
 ### 📁 子目录管理
 
 - **智能目录选择**: 可选择现有目录或输入新目录
@@ -108,7 +116,32 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - STORAGE_PATH=/app/uploads
+      # 密码保护配置（可选）
+      # - PASSWORD=your_secure_password_here
 ```
+
+### 密码保护配置
+
+如需启用密码保护，请在环境变量中设置 `PASSWORD`：
+
+```bash
+# 方式1: 直接在 docker-compose.yml 中设置
+environment:
+  - PASSWORD=your_secure_password_here
+
+# 方式2: 使用 .env 文件
+echo "PASSWORD=your_secure_password_here" >> .env
+
+# 方式3: 直接设置环境变量
+export PASSWORD=your_secure_password_here
+```
+
+**注意事项：**
+
+- 设置 `PASSWORD` 环境变量后，系统将自动启用密码保护
+- 未设置 `PASSWORD` 时，系统无需密码即可访问
+- 密码验证成功后，登录状态会保存在浏览器本地存储中
+- 支持通过退出登录按钮清除登录状态
 
 ### 文件格式支持
 
@@ -118,11 +151,52 @@ services:
 
 ## API 接口
 
+### 🔐 认证接口
+
+#### 检查是否需要密码保护
+
+```
+GET /api/auth/status
+```
+
+**响应示例：**
+
+```json
+{
+  "requiresPassword": true
+}
+```
+
+#### 验证密码
+
+```
+POST /api/auth/verify
+```
+
+**请求体：**
+
+```json
+{
+  "password": "your_password"
+}
+```
+
+**响应示例：**
+
+```json
+{
+  "success": true,
+  "message": "密码验证成功"
+}
+```
+
 ### 📤 图片上传
 
 ```
 POST /api/upload
 ```
+
+**认证要求：** 如果启用了密码保护，需要在请求头中包含 `X-Access-Password`
 
 **参数说明：**
 
@@ -135,35 +209,19 @@ POST /api/upload
 **curl 示例：**
 
 ```bash
-# 上传到根目录
+# 上传到根目录（无密码保护）
 curl -X POST http://localhost:3001/api/upload \
   -F "image=@/path/to/your/image.jpg"
 
-# 上传到指定子目录
-curl -X POST "http://localhost:3001/api/upload?dir=2024/06/10" \
+# 上传到根目录（有密码保护）
+curl -X POST http://localhost:3001/api/upload \
+  -H "X-Access-Password: your_password" \
   -F "image=@/path/to/your/image.jpg"
 
-# 上传中文文件名图片
-curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \
-  -F "image=@/path/to/你的图片.jpg"
-```
-
-**响应示例：**
-
-```json
-{
-  "success": true,
-  "message": "图片上传成功",
-  "data": {
-    "filename": "image.jpg",
-    "originalName": "原始文件名.jpg",
-    "size": 1024000,
-    "mimetype": "image/jpeg",
-    "uploadTime": "2024-01-01T12:00:00.000Z",
-    "url": "/api/images/image.jpg",
-    "relPath": "image.jpg"
-  }
-}
+# 上传到指定子目录（有密码保护）
+curl -X POST "http://localhost:3001/api/upload?dir=2024/06/10" \
+  -H "X-Access-Password: your_password" \
+  -F "image=@/path/to/your/image.jpg"
 ```
 
 ### 📋 获取图片列表
@@ -172,6 +230,8 @@ curl -X POST "http://localhost:3001/api/upload?dir=相册/家庭" \
 GET /api/images
 ```
 
+**认证要求：** 如果启用了密码保护，需要在请求头中包含 `X-Access-Password`
+
 **参数说明：**
 
 - `dir` (可选): 指定目录路径，如 "2024/06/10"
@@ -179,11 +239,14 @@ GET /api/images
 **curl 示例：**
 
 ```bash
-# 获取根目录所有图片
+# 获取根目录所有图片（无密码保护）
 curl http://localhost:3001/api/images
 
-# 获取指定目录图片
-curl "http://localhost:3001/api/images?dir=2024/06/10"
+# 获取根目录所有图片（有密码保护）
+curl -H "X-Access-Password: your_password" http://localhost:3001/api/images
+
+# 获取指定目录图片（有密码保护）
+curl -H "X-Access-Password: your_password" "http://localhost:3001/api/images?dir=2024/06/10"
 ```
 
 **响应示例：**
@@ -209,6 +272,8 @@ curl "http://localhost:3001/api/images?dir=2024/06/10"
 GET /api/random
 ```
 
+**认证要求：** 如果启用了密码保护，需要在请求头中包含 `X-Access-Password`
+
 **参数说明：**
 
 - `dir` (可选): 指定目录路径
@@ -216,11 +281,14 @@ GET /api/random
 **curl 示例：**
 
 ```bash
-# 获取根目录随机图片
+# 获取根目录随机图片（无密码保护）
 curl http://localhost:3001/api/random
 
-# 获取指定目录随机图片
-curl "http://localhost:3001/api/random?dir=2024/06/10"
+# 获取根目录随机图片（有密码保护）
+curl -H "X-Access-Password: your_password" http://localhost:3001/api/random
+
+# 获取指定目录随机图片（有密码保护）
+curl -H "X-Access-Password: your_password" "http://localhost:3001/api/random?dir=2024/06/10"
 ```
 
 ### 📊 获取统计信息
@@ -229,6 +297,8 @@ curl "http://localhost:3001/api/random?dir=2024/06/10"
 GET /api/stats
 ```
 
+**认证要求：** 如果启用了密码保护，需要在请求头中包含 `X-Access-Password`
+
 **参数说明：**
 
 - `dir` (可选): 指定目录路径
@@ -236,11 +306,14 @@ GET /api/stats
 **curl 示例：**
 
 ```bash
-# 获取总体统计
+# 获取总体统计（无密码保护）
 curl http://localhost:3001/api/stats
 
-# 获取指定目录统计
-curl "http://localhost:3001/api/stats?dir=2024/06/10"
+# 获取总体统计（有密码保护）
+curl -H "X-Access-Password: your_password" http://localhost:3001/api/stats
+
+# 获取指定目录统计（有密码保护）
+curl -H "X-Access-Password: your_password" "http://localhost:3001/api/stats?dir=2024/06/10"
 ```
 
 **响应示例：**
@@ -260,6 +333,26 @@ curl "http://localhost:3001/api/stats?dir=2024/06/10"
 
 ```
 GET /api/directories
+```
+
+**认证要求：** 如果启用了密码保护，需要在请求头中包含 `X-Access-Password`
+
+### 🗑️ 删除图片
+
+```
+DELETE /api/images/{filename}
+```
+
+**认证要求：** 如果启用了密码保护，需要在请求头中包含 `X-Access-Password`
+
+**curl 示例：**
+
+```bash
+# 删除图片（无密码保护）
+curl -X DELETE http://localhost:3001/api/images/image.jpg
+
+# 删除图片（有密码保护）
+curl -X DELETE -H "X-Access-Password: your_password" http://localhost:3001/api/images/image.jpg
 ```
 
 ## 更新日志

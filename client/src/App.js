@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Layout,
   Menu,
@@ -24,6 +24,7 @@ import {
   FileZipOutlined,
   ToolOutlined,
   MenuOutlined,
+  LogoutOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./components/UploadComponent";
 import ImageGallery from "./components/ImageGallery";
@@ -32,7 +33,8 @@ import SvgToPngTool from "./components/SvgToPngTool";
 import ImageCompressor from "./components/ImageCompressor";
 import LogoWithText from "./components/LogoWithText";
 import ThemeSwitcher from "./components/ThemeSwitcher";
-import axios from "axios";
+import LoginComponent from "./components/LoginComponent";
+import api from "./utils/api";
 
 const { Header, Content, Sider } = Layout;
 
@@ -44,6 +46,9 @@ function AppContent({ currentTheme, onThemeChange }) {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const { useBreakpoint } = Grid;
@@ -55,6 +60,60 @@ function AppContent({ currentTheme, onThemeChange }) {
 
   // 判断是否为移动端
   const isMobile = !screens.md;
+
+  // 检查是否需要密码保护
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        setAuthLoading(true);
+        const response = await fetch("/api/auth/status");
+        const data = await response.json();
+
+        if (data.requiresPassword) {
+          setPasswordRequired(true);
+          const savedPassword = localStorage.getItem("cloudimgs_password");
+          if (savedPassword) {
+            // 验证保存的密码是否有效
+            const verifyResponse = await fetch("/api/auth/verify", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ password: savedPassword }),
+            });
+
+            if (verifyResponse.ok) {
+              setIsAuthenticated(true);
+            } else {
+              localStorage.removeItem("cloudimgs_password");
+            }
+          }
+        } else {
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error("检查认证状态失败:", error);
+        // 如果检查失败，假设不需要密码，但不要自动认证
+        // 这样可以避免死循环
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkAuthStatus();
+  }, []);
+
+  // 登录成功处理
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  // 登出处理
+  const handleLogout = () => {
+    localStorage.removeItem("cloudimgs_password");
+    setIsAuthenticated(false);
+    message.success("已退出登录");
+  };
 
   // 根据当前路由设置选中的菜单项
   useEffect(() => {
@@ -78,22 +137,28 @@ function AppContent({ currentTheme, onThemeChange }) {
   }, [location.pathname]);
 
   // 获取统计信息
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
+    // 只有在已认证的情况下才获取数据
+    if (!isAuthenticated) return;
+
     try {
-      const response = await axios.get("/api/stats");
+      const response = await api.get("/stats");
       if (response.data.success) {
         setStats(response.data.data);
       }
     } catch (error) {
       console.error("获取统计信息失败:", error);
     }
-  };
+  }, [isAuthenticated]);
 
   // 获取图片列表
-  const fetchImages = async () => {
+  const fetchImages = useCallback(async () => {
+    // 只有在已认证的情况下才获取数据
+    if (!isAuthenticated) return;
+
     setLoading(true);
     try {
-      const response = await axios.get("/api/images");
+      const response = await api.get("/images");
       if (response.data.success) {
         setImages(response.data.data);
       }
@@ -102,12 +167,12 @@ function AppContent({ currentTheme, onThemeChange }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
   // 删除图片
   const handleDeleteImage = async (filename) => {
     try {
-      await axios.delete(`/api/images/${filename}`);
+      await api.delete(`/images/${filename}`);
       message.success("图片删除成功");
       fetchImages();
       fetchStats();
@@ -158,9 +223,12 @@ function AppContent({ currentTheme, onThemeChange }) {
   };
 
   useEffect(() => {
-    fetchStats();
-    fetchImages();
-  }, []);
+    // 只有在已认证的情况下才获取数据
+    if (isAuthenticated && !authLoading) {
+      fetchStats();
+      fetchImages();
+    }
+  }, [isAuthenticated, authLoading, fetchStats, fetchImages]);
 
   const menuItems = [
     {
@@ -197,58 +265,56 @@ function AppContent({ currentTheme, onThemeChange }) {
     },
   ];
 
-  return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Header
+  // 在认证加载期间显示加载状态
+  if (authLoading) {
+    return (
+      <div
         style={{
           display: "flex",
+          justifyContent: "center",
           alignItems: "center",
-          justifyContent: "space-between",
-          background: colorBgContainer,
-          borderBottom: `1px solid ${colorBorder}`,
-          padding: isMobile ? "0 16px" : "0 24px",
-          height: isMobile ? "56px" : "64px",
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
-          {isMobile && (
-            <Button
-              type="text"
-              icon={<MenuOutlined />}
-              onClick={() => setMobileMenuOpen(true)}
-              style={{
-                marginRight: 12,
-                fontSize: "16px",
-                color: "inherit",
-              }}
-            />
-          )}
-          <LogoWithText
-            size={isMobile ? 24 : 32}
-            titleLevel={isMobile ? 4 : 3}
-            style={{ verticalAlign: "middle" }}
-          />
+        <div style={{ textAlign: "center", color: "white" }}>
+          <div style={{ fontSize: "24px", marginBottom: "16px" }}>
+            CloudImgs
+          </div>
+          <div>正在检查认证状态...</div>
         </div>
-        <ThemeSwitcher theme={currentTheme} onThemeChange={onThemeChange} />
-      </Header>
-      <Layout>
+      </div>
+    );
+  }
+
+  // 如果不需要密码保护或已认证，显示主应用
+  if (!passwordRequired || isAuthenticated) {
+    return (
+      <Layout style={{ minHeight: "100vh" }}>
         {/* 桌面端侧边栏 */}
         {!isMobile && (
-          <Sider width={200} style={{ background: colorBgContainer }}>
+          <Sider
+            width={250}
+            style={{
+              background: colorBgContainer,
+              borderRight: `1px solid ${colorBorder}`,
+            }}
+          >
+            <div style={{ padding: "16px", textAlign: "center" }}>
+              <LogoWithText />
+            </div>
             <Menu
               mode="inline"
               selectedKeys={[selectedKey]}
               openKeys={openKeys}
-              style={{
-                height: "100%",
-                borderRight: 0,
-                background: colorBgContainer,
-                color: currentTheme === "dark" ? "#ffffff" : "#000000",
-              }}
-              items={menuItems}
-              onClick={handleMenuClick}
               onOpenChange={handleOpenChange}
-              theme={currentTheme}
+              onClick={handleMenuClick}
+              items={menuItems}
+              style={{
+                borderRight: 0,
+                height: "calc(100vh - 80px)",
+                overflowY: "auto",
+              }}
             />
           </Sider>
         )}
@@ -260,52 +326,98 @@ function AppContent({ currentTheme, onThemeChange }) {
             placement="left"
             onClose={() => setMobileMenuOpen(false)}
             open={mobileMenuOpen}
-            width={280}
-            bodyStyle={{ padding: 0 }}
-            headerStyle={{
-              background: colorBgContainer,
-              borderBottom: `1px solid ${colorBorder}`,
-            }}
+            width={250}
           >
+            <div style={{ marginBottom: "16px", textAlign: "center" }}>
+              <LogoWithText />
+            </div>
             <Menu
               mode="inline"
               selectedKeys={[selectedKey]}
               openKeys={openKeys}
-              style={{
-                height: "100%",
-                borderRight: 0,
-                background: colorBgContainer,
-                color: currentTheme === "dark" ? "#ffffff" : "#000000",
-              }}
-              items={menuItems}
-              onClick={handleMobileMenuClick}
               onOpenChange={handleOpenChange}
-              theme={currentTheme}
+              onClick={handleMobileMenuClick}
+              items={menuItems}
+              style={{ borderRight: 0 }}
             />
           </Drawer>
         )}
 
-        <Layout style={{ padding: isMobile ? "16px" : "24px" }}>
+        <Layout>
+          {/* 头部 */}
+          <Header
+            style={{
+              padding: "0 16px",
+              background: colorBgContainer,
+              borderBottom: `1px solid ${colorBorder}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {isMobile && (
+                <Button
+                  type="text"
+                  icon={<MenuOutlined />}
+                  onClick={() => setMobileMenuOpen(true)}
+                  style={{ marginRight: "16px" }}
+                />
+              )}
+              <div style={{ display: isMobile ? "none" : "block" }}>
+                <LogoWithText />
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <ThemeSwitcher
+                currentTheme={currentTheme}
+                onThemeChange={onThemeChange}
+              />
+              {passwordRequired && (
+                <Button
+                  type="text"
+                  icon={<LogoutOutlined />}
+                  onClick={handleLogout}
+                  style={{
+                    color: currentTheme === "dark" ? "#ffffff" : "#000000",
+                  }}
+                  size={isMobile ? "small" : "middle"}
+                >
+                  <span style={{ display: isMobile ? "none" : "inline" }}>
+                    退出登录
+                  </span>
+                </Button>
+              )}
+            </div>
+          </Header>
+
+          {/* 内容区域 */}
           <Content
             style={{
-              padding: isMobile ? 16 : 24,
-              margin: 0,
-              minHeight: 280,
+              margin: "16px",
+              padding: "24px",
               background: colorBgContainer,
               borderRadius: borderRadiusLG,
+              minHeight: "calc(100vh - 120px)",
             }}
           >
             <Routes>
               <Route
                 path="/"
                 element={
-                  <UploadComponent onUploadSuccess={handleUploadSuccess} />
+                  <UploadComponent
+                    onUploadSuccess={handleUploadSuccess}
+                    api={api}
+                  />
                 }
               />
               <Route
                 path="/upload"
                 element={
-                  <UploadComponent onUploadSuccess={handleUploadSuccess} />
+                  <UploadComponent
+                    onUploadSuccess={handleUploadSuccess}
+                    api={api}
+                  />
                 }
               />
               <Route
@@ -316,32 +428,22 @@ function AppContent({ currentTheme, onThemeChange }) {
                     loading={loading}
                     onDelete={handleDeleteImage}
                     onRefresh={fetchImages}
+                    api={api}
                   />
                 }
               />
               <Route path="/stats" element={<StatsComponent stats={stats} />} />
-              <Route
-                path="/svg-tool"
-                element={<SvgToPngTool onUploadSuccess={handleUploadSuccess} />}
-              />
-              <Route
-                path="/compressor"
-                element={
-                  <ImageCompressor onUploadSuccess={handleUploadSuccess} />
-                }
-              />
-              <Route
-                path="*"
-                element={
-                  <UploadComponent onUploadSuccess={handleUploadSuccess} />
-                }
-              />
+              <Route path="/svg-tool" element={<SvgToPngTool />} />
+              <Route path="/compressor" element={<ImageCompressor />} />
             </Routes>
           </Content>
         </Layout>
       </Layout>
-    </Layout>
-  );
+    );
+  }
+
+  // 如果需要密码保护且未认证，显示登录界面
+  return <LoginComponent onLoginSuccess={handleLoginSuccess} />;
 }
 
 // 主App组件
@@ -415,9 +517,35 @@ function App() {
         },
       }}
     >
-      {/* 添加自定义样式确保子菜单背景色一致 */}
+      {/* 全局样式重置 */}
       <style>
         {`
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+              'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+              sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+          }
+          
+          html {
+            margin: 0;
+            padding: 0;
+          }
+          
+          #root {
+            margin: 0;
+            padding: 0;
+          }
+          
           .ant-menu-submenu-popup .ant-menu {
             background-color: ${
               currentTheme === "dark" ? "#141414" : "#ffffff"

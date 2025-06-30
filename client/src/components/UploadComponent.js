@@ -16,7 +16,6 @@ import {
 } from "antd";
 import { InboxOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import DirectorySelector from "./DirectorySelector";
-import axios from "axios";
 
 const { Dragger } = Upload;
 const { Title, Text } = Typography;
@@ -29,7 +28,7 @@ function sanitizeDir(input) {
   return dir;
 }
 
-const UploadComponent = ({ onUploadSuccess }) => {
+const UploadComponent = ({ onUploadSuccess, api }) => {
   const {
     token: { colorBgContainer, colorBorder },
   } = theme.useToken();
@@ -59,7 +58,7 @@ const UploadComponent = ({ onUploadSuccess }) => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await axios.get("/api/config");
+        const response = await api.get("/config");
         if (response.data.success) {
           setConfig(response.data.data.upload);
         }
@@ -68,7 +67,7 @@ const UploadComponent = ({ onUploadSuccess }) => {
       }
     };
     fetchConfig();
-  }, []);
+  }, [api]);
 
   const uploadProps = {
     name: "image",
@@ -105,10 +104,10 @@ const UploadComponent = ({ onUploadSuccess }) => {
       formData.append("image", file, fileName);
 
       const url = safeDir
-        ? `/api/upload?dir=${encodeURIComponent(safeDir)}`
-        : "/api/upload";
+        ? `/upload?dir=${encodeURIComponent(safeDir)}`
+        : "/upload";
       try {
-        const response = await axios.post(url, formData, {
+        const response = await api.post(url, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
