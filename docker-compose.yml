@@ -8,6 +8,7 @@ services:
       - "3001:3001"
     volumes:
       - ./uploads:/app/uploads:rw # 上传目录配置，明确读写权限
+      - ./logs:/app/logs
     restart: unless-stopped
     container_name: cloudimgs-app
     # 使用 root 用户运行以解决权限问题
@@ -17,4 +18,7 @@ services:
       - PORT=3001
       - STORAGE_PATH=/app/uploads
       # 密码保护配置（可选）
-      # - PASSWORD=your_password_here
+      - PASSWORD=your_password_here
+      # 日志配置
+      - LOG_DIR=/app/logs
+      - LOG_LEVEL=info

@@ -9,8 +9,123 @@ const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
 const config = require("../config");
 
+// 日志配置
+const LOG_DIR = process.env.LOG_DIR || "./logs";
+const LOG_LEVEL = process.env.LOG_LEVEL || "info";
+
+// 确保日志目录存在
+fs.ensureDirSync(LOG_DIR);
+
+// 创建日志文件流
+const logFile = path.join(LOG_DIR, "app.log");
+const errorLogFile = path.join(LOG_DIR, "error.log");
+
+// 日志函数
+function log(level, message, data = null) {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+
+  // 输出到控制台
+  console.log(logEntry);
+  if (data) {
+    console.log(JSON.stringify(data, null, 2));
+  }
+
+  // 输出到文件
+  try {
+    fs.appendFileSync(logFile, logEntry + "\n");
+    if (data) {
+      fs.appendFileSync(logFile, JSON.stringify(data, null, 2) + "\n");
+    }
+  } catch (error) {
+    console.error("写入日志文件失败:", error.message);
+  }
+}
+
+function errorLog(message, error = null) {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] [ERROR] ${message}`;
+
+  // 输出到控制台
+  console.error(logEntry);
+  if (error) {
+    console.error(error.stack || error.message);
+  }
+
+  // 输出到错误日志文件
+  try {
+    fs.appendFileSync(errorLogFile, logEntry + "\n");
+    if (error) {
+      fs.appendFileSync(errorLogFile, (error.stack || error.message) + "\n");
+    }
+  } catch (err) {
+    console.error("写入错误日志文件失败:", err.message);
+  }
+}
+
+// 重写console方法以支持文件日志
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+console.log = (...args) => {
+  originalConsoleLog(...args);
+  try {
+    const message = args
+      .map((arg) =>
+        typeof arg === "object" ? JSON.stringify(arg) : String(arg)
+      )
+      .join(" ");
+    fs.appendFileSync(
+      logFile,
+      `[${new Date().toISOString()}] [INFO] ${message}\n`
+    );
+  } catch (error) {
+    originalConsoleError("写入日志失败:", error.message);
+  }
+};
+
+console.error = (...args) => {
+  originalConsoleError(...args);
+  try {
+    const message = args
+      .map((arg) =>
+        typeof arg === "object" ? JSON.stringify(arg) : String(arg)
+      )
+      .join(" ");
+    fs.appendFileSync(
+      errorLogFile,
+      `[${new Date().toISOString()}] [ERROR] ${message}\n`
+    );
+  } catch (error) {
+    originalConsoleError("写入错误日志失败:", error.message);
+  }
+};
+
+console.warn = (...args) => {
+  originalConsoleWarn(...args);
+  try {
+    const message = args
+      .map((arg) =>
+        typeof arg === "object" ? JSON.stringify(arg) : String(arg)
+      )
+      .join(" ");
+    fs.appendFileSync(
+      logFile,
+      `[${new Date().toISOString()}] [WARN] ${message}\n`
+    );
+  } catch (error) {
+    originalConsoleError("写入警告日志失败:", error.message);
+  }
+};
+
 const app = express();
 const PORT = config.server.port;
+
+// 启动日志
+log("info", `CloudImgs 服务器启动中... 端口: ${PORT}`);
+log("info", `日志目录: ${LOG_DIR}`);
+log("info", `存储路径: ${config.storage.path}`);
 
 // 中间件
 app.use(cors());
@@ -397,14 +512,26 @@ app.post("/api/svg-to-png", requirePassword, async (req, res) => {
       dir = "",
     } = req.body;
 
+    log("info", "SVG转PNG请求开始", {
+      width,
+      height,
+      uploadToStorage,
+      dir,
+      svgCodeLength: svgCode ? svgCode.length : 0,
+    });
+
     if (!svgCode) {
+      log("warn", "SVG转PNG请求缺少SVG代码");
       return res.status(400).json({ error: "请提供SVG代码" });
     }
 
     // 验证SVG代码
     if (!svgCode.includes("<svg") || !svgCode.includes("</svg>")) {
+      log("warn", "SVG转PNG请求包含无效的SVG代码");
       return res.status(400).json({ error: "无效的SVG代码" });
     }
+
+    log("info", "开始转换SVG为PNG", { width, height });
 
     // 使用sharp转换SVG为PNG
     const pngBuffer = await sharp(Buffer.from(svgCode))
@@ -415,8 +542,15 @@ app.post("/api/svg-to-png", requirePassword, async (req, res) => {
       .png()
       .toBuffer();
 
+    log("info", "SVG转换完成", {
+      pngSize: pngBuffer.length,
+      originalWidth: width,
+      originalHeight: height,
+    });
+
     // 如果不需要上传到存储，直接返回PNG文件
     if (!uploadToStorage) {
+      log("info", "返回PNG文件，不上传到存储");
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Content-Disposition", 'inline; filename="converted.png"');
       return res.send(pngBuffer);
@@ -427,9 +561,12 @@ app.post("/api/svg-to-png", requirePassword, async (req, res) => {
     const targetDir = dir.replace(/\\/g, "/");
     const dest = safeJoin(STORAGE_PATH, targetDir);
 
+    log("info", "准备上传到存储", { filename, targetDir, dest });
+
     // 确保目录存在
     if (config.storage.autoCreateDirs) {
       fs.ensureDirSync(dest);
+      log("info", "创建目录", { dest });
     }
 
     const filePath = path.join(dest, filename);
@@ -452,20 +589,23 @@ app.post("/api/svg-to-png", requirePassword, async (req, res) => {
       },
     };
 
+    log("info", "SVG转换并上传成功", fileInfo);
+
     res.json({
       success: true,
       message: "SVG转换并上传成功",
       data: fileInfo,
     });
   } catch (error) {
-    console.error("SVG转PNG错误:", error);
-    res.status(500).json({ error: "SVG转换失败" });
+    errorLog("SVG转PNG错误", error);
+    res.status(500).json({ error: "SVG转换失败: " + error.message });
   }
 });
 
 // 启动服务
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  log("info", `Server running on port ${PORT}`);
+  log("info", "CloudImgs 服务器启动完成");
 });
 
 // 认证相关接口
