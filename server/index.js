@@ -6,6 +6,7 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs-extra");
 const { v4: uuidv4 } = require("uuid");
+const sharp = require("sharp");
 const config = require("../config");
 
 const app = express();
@@ -382,6 +383,83 @@ app.get("/api/stats", requirePassword, async (req, res) => {
   } catch (error) {
     console.error("获取统计信息错误:", error);
     res.status(500).json({ error: "获取统计信息失败" });
+  }
+});
+
+// SVG转PNG API接口
+app.post("/api/svg-to-png", requirePassword, async (req, res) => {
+  try {
+    const {
+      svgCode,
+      width = 800,
+      height = 600,
+      uploadToStorage = false,
+      dir = "",
+    } = req.body;
+
+    if (!svgCode) {
+      return res.status(400).json({ error: "请提供SVG代码" });
+    }
+
+    // 验证SVG代码
+    if (!svgCode.includes("<svg") || !svgCode.includes("</svg>")) {
+      return res.status(400).json({ error: "无效的SVG代码" });
+    }
+
+    // 使用sharp转换SVG为PNG
+    const pngBuffer = await sharp(Buffer.from(svgCode))
+      .resize(parseInt(width), parseInt(height), {
+        fit: "contain",
+        background: { r: 255, g: 255, b: 255, alpha: 0 },
+      })
+      .png()
+      .toBuffer();
+
+    // 如果不需要上传到存储，直接返回PNG文件
+    if (!uploadToStorage) {
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Content-Disposition", 'inline; filename="converted.png"');
+      return res.send(pngBuffer);
+    }
+
+    // 上传到存储
+    const filename = `svg-converted-${Date.now()}.png`;
+    const targetDir = dir.replace(/\\/g, "/");
+    const dest = safeJoin(STORAGE_PATH, targetDir);
+
+    // 确保目录存在
+    if (config.storage.autoCreateDirs) {
+      fs.ensureDirSync(dest);
+    }
+
+    const filePath = path.join(dest, filename);
+    await fs.writeFile(filePath, pngBuffer);
+
+    const relPath = path.join(targetDir, filename).replace(/\\/g, "/");
+    const stats = await fs.stat(filePath);
+
+    const fileInfo = {
+      filename: filename,
+      originalName: "converted.svg",
+      size: stats.size,
+      mimetype: "image/png",
+      uploadTime: new Date().toISOString(),
+      url: `/api/images/${encodeURIComponent(relPath)}`,
+      relPath,
+      originalSvgSize: {
+        width: parseInt(width),
+        height: parseInt(height),
+      },
+    };
+
+    res.json({
+      success: true,
+      message: "SVG转换并上传成功",
+      data: fileInfo,
+    });
+  } catch (error) {
+    console.error("SVG转PNG错误:", error);
+    res.status(500).json({ error: "SVG转换失败" });
   }
 });
 

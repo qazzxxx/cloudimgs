@@ -36,7 +36,7 @@ const SvgToPngTool = ({ onUploadSuccess, api }) => {
   <text x="100" y="110" text-anchor="middle" fill="white" font-size="16" font-family="Arial">SVG</text>
 </svg>`;
 
-  // 转换SVG为PNG
+  // 转换SVG为PNG（本地canvas方式）
   const convertSvgToPng = async () => {
     if (!svgCode.trim()) {
       message.error("请输入SVG代码");
@@ -375,6 +375,106 @@ const SvgToPngTool = ({ onUploadSuccess, api }) => {
             </ul>
           </div>
         </Space>
+      </Card>
+
+      {/* 接口详细说明 */}
+      <Card
+        title="SVG转PNG API接口详细说明"
+        style={{ marginTop: 24 }}
+        size="small"
+      >
+        <div style={{ maxHeight: 400, overflow: "auto", fontSize: 14 }}>
+          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+            {`
+POST /api/svg-to-png - 将 SVG 代码转换为 PNG 图片，支持直接返回文件或上传到图床
+
+认证方式：
+如果启用了密码保护，需要在请求中包含密码参数，支持以下三种方式：
+1. 请求头方式：x-access-password: your_password
+2. 请求体方式：在JSON中添加 "password": "your_password"
+3. 查询参数方式：URL中添加 ?password=your_password
+
+请求参数 (JSON)：
+| 参数名            | 类型    | 必填 | 默认值 | 说明                                             |
+| ----------------- | ------- | ---- | ------ | ------------------------------------------------ |
+| svgCode           | string  | 是   | -      | SVG 代码字符串                                   |
+| width             | number  | 否   | 800    | 输出 PNG 的宽度（像素）                          |
+| height            | number  | 否   | 600    | 输出 PNG 的高度（像素）                          |
+| uploadToStorage   | boolean | 否   | false  | 是否上传到图床                                   |
+| dir               | string  | 否   | ""     | 上传目标目录（仅当 uploadToStorage=true 时有效） |
+| password          | string  | 否   | -      | 访问密码（如果启用了密码保护）                   |
+
+响应格式：
+1. 仅转换模式 (uploadToStorage=false)
+  Content-Type: image/png
+  Content-Disposition: inline; filename="converted.png"
+  响应体：PNG 图片的二进制数据
+2. 转换并上传模式 (uploadToStorage=true)
+  Content-Type: application/json
+  响应体：
+  {
+    "success": true,
+    "message": "SVG转换并上传成功",
+    "data": {
+      "filename": "svg-converted-1703123456789.png",
+      "originalName": "converted.svg",
+      "size": 12345,
+      "mimetype": "image/png",
+      "uploadTime": "2023-12-21T10:30:56.789Z",
+      "url": "/api/images/svg-converted-1703123456789.png",
+      "relPath": "svg-converted-1703123456789.png",
+      "originalSvgSize": { "width": 800, "height": 600 }
+    }
+  }
+
+错误响应：
+  { "error": "错误信息" }
+
+使用示例：
+// 仅转换 SVG 为 PNG - 请求头方式
+fetch('/api/svg-to-png', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'x-access-password': 'your_password' // 如果启用了密码保护
+  },
+  body: JSON.stringify({ svgCode: '<svg ...>', width: 400, height: 400, uploadToStorage: false })
+})
+
+// 转换并上传到图床 - 请求体方式
+fetch('/api/svg-to-png', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ 
+    svgCode: '<svg ...>', 
+    width: 800, 
+    height: 600, 
+    uploadToStorage: true, 
+    dir: '2024/06/10',
+    password: 'your_password' // 如果启用了密码保护
+  })
+})
+
+注意事项：
+- SVG 代码需包含 <svg> 标签
+- 宽高建议 1-4000 像素
+- 转换后的 PNG 文件大小取决于 SVG 复杂度和尺寸
+- 上传需有写入权限
+- 若启用密码保护，需在请求中包含密码（支持请求头、请求体、查询参数三种方式）
+- 支持基本图形、文本、渐变、滤镜、动画等 SVG 特性
+
+错误码说明：
+| 错误信息          | 说明               | 解决方案                            |
+| ----------------- | ------------------ | ----------------------------------- |
+| "需要提供访问密码" | 启用了密码保护但未提供密码 | 在请求中包含密码参数                |
+| "密码错误"        | 提供的密码不正确   | 检查密码是否正确                    |
+| "请提供 SVG 代码" | svgCode 参数为空   | 提供有效的 SVG 代码                 |
+| "无效的 SVG 代码" | SVG 代码格式不正确 | 检查 SVG 代码是否包含 svg 标签      |
+| "SVG 转换失败"    | 转换过程中发生错误 | 检查 SVG 代码语法，确保没有外部依赖 |
+| "非法路径"        | 目录路径不安全     | 使用安全的目录路径，避免路径穿越    |
+`}
+          </pre>
+        </div>
       </Card>
     </div>
   );
