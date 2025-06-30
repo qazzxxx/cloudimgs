@@ -533,14 +533,32 @@ app.post("/api/svg-to-png", requirePassword, async (req, res) => {
 
     log("info", "开始转换SVG为PNG", { width, height });
 
-    // 使用sharp转换SVG为PNG
-    const pngBuffer = await sharp(Buffer.from(svgCode))
-      .resize(parseInt(width), parseInt(height), {
-        fit: "contain",
-        background: { r: 255, g: 255, b: 255, alpha: 0 },
-      })
-      .png()
-      .toBuffer();
+    let pngBuffer;
+    try {
+      log("info", "准备调用 sharp 进行 SVG 转换", {
+        svgCodeSnippet: svgCode.slice(0, 200),
+        width,
+        height,
+      });
+      pngBuffer = await sharp(Buffer.from(svgCode))
+        .resize(parseInt(width), parseInt(height), {
+          fit: "contain",
+          background: { r: 255, g: 255, b: 255, alpha: 0 },
+        })
+        .png()
+        .toBuffer();
+      log("info", "sharp 转换成功", { pngSize: pngBuffer.length });
+    } catch (sharpError) {
+      errorLog("sharp 转换 SVG 失败", sharpError);
+      errorLog("svgCode 片段", {
+        svgCodeSnippet: svgCode.slice(0, 500),
+        width,
+        height,
+      });
+      return res
+        .status(500)
+        .json({ error: "SVG转换失败: " + sharpError.message });
+    }
 
     log("info", "SVG转换完成", {
       pngSize: pngBuffer.length,
@@ -674,4 +692,31 @@ app.get("*", (req, res) => {
 
   // 对于所有其他路由，返回React应用的index.html
   res.sendFile(path.join(__dirname, "../client/build/index.html"));
+});
+
+// 全局异常和未处理Promise捕获，写入日志文件
+process.on("uncaughtException", (err) => {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] [UNCAUGHT_EXCEPTION] ${
+    err.stack || err.message
+  }`;
+  try {
+    fs.appendFileSync(errorLogFile, logEntry + "\n");
+  } catch (e) {
+    console.error("写入uncaughtException日志失败:", e.message);
+  }
+  console.error(logEntry);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] [UNHANDLED_REJECTION] ${
+    reason && reason.stack ? reason.stack : reason
+  }`;
+  try {
+    fs.appendFileSync(errorLogFile, logEntry + "\n");
+  } catch (e) {
+    console.error("写入unhandledRejection日志失败:", e.message);
+  }
+  console.error(logEntry);
 });
