@@ -7,6 +7,7 @@ const path = require("path");
 const fs = require("fs-extra");
 const { v4: uuidv4 } = require("uuid");
 const config = require("../config");
+const sharp = require("sharp");
 
 const app = express();
 const PORT = config.server.port;
@@ -444,6 +445,22 @@ app.get("/api/config", (req, res) => {
   } catch (error) {
     console.error("获取配置错误:", error);
     res.status(500).json({ error: "获取配置失败" });
+  }
+});
+
+// SVG转PNG接口
+app.post("/api/svg2png", requirePassword, async (req, res) => {
+  try {
+    const { svgCode } = req.body;
+    if (!svgCode) {
+      return res.status(400).json({ error: "缺少svgCode参数" });
+    }
+    // 转为png buffer
+    const pngBuffer = await sharp(Buffer.from(svgCode)).png().toBuffer();
+    res.set("Content-Type", "image/png");
+    res.send(pngBuffer);
+  } catch (err) {
+    res.status(500).json({ error: "SVG转PNG失败", detail: err.message });
   }
 });
 
