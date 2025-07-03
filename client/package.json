@@ -1,6 +1,6 @@
 {
   "name": "cloudimgs-client",
-  "version": "0.1.0",
+  "version": "1.2.3",
   "private": true,
   "dependencies": {
     "@ant-design/icons": "^5.6.1",

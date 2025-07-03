@@ -1,6 +1,6 @@
 {
   "name": "cloudimgs",
-  "version": "1.0.0",
+  "version": "1.2.3",
   "description": "A modern image hosting application with React frontend and Node.js backend",
   "main": "server/index.js",
   "scripts": {
