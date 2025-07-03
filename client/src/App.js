@@ -376,7 +376,7 @@ function AppContent({ currentTheme, onThemeChange }) {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <ThemeSwitcher
-                currentTheme={currentTheme}
+                theme={currentTheme}
                 onThemeChange={onThemeChange}
               />
               {passwordRequired && (
