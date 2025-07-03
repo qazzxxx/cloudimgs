@@ -26,7 +26,7 @@ const { Dragger } = Upload;
 
 const ImageCompressor = ({ onUploadSuccess, api }) => {
   const {
-    token: { colorBgContainer, colorBorder, colorFillTertiary },
+    token: { colorBorder, colorFillTertiary },
   } = theme.useToken();
 
   const [originalImage, setOriginalImage] = useState(null);

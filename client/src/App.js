@@ -25,6 +25,7 @@ import {
   ToolOutlined,
   MenuOutlined,
   LogoutOutlined,
+  ScissorOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./components/UploadComponent";
 import ImageGallery from "./components/ImageGallery";
@@ -34,6 +35,7 @@ import ImageCompressor from "./components/ImageCompressor";
 import LogoWithText from "./components/LogoWithText";
 import ThemeSwitcher from "./components/ThemeSwitcher";
 import LoginComponent from "./components/LoginComponent";
+import ImageCropperTool from "./components/ImageCropperTool";
 import api from "./utils/api";
 
 const { Header, Content, Sider } = Layout;
@@ -133,6 +135,9 @@ function AppContent({ currentTheme, onThemeChange }) {
     } else if (path === "/compressor") {
       setSelectedKey("compressor");
       setOpenKeys(["tools"]);
+    } else if (path === "/cropper") {
+      setSelectedKey("cropper");
+      setOpenKeys(["tools"]);
     }
   }, [location.pathname]);
 
@@ -212,6 +217,9 @@ function AppContent({ currentTheme, onThemeChange }) {
       case "compressor":
         navigate("/compressor");
         break;
+      case "cropper":
+        navigate("/cropper");
+        break;
       default:
         navigate("/upload");
     }
@@ -266,6 +274,11 @@ function AppContent({ currentTheme, onThemeChange }) {
           key: "compressor",
           icon: <FileZipOutlined />,
           label: "图片压缩",
+        },
+        {
+          key: "cropper",
+          icon: <ScissorOutlined />,
+          label: "图片裁剪",
         },
       ],
     },
@@ -447,6 +460,7 @@ function AppContent({ currentTheme, onThemeChange }) {
                 path="/compressor"
                 element={<ImageCompressor api={api} />}
               />
+              <Route path="/cropper" element={<ImageCropperTool api={api} />} />
             </Routes>
           </Content>
         </Layout>
