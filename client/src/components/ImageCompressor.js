@@ -10,6 +10,7 @@ import {
   Col,
   Slider,
   Upload,
+  theme,
 } from "antd";
 import {
   FileZipOutlined,
@@ -24,6 +25,10 @@ const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
 const ImageCompressor = ({ onUploadSuccess, api }) => {
+  const {
+    token: { colorBgContainer, colorBorder, colorFillTertiary },
+  } = theme.useToken();
+
   const [originalImage, setOriginalImage] = useState(null);
   const [compressedImage, setCompressedImage] = useState(null);
   const [isCompressing, setIsCompressing] = useState(false);
@@ -259,7 +264,7 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
                     style={{
                       maxWidth: "100%",
                       maxHeight: "200px",
-                      border: "1px solid #d9d9d9",
+                      border: `1px solid ${colorBorder}`,
                       borderRadius: "4px",
                     }}
                   />
@@ -384,7 +389,7 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
                       style={{
                         maxWidth: "100%",
                         maxHeight: "300px",
-                        border: "1px solid #d9d9d9",
+                        border: `1px solid ${colorBorder}`,
                         borderRadius: "4px",
                       }}
                     />
@@ -394,7 +399,7 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
                   <div
                     style={{
                       padding: "12px",
-                      backgroundColor: "#f5f5f5",
+                      backgroundColor: colorFillTertiary,
                       borderRadius: "4px",
                     }}
                   >
@@ -446,7 +451,7 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
                     textAlign: "center",
                     padding: "40px 20px",
                     color: "#999",
-                    border: "2px dashed #d9d9d9",
+                    border: `2px dashed ${colorBorder}`,
                     borderRadius: "4px",
                   }}
                 >
