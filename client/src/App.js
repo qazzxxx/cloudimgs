@@ -383,9 +383,6 @@ function AppContent({ currentTheme, onThemeChange }) {
                   style={{ marginRight: "16px" }}
                 />
               )}
-              <div style={{ display: isMobile ? "none" : "block" }}>
-                <LogoWithText />
-              </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <ThemeSwitcher
