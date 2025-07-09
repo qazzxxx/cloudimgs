@@ -8,7 +8,7 @@ const fs = require("fs-extra");
 const { v4: uuidv4 } = require("uuid");
 const config = require("../config");
 const sharp = require("sharp");
-const mime = require("mime");
+const mime = require("mime-types");
 
 const app = express();
 const PORT = config.server.port;
@@ -269,7 +269,7 @@ app.get("/api/random", requirePassword, async (req, res) => {
     }
     // 直接返回图片文件
     const filePath = safeJoin(STORAGE_PATH, randomImage.relPath);
-    const mimeType = mime.getType(filePath) || "application/octet-stream";
+    const mimeType = mime.lookup(filePath) || "application/octet-stream";
     res.setHeader("Content-Type", mimeType);
     res.sendFile(filePath, (err) => {
       if (err) {
