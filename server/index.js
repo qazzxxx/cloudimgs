@@ -8,6 +8,7 @@ const fs = require("fs-extra");
 const { v4: uuidv4 } = require("uuid");
 const config = require("../config");
 const sharp = require("sharp");
+const mime = require("mime");
 
 const app = express();
 const PORT = config.server.port;
@@ -260,9 +261,20 @@ app.get("/api/random", requirePassword, async (req, res) => {
       return res.status(404).json({ error: "没有找到图片" });
     }
     const randomImage = images[Math.floor(Math.random() * images.length)];
-    res.json({
-      success: true,
-      data: randomImage,
+    if (req.query.format === "json") {
+      return res.json({
+        success: true,
+        data: randomImage,
+      });
+    }
+    // 直接返回图片文件
+    const filePath = safeJoin(STORAGE_PATH, randomImage.relPath);
+    const mimeType = mime.getType(filePath) || "application/octet-stream";
+    res.setHeader("Content-Type", mimeType);
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        res.status(500).json({ error: "图片发送失败" });
+      }
     });
   } catch (error) {
     console.error("获取随机图片错误:", error);
