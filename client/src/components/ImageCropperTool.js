@@ -1,73 +1,41 @@
-import React, { useState, useCallback } from "react";
-import Cropper from "react-easy-crop";
+import React, { useRef, useState } from "react";
+import Cropper from "react-cropper";
+import "cropperjs/dist/cropper.css";
 import {
   Card,
   Typography,
   Button,
-  Slider,
   Upload,
   message,
   Space,
   Row,
   Col,
   Input,
+  Slider,
 } from "antd";
 import {
   UploadOutlined,
   ScissorOutlined,
   CopyOutlined,
+  RedoOutlined,
+  UndoOutlined,
 } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
-function getCroppedImg(imageSrc, crop, zoom, aspect, croppedAreaPixels) {
-  return new Promise((resolve, reject) => {
-    const image = new window.Image();
-    image.crossOrigin = "anonymous";
-    image.src = imageSrc;
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = croppedAreaPixels.width;
-      canvas.height = croppedAreaPixels.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(
-        image,
-        croppedAreaPixels.x,
-        croppedAreaPixels.y,
-        croppedAreaPixels.width,
-        croppedAreaPixels.height,
-        0,
-        0,
-        croppedAreaPixels.width,
-        croppedAreaPixels.height
-      );
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          reject(new Error("Canvas is empty"));
-          return;
-        }
-        resolve(blob);
-      }, "image/png");
-    };
-    image.onerror = (e) => reject(e);
-  });
-}
-
 const ImageCropperTool = ({ api, onUploadSuccess }) => {
+  const cropperRef = useRef(null);
   const [imageSrc, setImageSrc] = useState(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [aspect, setAspect] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [croppedImageUrl, setCroppedImageUrl] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState("");
   const [fileName, setFileName] = useState("cropped-image");
-
-  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
-    setCroppedAreaPixels(croppedAreaPixels);
-  }, []);
+  const [rotate, setRotate] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [cropData, setCropData] = useState(null);
+  const [cropBoxData, setCropBoxData] = useState(null);
+  const [imgData, setImgData] = useState(null);
 
   const handleImageUpload = (file) => {
     const isImage = file.type.startsWith("image/");
@@ -81,31 +49,30 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
       setCroppedImageUrl(null);
       setUploadedUrl("");
       setFileName(file.name.replace(/\.[^/.]+$/, ""));
+      setRotate(0);
+      setZoom(1);
+      setTimeout(() => {
+        const cropper = cropperRef.current?.cropper;
+        if (cropper) {
+          cropper.reset();
+          cropper.clear();
+          cropper.crop();
+        }
+      }, 100);
     };
     reader.readAsDataURL(file);
     return false;
   };
 
-  const showCroppedImage = useCallback(async () => {
-    try {
-      if (!imageSrc || !croppedAreaPixels) {
-        message.error("请先上传图片并裁剪");
-        return;
-      }
-      const blob = await getCroppedImg(
-        imageSrc,
-        crop,
-        zoom,
-        aspect,
-        croppedAreaPixels
-      );
-      const croppedUrl = URL.createObjectURL(blob);
-      setCroppedImageUrl(croppedUrl);
-      message.success("裁剪成功！");
-    } catch (e) {
-      message.error("裁剪失败");
+  const handleCrop = () => {
+    const cropper = cropperRef.current?.cropper;
+    if (cropper && imageSrc) {
+      const croppedDataUrl = cropper.getCroppedCanvas()?.toDataURL();
+      setCroppedImageUrl(croppedDataUrl);
+      setCropBoxData(cropper.getCropBoxData());
+      setImgData(cropper.getData());
     }
-  }, [imageSrc, crop, zoom, aspect, croppedAreaPixels]);
+  };
 
   const uploadCroppedImage = async () => {
     if (!croppedImageUrl) {
@@ -114,8 +81,8 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
     }
     setIsUploading(true);
     try {
-      const response = await fetch(croppedImageUrl);
-      const blob = await response.blob();
+      const res = await fetch(croppedImageUrl);
+      const blob = await res.blob();
       const formData = new FormData();
       formData.append("image", blob, fileName + ".png");
       const uploadResponse = await api.post("/upload", formData, {
@@ -146,10 +113,26 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
     });
   };
 
+  const handleRotate = (angle) => {
+    const cropper = cropperRef.current?.cropper;
+    if (cropper) {
+      cropper.rotate(angle);
+      setRotate((prev) => prev + angle);
+    }
+  };
+
+  const handleZoom = (value) => {
+    const cropper = cropperRef.current?.cropper;
+    if (cropper) {
+      cropper.zoomTo(value);
+      setZoom(value);
+    }
+  };
+
   return (
     <Card style={{ marginTop: 24 }}>
       <Title level={3}>
-        <ScissorOutlined /> 图片裁剪工具
+        <ScissorOutlined /> 图片裁剪工具（专业版）
       </Title>
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={12}>
@@ -188,87 +171,70 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
                 size="middle"
               >
                 <div>
+                  <Text strong>旋转：</Text>
+                  <Button
+                    icon={<UndoOutlined />}
+                    onClick={() => handleRotate(-90)}
+                    style={{ marginRight: 8 }}
+                  >
+                    左转90°
+                  </Button>
+                  <Button
+                    icon={<RedoOutlined />}
+                    onClick={() => handleRotate(90)}
+                  >
+                    右转90°
+                  </Button>
+                </div>
+                <div>
                   <Text strong>缩放：</Text>
                   <Slider
                     min={0.2}
                     max={3}
                     step={0.01}
                     value={zoom}
-                    onChange={setZoom}
+                    onChange={handleZoom}
                     style={{ width: "90%" }}
                   />
                 </div>
-                <div>
-                  <Text strong>宽高比：</Text>
-                  <Input
-                    value={aspect}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (/^\d*\.?\d*$/.test(val)) setAspect(val);
-                    }}
-                    onBlur={(e) => {
-                      let val = parseFloat(aspect);
-                      if (!val || val <= 0) val = 1;
-                      setAspect(val);
-                    }}
-                    addonAfter=":1"
-                    style={{ width: 120 }}
-                    inputMode="decimal"
-                  />
-                  <Text type="secondary" style={{ marginLeft: 8 }}>
-                    1=正方形，1.777=16:9，0.75=3:4
-                  </Text>
-                </div>
-                <Button
-                  type="primary"
-                  onClick={showCroppedImage}
-                  icon={<ScissorOutlined />}
-                  block
-                >
-                  裁剪图片
-                </Button>
               </Space>
             </Card>
           )}
         </Col>
         <Col xs={24} lg={12}>
-          <Card title="裁剪预览" size="small">
+          <Card title="裁剪与预览" size="small">
             {imageSrc && (
-              <div
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  height: 300,
-                  background: "#222",
-                }}
-              >
+              <div style={{ width: "100%", minHeight: 320 }}>
                 <Cropper
-                  image={imageSrc}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={parseFloat(aspect) || 1}
-                  minZoom={0.2}
-                  maxZoom={3}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onCropComplete={onCropComplete}
-                  style={{ containerStyle: { borderRadius: 8 } }}
+                  src={imageSrc}
+                  style={{ height: 320, width: "100%" }}
+                  initialAspectRatio={1}
+                  aspectRatio={NaN} // 允许任意比例
+                  guides={true}
+                  ref={cropperRef}
+                  viewMode={1}
+                  dragMode="move"
+                  background={true}
+                  autoCropArea={1}
+                  checkOrientation={false}
+                  rotatable={true}
+                  zoomTo={zoom}
+                  crop={handleCrop}
                 />
-                {croppedAreaPixels && (
+                {cropBoxData && imgData && (
                   <div
                     style={{
-                      position: "absolute",
-                      bottom: 8,
-                      left: 8,
-                      background: "rgba(0,0,0,0.6)",
+                      marginTop: 8,
+                      background: "#222",
                       color: "#fff",
                       padding: "4px 8px",
                       borderRadius: 4,
                       fontSize: 14,
+                      display: "inline-block",
                     }}
                   >
-                    裁剪区域: {croppedAreaPixels.width} ×{" "}
-                    {croppedAreaPixels.height} px
+                    裁剪区域: {Math.round(imgData.width)} ×{" "}
+                    {Math.round(imgData.height)} px
                   </div>
                 )}
               </div>
