@@ -55,8 +55,14 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
         const cropper = cropperRef.current?.cropper;
         if (cropper) {
           cropper.reset();
-          cropper.clear();
-          cropper.crop();
+          // 获取画布数据并设置裁剪框为整张图片
+          const canvasData = cropper.getCanvasData();
+          cropper.setCropBoxData({
+            left: canvasData.left,
+            top: canvasData.top,
+            width: canvasData.width,
+            height: canvasData.height,
+          });
         }
       }, 100);
     };
@@ -132,10 +138,10 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
   return (
     <Card style={{ marginTop: 24 }}>
       <Title level={3}>
-        <ScissorOutlined /> 图片裁剪工具（专业版）
+        <ScissorOutlined /> 图片裁剪
       </Title>
       <Row gutter={[24, 24]}>
-        <Col xs={24} lg={12}>
+        <Col xs={24} lg={24}>
           <Card title="图片上传" size="small" style={{ marginBottom: 16 }}>
             <Dragger
               accept="image/*"
@@ -163,19 +169,133 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
               )}
             </Dragger>
           </Card>
-          {imageSrc && (
-            <Card title="裁剪参数" size="small">
-              <Space
-                direction="vertical"
-                style={{ width: "100%" }}
-                size="middle"
-              >
-                <div>
-                  <Text strong>旋转：</Text>
+        </Col>
+      </Row>
+      {/* 裁剪与预览区域 */}
+      {imageSrc && (
+        <>
+          <Row gutter={[24, 24]} style={{ marginTop: 0 }}>
+            <Col span={24}>
+              <Card title="裁剪与预览" size="small">
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 32,
+                    alignItems: "flex-start",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {/* 左侧裁剪区 */}
+                  <div style={{ minWidth: 320, flex: 1 }}>
+                    <Cropper
+                      src={imageSrc}
+                      style={{ height: 320, width: "100%" }}
+                      initialAspectRatio={1}
+                      aspectRatio={NaN} // 允许任意比例
+                      guides={true}
+                      ref={cropperRef}
+                      viewMode={1}
+                      dragMode="move"
+                      background={true}
+                      autoCropArea={1}
+                      checkOrientation={false}
+                      rotatable={true}
+                      zoomTo={zoom}
+                      crop={handleCrop}
+                    />
+                    {cropBoxData && imgData && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          background: "#222",
+                          color: "#fff",
+                          padding: "4px 8px",
+                          borderRadius: 4,
+                          fontSize: 14,
+                          display: "inline-block",
+                        }}
+                      >
+                        裁剪区域: {Math.round(imgData.width)} ×{" "}
+                        {Math.round(imgData.height)} px
+                      </div>
+                    )}
+                  </div>
+                  {/* 右侧预览区 */}
+                  <div
+                    style={{
+                      minWidth: 220,
+                      maxWidth: 320,
+                      flex: 1,
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontWeight: 500, marginBottom: 8 }}>
+                      裁剪后预览
+                    </div>
+                    {croppedImageUrl ? (
+                      <img
+                        src={croppedImageUrl}
+                        alt="裁剪后图片"
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: 200,
+                          border: "1px solid #eee",
+                          borderRadius: 4,
+                          background: "#fafafa",
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          color: "#aaa",
+                          height: 200,
+                          lineHeight: "200px",
+                          border: "1px dashed #eee",
+                          borderRadius: 4,
+                        }}
+                      >
+                        暂无预览
+                      </div>
+                    )}
+                    <Button
+                      type="primary"
+                      style={{ marginTop: 12, width: "100%" }}
+                      loading={isUploading}
+                      onClick={uploadCroppedImage}
+                      disabled={!croppedImageUrl}
+                    >
+                      上传到图床
+                    </Button>
+                    {uploadedUrl && (
+                      <div style={{ marginTop: 8 }}>
+                        <Input
+                          value={uploadedUrl}
+                          readOnly
+                          style={{ width: "80%" }}
+                        />
+                        <Button
+                          icon={<CopyOutlined />}
+                          onClick={copyUploadedUrl}
+                          style={{ marginLeft: 8 }}
+                        >
+                          复制URL
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </Col>
+          </Row>
+          {/* 工具栏区域 */}
+          <Row style={{ marginTop: 16 }}>
+            <Col span={24}>
+              <Card size="small" bodyStyle={{ padding: 12 }}>
+                <Space size="large" align="center">
+                  <span style={{ fontWeight: 500 }}>工具栏：</span>
                   <Button
                     icon={<UndoOutlined />}
                     onClick={() => handleRotate(-90)}
-                    style={{ marginRight: 8 }}
                   >
                     左转90°
                   </Button>
@@ -185,102 +305,21 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
                   >
                     右转90°
                   </Button>
-                </div>
-                <div>
-                  <Text strong>缩放：</Text>
+                  <span style={{ marginLeft: 16 }}>缩放：</span>
                   <Slider
                     min={0.2}
                     max={3}
                     step={0.01}
                     value={zoom}
                     onChange={handleZoom}
-                    style={{ width: "90%" }}
+                    style={{ width: 180, display: "inline-block" }}
                   />
-                </div>
-              </Space>
-            </Card>
-          )}
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card title="裁剪与预览" size="small">
-            {imageSrc && (
-              <div style={{ width: "100%", minHeight: 320 }}>
-                <Cropper
-                  src={imageSrc}
-                  style={{ height: 320, width: "100%" }}
-                  initialAspectRatio={1}
-                  aspectRatio={NaN} // 允许任意比例
-                  guides={true}
-                  ref={cropperRef}
-                  viewMode={1}
-                  dragMode="move"
-                  background={true}
-                  autoCropArea={1}
-                  checkOrientation={false}
-                  rotatable={true}
-                  zoomTo={zoom}
-                  crop={handleCrop}
-                />
-                {cropBoxData && imgData && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      background: "#222",
-                      color: "#fff",
-                      padding: "4px 8px",
-                      borderRadius: 4,
-                      fontSize: 14,
-                      display: "inline-block",
-                    }}
-                  >
-                    裁剪区域: {Math.round(imgData.width)} ×{" "}
-                    {Math.round(imgData.height)} px
-                  </div>
-                )}
-              </div>
-            )}
-            {croppedImageUrl && (
-              <div style={{ marginTop: 16, textAlign: "center" }}>
-                <img
-                  src={croppedImageUrl}
-                  alt="裁剪后图片"
-                  style={{
-                    maxWidth: "100%",
-                    maxHeight: 200,
-                    border: "1px solid #eee",
-                    borderRadius: 4,
-                  }}
-                />
-                <Button
-                  type="primary"
-                  style={{ marginTop: 12 }}
-                  loading={isUploading}
-                  onClick={uploadCroppedImage}
-                  block
-                >
-                  上传到图床
-                </Button>
-                {uploadedUrl && (
-                  <div style={{ marginTop: 8 }}>
-                    <Input
-                      value={uploadedUrl}
-                      readOnly
-                      style={{ width: "80%" }}
-                    />
-                    <Button
-                      icon={<CopyOutlined />}
-                      onClick={copyUploadedUrl}
-                      style={{ marginLeft: 8 }}
-                    >
-                      复制URL
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-        </Col>
-      </Row>
+                </Space>
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
     </Card>
   );
 };

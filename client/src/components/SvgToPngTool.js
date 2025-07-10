@@ -30,12 +30,6 @@ const SvgToPngTool = ({ onUploadSuccess, api }) => {
   const [fileName, setFileName] = useState("converted-image");
   const canvasRef = useRef(null);
 
-  // 示例SVG代码
-  const exampleSvg = `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="100" cy="100" r="80" fill="#1890ff" stroke="#096dd9" stroke-width="3"/>
-  <text x="100" y="110" text-anchor="middle" fill="white" font-size="16" font-family="Arial">SVG</text>
-</svg>`;
-
   // 转换SVG为PNG
   const convertSvgToPng = async () => {
     if (!svgCode.trim()) {
@@ -176,7 +170,10 @@ const SvgToPngTool = ({ onUploadSuccess, api }) => {
 
   // 使用示例SVG
   const useExample = () => {
-    setSvgCode(exampleSvg);
+    setSvgCode(`<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="100" r="80" fill="#1890ff" stroke="#096dd9" stroke-width="3"/>
+  <text x="100" y="110" text-anchor="middle" fill="white" font-size="16" font-family="Arial">SVG</text>
+</svg>`);
     setFileName("svg-example");
     message.success("已加载示例SVG代码");
   };

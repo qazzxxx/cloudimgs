@@ -45,7 +45,6 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
   const [maintainAspectRatio, setMaintainAspectRatio] = useState(true);
 
   const canvasRef = useRef(null);
-  const originalImageRef = useRef(null);
 
   // 处理图片上传
   const handleImageUpload = (file) => {
@@ -76,7 +75,7 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
         setMaintainAspectRatio(true);
 
         // 保存原始图片引用
-        originalImageRef.current = img;
+        // originalImageRef.current = img; // This line is removed
 
         message.success("图片上传成功！");
       };
@@ -89,7 +88,8 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
 
   // 压缩图片
   const compressImage = () => {
-    if (!originalImage || !originalImageRef.current) {
+    if (!originalImage || !canvasRef.current) {
+      // Changed from originalImageRef.current to canvasRef.current
       message.error("请先上传图片");
       return;
     }
@@ -98,29 +98,31 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
     try {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
-      const img = originalImageRef.current;
+      const img = new Image(); // Create a new Image object
+      img.onload = () => {
+        // 设置画布尺寸
+        canvas.width = width;
+        canvas.height = height;
 
-      // 设置画布尺寸
-      canvas.width = width;
-      canvas.height = height;
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 清空画布
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // 绘制图片
+        ctx.drawImage(img, 0, 0, width, height);
 
-      // 绘制图片
-      ctx.drawImage(img, 0, 0, width, height);
+        // 转换为压缩后的图片
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality / 100);
+        setCompressedImage(compressedDataUrl);
 
-      // 转换为压缩后的图片
-      const compressedDataUrl = canvas.toDataURL("image/jpeg", quality / 100);
-      setCompressedImage(compressedDataUrl);
+        // 计算压缩后的大小
+        const base64Length =
+          compressedDataUrl.length - "data:image/jpeg;base64,".length;
+        const compressedBytes = Math.ceil(base64Length * 0.75);
+        setCompressedSize(compressedBytes);
 
-      // 计算压缩后的大小
-      const base64Length =
-        compressedDataUrl.length - "data:image/jpeg;base64,".length;
-      const compressedBytes = Math.ceil(base64Length * 0.75);
-      setCompressedSize(compressedBytes);
-
-      message.success("图片压缩成功！");
+        message.success("图片压缩成功！");
+      };
+      img.src = originalImage; // Use originalImage for the new Image object
     } catch (error) {
       console.error("压缩错误:", error);
       message.error("压缩失败，请重试");
@@ -132,9 +134,9 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
   // 处理宽度变化
   const handleWidthChange = (value) => {
     setWidth(value);
-    if (maintainAspectRatio && originalImageRef.current) {
-      const ratio =
-        originalImageRef.current.height / originalImageRef.current.width;
+    if (maintainAspectRatio && canvasRef.current) {
+      // Changed from originalImageRef.current to canvasRef.current
+      const ratio = canvasRef.current.height / canvasRef.current.width; // Changed from originalImageRef.current to canvasRef.current
       setHeight(Math.round(value * ratio));
     }
   };
@@ -142,9 +144,9 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
   // 处理高度变化
   const handleHeightChange = (value) => {
     setHeight(value);
-    if (maintainAspectRatio && originalImageRef.current) {
-      const ratio =
-        originalImageRef.current.width / originalImageRef.current.height;
+    if (maintainAspectRatio && canvasRef.current) {
+      // Changed from originalImageRef.current to canvasRef.current
+      const ratio = canvasRef.current.width / canvasRef.current.height; // Changed from originalImageRef.current to canvasRef.current
       setWidth(Math.round(value * ratio));
     }
   };
