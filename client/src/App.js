@@ -26,6 +26,7 @@ import {
   MenuOutlined,
   LogoutOutlined,
   ScissorOutlined,
+  ApiOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./components/UploadComponent";
 import ImageGallery from "./components/ImageGallery";
@@ -36,6 +37,7 @@ import LogoWithText from "./components/LogoWithText";
 import ThemeSwitcher from "./components/ThemeSwitcher";
 import LoginComponent from "./components/LoginComponent";
 import ImageCropperTool from "./components/ImageCropperTool";
+import ApiDocsComponent from "./components/ApiDocsComponent";
 import api from "./utils/api";
 
 const { Header, Content, Sider } = Layout;
@@ -129,6 +131,9 @@ function AppContent({ currentTheme, onThemeChange }) {
     } else if (path === "/stats") {
       setSelectedKey("stats");
       setOpenKeys([]);
+    } else if (path === "/api-docs") {
+      setSelectedKey("api-docs");
+      setOpenKeys([]);
     } else if (path === "/svg-tool") {
       setSelectedKey("svg-tool");
       setOpenKeys(["tools"]);
@@ -211,6 +216,9 @@ function AppContent({ currentTheme, onThemeChange }) {
       case "stats":
         navigate("/stats");
         break;
+      case "api-docs":
+        navigate("/api-docs");
+        break;
       case "svg-tool":
         navigate("/svg-tool");
         break;
@@ -281,6 +289,11 @@ function AppContent({ currentTheme, onThemeChange }) {
           label: "图片裁剪",
         },
       ],
+    },
+    {
+      key: "api-docs",
+      icon: <ApiOutlined />,
+      label: "开放接口",
     },
   ];
 
@@ -451,6 +464,10 @@ function AppContent({ currentTheme, onThemeChange }) {
               <Route
                 path="/stats"
                 element={<StatsComponent stats={stats} api={api} />}
+              />
+              <Route
+                path="/api-docs"
+                element={<ApiDocsComponent currentTheme={currentTheme} />}
               />
               <Route path="/svg-tool" element={<SvgToPngTool api={api} />} />
               <Route
