@@ -233,17 +233,45 @@ app.post(
   }
 );
 
-// 2. 获取图片列表（支持dir参数，递归）
+// 2. 获取图片列表（支持dir参数、分页、搜索）
 app.get("/api/images", requirePassword, async (req, res) => {
   try {
     let dir = req.query.dir || "";
     dir = dir.replace(/\\/g, "/");
-    const images = await getAllImages(dir);
+
+    // 获取分页参数
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const search = req.query.search || "";
+
+    // 获取所有图片
+    let images = await getAllImages(dir);
+
     // 按上传时间倒序排列
     images.sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
+
+    // 搜索过滤
+    if (search) {
+      images = images.filter((image) =>
+        image.filename.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    // 计算分页
+    const total = images.length;
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedImages = images.slice(startIndex, endIndex);
+
     res.json({
       success: true,
-      data: images,
+      data: paginatedImages,
+      pagination: {
+        current: page,
+        pageSize: pageSize,
+        total: total,
+        totalPages: Math.ceil(total / pageSize),
+      },
     });
   } catch (error) {
     console.error("获取图片列表错误:", error);
