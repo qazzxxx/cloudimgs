@@ -15,6 +15,8 @@ import {
   Spin,
   Grid,
   theme,
+  Pagination,
+  Select,
 } from "antd";
 import {
   DeleteOutlined,
@@ -30,6 +32,7 @@ import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
+const { Option } = Select;
 
 const ImageGallery = ({ onDelete, onRefresh, api }) => {
   const {
@@ -47,6 +50,34 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // 分页相关状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(() => {
+    // 从localStorage读取分页大小，默认为10
+    const savedPageSize = localStorage.getItem("imageGalleryPageSize");
+    return savedPageSize ? parseInt(savedPageSize) : 10;
+  });
+
+  // 分页大小选项
+  const pageSizeOptions = [10, 20, 50, 100];
+
+  // 保存分页大小到localStorage
+  const savePageSize = (size) => {
+    localStorage.setItem("imageGalleryPageSize", size.toString());
+  };
+
+  // 处理分页大小变化
+  const handlePageSizeChange = (size) => {
+    setPageSize(size);
+    setCurrentPage(1); // 重置到第一页
+    savePageSize(size);
+  };
+
+  // 处理页码变化
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   const fetchImages = async (targetDir = dir) => {
     setLoading(true);
     try {
@@ -55,6 +86,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
       });
       if (res.data.success) {
         setImages(res.data.data);
+        setCurrentPage(1); // 重置到第一页
       }
     } catch (e) {
       message.error("获取图片列表失败");
@@ -67,6 +99,22 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     fetchImages();
     // eslint-disable-next-line
   }, [dir]);
+
+  // 过滤图片
+  const filteredImages = images.filter((image) =>
+    image.filename.toLowerCase().includes(searchText.toLowerCase())
+  );
+
+  // 计算分页数据
+  const totalImages = filteredImages.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentPageImages = filteredImages.slice(startIndex, endIndex);
+
+  // 当搜索文本变化时重置到第一页
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText]);
 
   const handleDelete = async (relPath) => {
     try {
@@ -110,10 +158,6 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
       message.success("链接已复制到剪贴板");
     });
   };
-
-  const filteredImages = images.filter((image) =>
-    image.filename.toLowerCase().includes(searchText.toLowerCase())
-  );
 
   return (
     <div>
@@ -214,141 +258,199 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
           style={{ marginTop: isMobile ? 30 : 50 }}
         />
       ) : (
-        <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
-          {filteredImages.map((image, index) => (
-            <Col xs={24} sm={12} md={8} lg={6} xl={4} key={index}>
-              <Card
-                hoverable
-                size={isMobile ? "small" : "default"}
-                cover={
-                  <div style={{ position: "relative" }}>
-                    <img
-                      alt={image.filename}
-                      src={image.url}
-                      style={{
-                        height: isMobile ? 150 : 200,
-                        width: "100%",
-                        objectFit: "cover",
-                        cursor: "pointer",
-                      }}
-                      onClick={() => handlePreview(image)}
-                    />
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: isMobile ? 4 : 8,
-                        right: isMobile ? 4 : 8,
-                        background: "rgba(0,0,0,0.6)",
-                        borderRadius: "4px",
-                        padding: isMobile ? "1px 4px" : "2px 6px",
-                      }}
-                    >
-                      <Text
+        <>
+          <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
+            {currentPageImages.map((image, index) => (
+              <Col xs={24} sm={12} md={8} lg={6} xl={4} key={index}>
+                <Card
+                  hoverable
+                  size={isMobile ? "small" : "default"}
+                  cover={
+                    <div style={{ position: "relative" }}>
+                      <img
+                        alt={image.filename}
+                        src={image.url}
                         style={{
-                          color: "white",
-                          fontSize: isMobile ? "10px" : "12px",
+                          height: isMobile ? 150 : 200,
+                          width: "100%",
+                          objectFit: "cover",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => handlePreview(image)}
+                      />
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: isMobile ? 4 : 8,
+                          right: isMobile ? 4 : 8,
+                          background: "rgba(0,0,0,0.6)",
+                          borderRadius: "4px",
+                          padding: isMobile ? "1px 4px" : "2px 6px",
                         }}
                       >
-                        {formatFileSize(image.size)}
-                      </Text>
+                        <Text
+                          style={{
+                            color: "white",
+                            fontSize: isMobile ? "10px" : "12px",
+                          }}
+                        >
+                          {formatFileSize(image.size)}
+                        </Text>
+                      </div>
                     </div>
-                  </div>
-                }
-                actions={[
-                  <Button
-                    type="text"
-                    size={isMobile ? "small" : "middle"}
-                    icon={<EyeOutlined />}
-                    onClick={() => handlePreview(image)}
-                    title="预览"
-                  />,
-                  <Button
-                    type="text"
-                    size={isMobile ? "small" : "middle"}
-                    icon={<DownloadOutlined />}
-                    onClick={() => handleDownload(image)}
-                    title="下载"
-                  />,
-                  <Button
-                    type="text"
-                    size={isMobile ? "small" : "middle"}
-                    icon={<CopyOutlined />}
-                    onClick={() =>
-                      copyToClipboard(`${window.location.origin}${image.url}`)
-                    }
-                    title="复制链接"
-                  />,
-                  <Popconfirm
-                    title="确定要删除这张图片吗？"
-                    onConfirm={() => handleDelete(image.relPath)}
-                    okText="确定"
-                    cancelText="取消"
-                  >
+                  }
+                  actions={[
                     <Button
                       type="text"
                       size={isMobile ? "small" : "middle"}
-                      danger
-                      icon={<DeleteOutlined />}
-                      title="删除"
-                    />
-                  </Popconfirm>,
-                ]}
-              >
-                <Card.Meta
-                  title={
-                    <Text
-                      ellipsis
-                      style={{
-                        maxWidth: "100%",
-                        fontSize: isMobile ? "13px" : "14px",
-                      }}
+                      icon={<EyeOutlined />}
+                      onClick={() => handlePreview(image)}
+                      title="预览"
+                    />,
+                    <Button
+                      type="text"
+                      size={isMobile ? "small" : "middle"}
+                      icon={<DownloadOutlined />}
+                      onClick={() => handleDownload(image)}
+                      title="下载"
+                    />,
+                    <Button
+                      type="text"
+                      size={isMobile ? "small" : "middle"}
+                      icon={<CopyOutlined />}
+                      onClick={() =>
+                        copyToClipboard(`${window.location.origin}${image.url}`)
+                      }
+                      title="复制链接"
+                    />,
+                    <Popconfirm
+                      title="确定要删除这张图片吗？"
+                      onConfirm={() => handleDelete(image.relPath)}
+                      okText="确定"
+                      cancelText="取消"
                     >
-                      {image.filename}
-                    </Text>
-                  }
-                  description={
-                    <Space direction="vertical" size="small">
-                      {/* 子目录显示 */}
-                      {image.relPath && image.relPath.includes("/") && (
+                      <Button
+                        type="text"
+                        size={isMobile ? "small" : "middle"}
+                        danger
+                        icon={<DeleteOutlined />}
+                        title="删除"
+                      />
+                    </Popconfirm>,
+                  ]}
+                >
+                  <Card.Meta
+                    title={
+                      <Text
+                        ellipsis
+                        style={{
+                          maxWidth: "100%",
+                          fontSize: isMobile ? "13px" : "14px",
+                        }}
+                      >
+                        {image.filename}
+                      </Text>
+                    }
+                    description={
+                      <Space direction="vertical" size="small">
+                        {/* 子目录显示 */}
+                        {image.relPath && image.relPath.includes("/") && (
+                          <Text
+                            type="secondary"
+                            style={{ fontSize: isMobile ? "11px" : "12px" }}
+                          >
+                            <span
+                              style={{
+                                background: colorBgContainer,
+                                border: `1px solid ${colorBorder}`,
+                                borderRadius: 4,
+                                padding: isMobile ? "1px 4px" : "2px 6px",
+                                marginRight: 4,
+                              }}
+                            >
+                              {image.relPath.substring(
+                                0,
+                                image.relPath.lastIndexOf("/")
+                              )}
+                            </span>
+                          </Text>
+                        )}
                         <Text
                           type="secondary"
                           style={{ fontSize: isMobile ? "11px" : "12px" }}
                         >
-                          <span
-                            style={{
-                              background: colorBgContainer,
-                              border: `1px solid ${colorBorder}`,
-                              borderRadius: 4,
-                              padding: isMobile ? "1px 4px" : "2px 6px",
-                              marginRight: 4,
-                            }}
-                          >
-                            {image.relPath.substring(
-                              0,
-                              image.relPath.lastIndexOf("/")
-                            )}
-                          </span>
+                          {dayjs(image.uploadTime).format(
+                            "YYYY-MM-DD HH:mm:ss"
+                          )}
                         </Text>
-                      )}
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: isMobile ? "11px" : "12px" }}
-                      >
-                        {dayjs(image.uploadTime).format("YYYY-MM-DD HH:mm:ss")}
-                      </Text>
-                      <Tag
-                        color="blue"
-                        style={{ fontSize: isMobile ? "11px" : "12px" }}
-                      >
-                        {formatFileSize(image.size)}
-                      </Tag>
-                    </Space>
+                        <Tag
+                          color="blue"
+                          style={{ fontSize: isMobile ? "11px" : "12px" }}
+                        >
+                          {formatFileSize(image.size)}
+                        </Tag>
+                      </Space>
+                    }
+                  />
+                </Card>
+              </Col>
+            ))}
+          </Row>
+
+          {/* 分页组件 */}
+          {totalImages > 0 && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginTop: isMobile ? "20px" : "32px",
+                flexDirection: isMobile ? "column" : "row",
+                gap: isMobile ? "12px" : "0",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
+                <Text
+                  type="secondary"
+                  style={{ fontSize: isMobile ? "12px" : "14px" }}
+                >
+                  每页显示：
+                </Text>
+                <Select
+                  value={pageSize}
+                  onChange={handlePageSizeChange}
+                  style={{ width: isMobile ? "80px" : "100px" }}
+                  size={isMobile ? "small" : "middle"}
+                >
+                  {pageSizeOptions.map((size) => (
+                    <Option key={size} value={size}>
+                      {size} 条
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+
+              {totalImages > pageSize && (
+                <Pagination
+                  current={currentPage}
+                  total={totalImages}
+                  pageSize={pageSize}
+                  onChange={handlePageChange}
+                  showSizeChanger={false}
+                  showQuickJumper={!isMobile}
+                  showTotal={(total, range) =>
+                    !isMobile
+                      ? `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+                      : ""
                   }
+                  size={isMobile ? "small" : "default"}
                 />
-              </Card>
-            </Col>
-          ))}
-        </Row>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       <Modal
