@@ -11,7 +11,6 @@ import {
   Row,
   Col,
   Input,
-  Slider,
 } from "antd";
 import {
   UploadOutlined,
@@ -32,7 +31,6 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
   const [uploadedUrl, setUploadedUrl] = useState("");
   const [fileName, setFileName] = useState("cropped-image");
   const [rotate, setRotate] = useState(0);
-  const [zoom, setZoom] = useState(1);
   const [cropData, setCropData] = useState(null);
   const [cropBoxData, setCropBoxData] = useState(null);
   const [imgData, setImgData] = useState(null);
@@ -50,7 +48,6 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
       setUploadedUrl("");
       setFileName(file.name.replace(/\.[^/.]+$/, ""));
       setRotate(0);
-      setZoom(1);
       setTimeout(() => {
         const cropper = cropperRef.current?.cropper;
         if (cropper) {
@@ -127,14 +124,6 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
     }
   };
 
-  const handleZoom = (value) => {
-    const cropper = cropperRef.current?.cropper;
-    if (cropper) {
-      cropper.zoomTo(value);
-      setZoom(value);
-    }
-  };
-
   return (
     <Card style={{ marginTop: 24 }}>
       <Title level={3}>
@@ -200,7 +189,6 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
                       autoCropArea={1}
                       checkOrientation={false}
                       rotatable={true}
-                      zoomTo={zoom}
                       crop={handleCrop}
                     />
                     {cropBoxData && imgData && (
@@ -305,15 +293,6 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
                   >
                     右转90°
                   </Button>
-                  <span style={{ marginLeft: 16 }}>缩放：</span>
-                  <Slider
-                    min={0.2}
-                    max={3}
-                    step={0.01}
-                    value={zoom}
-                    onChange={handleZoom}
-                    style={{ width: 180, display: "inline-block" }}
-                  />
                 </Space>
               </Card>
             </Col>
