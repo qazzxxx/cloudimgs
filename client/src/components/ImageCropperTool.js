@@ -18,6 +18,8 @@ import {
   CopyOutlined,
   RedoOutlined,
   UndoOutlined,
+  ReloadOutlined,
+  SwapOutlined,
 } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
@@ -124,6 +126,60 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
     }
   };
 
+  const handleReset = () => {
+    const cropper = cropperRef.current?.cropper;
+    if (cropper) {
+      // 先清除状态，避免UI抖动
+      setCroppedImageUrl(null);
+      setCropBoxData(null);
+      setImgData(null);
+      setRotate(0);
+
+      // 使用更稳定的重置方法
+      try {
+        // 先重置到初始状态
+        cropper.reset();
+
+        // 等待DOM更新完成后再设置裁剪框
+        const resetCropBox = () => {
+          try {
+            const canvasData = cropper.getCanvasData();
+            if (canvasData && canvasData.width > 0 && canvasData.height > 0) {
+              cropper.setCropBoxData({
+                left: canvasData.left,
+                top: canvasData.top,
+                width: canvasData.width,
+                height: canvasData.height,
+              });
+            }
+          } catch (error) {
+            console.warn("设置裁剪框失败:", error);
+          }
+        };
+
+        // 使用多重检查确保重置完成
+        setTimeout(resetCropBox, 100);
+        setTimeout(resetCropBox, 200);
+      } catch (error) {
+        console.warn("重置失败:", error);
+      }
+    }
+  };
+
+  const handleFlipHorizontal = () => {
+    const cropper = cropperRef.current?.cropper;
+    if (cropper) {
+      cropper.scaleX(-cropper.getData().scaleX || -1);
+    }
+  };
+
+  const handleFlipVertical = () => {
+    const cropper = cropperRef.current?.cropper;
+    if (cropper) {
+      cropper.scaleY(-cropper.getData().scaleY || -1);
+    }
+  };
+
   return (
     <Card style={{ marginTop: 24 }}>
       <Title level={3}>
@@ -175,22 +231,49 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
                   }}
                 >
                   {/* 左侧裁剪区 */}
-                  <div style={{ minWidth: 320, flex: 1 }}>
-                    <Cropper
-                      src={imageSrc}
-                      style={{ height: 320, width: "100%" }}
-                      initialAspectRatio={1}
-                      aspectRatio={NaN} // 允许任意比例
-                      guides={true}
-                      ref={cropperRef}
-                      viewMode={1}
-                      dragMode="move"
-                      background={true}
-                      autoCropArea={1}
-                      checkOrientation={false}
-                      rotatable={true}
-                      crop={handleCrop}
-                    />
+                  <div style={{ minWidth: 320, flex: 1, minHeight: 320 }}>
+                    <div
+                      style={{ height: 320, width: "100%", overflow: "hidden" }}
+                    >
+                      <Cropper
+                        src={imageSrc}
+                        style={{ height: 320, width: "100%" }}
+                        initialAspectRatio={1}
+                        aspectRatio={NaN} // 允许任意比例
+                        guides={true}
+                        ref={cropperRef}
+                        viewMode={1}
+                        dragMode="move"
+                        background={true}
+                        autoCropArea={1}
+                        checkOrientation={false}
+                        rotatable={true}
+                        scalable={true}
+                        zoomable={true}
+                        crop={handleCrop}
+                        ready={() => {
+                          // 组件准备就绪时，确保裁剪框设置正确
+                          const cropper = cropperRef.current?.cropper;
+                          if (cropper) {
+                            setTimeout(() => {
+                              try {
+                                const canvasData = cropper.getCanvasData();
+                                if (canvasData) {
+                                  cropper.setCropBoxData({
+                                    left: canvasData.left,
+                                    top: canvasData.top,
+                                    width: canvasData.width,
+                                    height: canvasData.height,
+                                  });
+                                }
+                              } catch (error) {
+                                console.warn("初始化裁剪框失败:", error);
+                              }
+                            }, 100);
+                          }
+                        }}
+                      />
+                    </div>
                     {cropBoxData && imgData && (
                       <div
                         style={{
@@ -211,13 +294,13 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
                   {/* 右侧预览区 */}
                   <div
                     style={{
-                      minWidth: 220,
-                      maxWidth: 320,
+                      minWidth: 280,
+                      maxWidth: 400,
                       flex: 1,
                       textAlign: "center",
                     }}
                   >
-                    <div style={{ fontWeight: 500, marginBottom: 8 }}>
+                    <div style={{ fontWeight: 500, marginBottom: 12 }}>
                       裁剪后预览
                     </div>
                     {croppedImageUrl ? (
@@ -226,20 +309,22 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
                         alt="裁剪后图片"
                         style={{
                           maxWidth: "100%",
-                          maxHeight: 200,
+                          maxHeight: 280,
                           border: "1px solid #eee",
-                          borderRadius: 4,
+                          borderRadius: 6,
                           background: "#fafafa",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                         }}
                       />
                     ) : (
                       <div
                         style={{
                           color: "#aaa",
-                          height: 200,
-                          lineHeight: "200px",
+                          height: 280,
+                          lineHeight: "280px",
                           border: "1px dashed #eee",
-                          borderRadius: 4,
+                          borderRadius: 6,
+                          background: "#fafafa",
                         }}
                       >
                         暂无预览
@@ -279,8 +364,11 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
           <Row style={{ marginTop: 16 }}>
             <Col span={24}>
               <Card size="small" bodyStyle={{ padding: 12 }}>
-                <Space size="large" align="center">
+                <Space size="large" align="center" wrap>
                   <span style={{ fontWeight: 500 }}>工具栏：</span>
+                  <Button icon={<ReloadOutlined />} onClick={handleReset}>
+                    重置
+                  </Button>
                   <Button
                     icon={<UndoOutlined />}
                     onClick={() => handleRotate(-90)}
@@ -292,6 +380,20 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
                     onClick={() => handleRotate(90)}
                   >
                     右转90°
+                  </Button>
+                  <Button
+                    icon={<SwapOutlined />}
+                    onClick={handleFlipHorizontal}
+                  >
+                    水平翻转
+                  </Button>
+                  <Button
+                    icon={
+                      <SwapOutlined style={{ transform: "rotate(90deg)" }} />
+                    }
+                    onClick={handleFlipVertical}
+                  >
+                    垂直翻转
                   </Button>
                 </Space>
               </Card>
