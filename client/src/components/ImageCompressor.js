@@ -566,9 +566,9 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
             <div
               style={{
                 padding: "16px",
-                backgroundColor: "#f6ffed",
+                backgroundColor: colorFillTertiary,
                 borderRadius: "8px",
-                border: "1px solid #b7eb8f",
+                border: `1px solid ${colorBorder}`,
                 height: "100%",
               }}
             >

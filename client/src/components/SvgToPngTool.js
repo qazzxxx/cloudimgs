@@ -8,6 +8,7 @@ import {
   message,
   Row,
   Col,
+  theme,
 } from "antd";
 import {
   CodeOutlined,
@@ -22,6 +23,10 @@ const { TextArea } = Input;
 const { Title, Text } = Typography;
 
 const SvgToPngTool = ({ onUploadSuccess, api }) => {
+  const {
+    token: { colorBorder, colorFillTertiary, colorBgContainer, colorText },
+  } = theme.useToken();
+
   const [svgCode, setSvgCode] = useState("");
   const [pngDataUrl, setPngDataUrl] = useState("");
   const [isConverting, setIsConverting] = useState(false);
@@ -340,38 +345,166 @@ const SvgToPngTool = ({ onUploadSuccess, api }) => {
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {/* 使用说明 */}
-      <Card title="使用技巧" style={{ marginTop: 24 }} size="small">
-        <Space direction="vertical">
-          <div>
-            <Text strong>支持的SVG特性：</Text>
-            <ul>
-              <li>基本图形：circle, rect, line, path, polygon等</li>
-              <li>文本：text元素</li>
-              <li>渐变：linearGradient, radialGradient</li>
-              <li>滤镜：filter, feGaussianBlur等</li>
-              <li>动画：animate, animateTransform等</li>
-            </ul>
-          </div>
-          <div>
-            <Text strong>文件名功能：</Text>
-            <ul>
-              <li>可以自定义上传和下载的文件名</li>
-              <li>点击"自动生成"按钮生成基于时间戳的文件名</li>
-              <li>文件名会自动添加.png扩展名</li>
-              <li>使用示例SVG时会自动设置合适的文件名</li>
-            </ul>
-          </div>
-          <div>
-            <Text strong>注意事项：</Text>
-            <ul>
-              <li>确保SVG代码格式正确</li>
-              <li>建议设置明确的width和height属性</li>
-              <li>外部资源（如图片、字体）可能无法正常显示</li>
-              <li>转换后的PNG质量取决于SVG的尺寸设置</li>
-              <li>文件名不要包含特殊字符，避免上传失败</li>
-            </ul>
-          </div>
-        </Space>
+      <Card
+        title={
+          <span>
+            <CodeOutlined style={{ marginRight: 8, color: "#1890ff" }} />
+            使用技巧
+          </span>
+        }
+        style={{ marginTop: 24 }}
+        size="small"
+      >
+        <Row gutter={[24, 16]}>
+          <Col xs={24} md={8}>
+            <div
+              style={{
+                padding: "16px",
+                backgroundColor: colorFillTertiary,
+                borderRadius: "8px",
+                border: `1px solid ${colorBorder}`,
+                height: "100%",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  marginBottom: "12px",
+                  color: "#1890ff",
+                  fontWeight: "bold",
+                }}
+              >
+                <CodeOutlined style={{ marginRight: 8, fontSize: "16px" }} />
+                支持的SVG特性
+              </div>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "20px",
+                  lineHeight: "1.6",
+                  fontSize: "13px",
+                }}
+              >
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>基本图形：</Text>circle, rect, line, path,
+                  polygon等
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>文本：</Text>text元素
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>渐变：</Text>linearGradient, radialGradient
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>滤镜：</Text>filter, feGaussianBlur等
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>动画：</Text>animate, animateTransform等
+                </li>
+              </ul>
+            </div>
+          </Col>
+
+          <Col xs={24} md={8}>
+            <div
+              style={{
+                padding: "16px",
+                backgroundColor: colorFillTertiary,
+                borderRadius: "8px",
+                border: `1px solid ${colorBorder}`,
+                height: "100%",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  marginBottom: "12px",
+                  color: "#52c41a",
+                  fontWeight: "bold",
+                }}
+              >
+                <DownloadOutlined
+                  style={{ marginRight: 8, fontSize: "16px" }}
+                />
+                文件名功能
+              </div>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "20px",
+                  lineHeight: "1.6",
+                  fontSize: "13px",
+                }}
+              >
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>自定义：</Text>可以自定义上传和下载的文件名
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>自动生成：</Text>
+                  点击"自动生成"按钮生成基于时间戳的文件名
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>扩展名：</Text>文件名会自动添加.png扩展名
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>示例：</Text>使用示例SVG时会自动设置合适的文件名
+                </li>
+              </ul>
+            </div>
+          </Col>
+
+          <Col xs={24} md={8}>
+            <div
+              style={{
+                padding: "16px",
+                backgroundColor: colorFillTertiary,
+                borderRadius: "8px",
+                border: `1px solid ${colorBorder}`,
+                height: "100%",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  marginBottom: "12px",
+                  color: "#fa8c16",
+                  fontWeight: "bold",
+                }}
+              >
+                <PictureOutlined style={{ marginRight: 8, fontSize: "16px" }} />
+                注意事项
+              </div>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "20px",
+                  lineHeight: "1.6",
+                  fontSize: "13px",
+                }}
+              >
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>格式：</Text>确保SVG代码格式正确
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>尺寸：</Text>建议设置明确的width和height属性
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>资源：</Text>
+                  外部资源（如图片、字体）可能无法正常显示
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>质量：</Text>转换后的PNG质量取决于SVG的尺寸设置
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  <Text strong>文件名：</Text>不要包含特殊字符，避免上传失败
+                </li>
+              </ul>
+            </div>
+          </Col>
+        </Row>
       </Card>
     </div>
   );
