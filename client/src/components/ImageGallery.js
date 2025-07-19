@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Card,
   Button,
@@ -57,6 +57,12 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     const savedPageSize = localStorage.getItem("imageGalleryPageSize");
     return savedPageSize ? parseInt(savedPageSize) : 10;
   });
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+    totalPages: 0,
+  });
 
   // 分页大小选项
   const pageSizeOptions = [10, 20, 50, 100];
@@ -78,15 +84,25 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     setCurrentPage(page);
   };
 
-  const fetchImages = async (targetDir = dir) => {
+  const fetchImages = async (
+    targetDir = dir,
+    targetPage = currentPage,
+    targetPageSize = pageSize,
+    targetSearch = searchText
+  ) => {
     setLoading(true);
     try {
-      const res = await api.get("/images", {
-        params: targetDir ? { dir: targetDir } : {},
-      });
+      const params = {
+        page: targetPage,
+        pageSize: targetPageSize,
+        ...(targetSearch && { search: targetSearch }),
+        ...(targetDir && { dir: targetDir }),
+      };
+
+      const res = await api.get("/images", { params });
       if (res.data.success) {
         setImages(res.data.data);
-        setCurrentPage(1); // 重置到第一页
+        setPagination(res.data.pagination);
       }
     } catch (e) {
       message.error("获取图片列表失败");
@@ -95,32 +111,50 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     }
   };
 
+  // 使用ref来跟踪是否是首次加载和防抖
+  const isInitialized = useRef(false);
+  const searchTimerRef = useRef(null);
+
+  // 统一的数据获取逻辑
   useEffect(() => {
-    fetchImages();
-    // eslint-disable-next-line
-  }, [dir]);
+    // 首次加载
+    if (!isInitialized.current) {
+      fetchImages("", 1, pageSize, "");
+      isInitialized.current = true;
+      return;
+    }
 
-  // 过滤图片
-  const filteredImages = images.filter((image) =>
-    image.filename.toLowerCase().includes(searchText.toLowerCase())
-  );
+    // 搜索防抖
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
 
-  // 计算分页数据
-  const totalImages = filteredImages.length;
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const currentPageImages = filteredImages.slice(startIndex, endIndex);
+    searchTimerRef.current = setTimeout(
+      () => {
+        fetchImages(dir, currentPage, pageSize, searchText);
+      },
+      searchText ? 500 : 0
+    ); // 搜索时防抖500ms，其他情况立即执行
+
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, [dir, currentPage, pageSize, searchText]);
 
   // 当搜索文本变化时重置到第一页
   useEffect(() => {
-    setCurrentPage(1);
+    if (isInitialized.current) {
+      setCurrentPage(1);
+    }
   }, [searchText]);
 
   const handleDelete = async (relPath) => {
     try {
       await api.delete(`/images/${encodeURIComponent(relPath)}`);
       message.success("删除成功");
-      fetchImages();
+      fetchImages(dir, currentPage, pageSize, searchText);
       if (onDelete) {
         onDelete(relPath);
       }
@@ -195,7 +229,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
           />
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => fetchImages()}
+            onClick={() => fetchImages(dir, currentPage, pageSize, searchText)}
             loading={loading}
             style={{ width: isMobile ? "100%" : "auto" }}
           >
@@ -238,7 +272,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
               marginLeft: isMobile ? "0" : "auto",
             }}
           >
-            共 {filteredImages.length} 张图片
+            共 {pagination.total} 张图片
           </Text>
         </div>
       )}
@@ -252,7 +286,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
             加载中...
           </div>
         </div>
-      ) : filteredImages.length === 0 ? (
+      ) : images.length === 0 ? (
         <Empty
           description="暂无图片"
           style={{ marginTop: isMobile ? 30 : 50 }}
@@ -260,7 +294,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
       ) : (
         <>
           <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
-            {currentPageImages.map((image, index) => (
+            {images.map((image, index) => (
               <Col xs={24} sm={12} md={8} lg={6} xl={4} key={index}>
                 <Card
                   hoverable
@@ -398,7 +432,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
           </Row>
 
           {/* 分页组件 */}
-          {totalImages > 0 && (
+          {pagination.total > 0 && (
             <div
               style={{
                 display: "flex",
@@ -432,11 +466,11 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                 </Select>
               </div>
 
-              {totalImages > pageSize && (
+              {pagination.total > pageSize && (
                 <Pagination
-                  current={currentPage}
-                  total={totalImages}
-                  pageSize={pageSize}
+                  current={pagination.current}
+                  total={pagination.total}
+                  pageSize={pagination.pageSize}
                   onChange={handlePageChange}
                   showSizeChanger={false}
                   showQuickJumper={!isMobile}

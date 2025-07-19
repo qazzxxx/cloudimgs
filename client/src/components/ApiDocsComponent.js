@@ -108,39 +108,6 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
       },
     },
     {
-      key: "2",
-      method: "GET",
-      endpoint: "/api/images",
-      description: "获取图片列表",
-      auth: "需要",
-      parameters: [
-        {
-          name: "dir",
-          type: "string",
-          required: "否",
-          description: "指定目录路径（支持多层目录）",
-        },
-        {
-          name: "password",
-          type: "string",
-          required: "是*",
-          description: "访问密码（如果启用了密码保护）",
-        },
-      ],
-      response: {
-        success: "boolean",
-        data: [
-          {
-            filename: "string",
-            relPath: "string",
-            size: "number",
-            uploadTime: "string",
-            url: "string",
-          },
-        ],
-      },
-    },
-    {
       key: "3",
       method: "GET",
       endpoint: "/api/random",
