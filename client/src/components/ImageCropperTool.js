@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import Cropper from "react-cropper";
 import "cropperjs/dist/cropper.css";
 import {
@@ -36,6 +36,80 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
   const [cropData, setCropData] = useState(null);
   const [cropBoxData, setCropBoxData] = useState(null);
   const [imgData, setImgData] = useState(null);
+
+  // 处理粘贴事件
+  const handlePaste = async (event) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await handlePastedImage(file);
+        }
+        break;
+      }
+    }
+  };
+
+  // 处理粘贴的图片
+  const handlePastedImage = async (file) => {
+    const isImage = file.type.startsWith("image/");
+    if (!isImage) {
+      message.error("只能上传图片文件！");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImageSrc(e.target.result);
+      setCroppedImageUrl(null);
+      setUploadedUrl("");
+      setFileName(`pasted-image-${Date.now()}`);
+      setRotate(0);
+      setTimeout(() => {
+        const cropper = cropperRef.current?.cropper;
+        if (cropper) {
+          cropper.reset();
+          // 获取画布数据并设置裁剪框为整张图片
+          const canvasData = cropper.getCanvasData();
+          cropper.setCropBoxData({
+            left: canvasData.left,
+            top: canvasData.top,
+            width: canvasData.width,
+            height: canvasData.height,
+          });
+        }
+      }, 100);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 添加全局粘贴事件监听
+  useEffect(() => {
+    const handleGlobalPaste = (event) => {
+      // 检查是否在输入框中，如果是则不处理粘贴
+      const target = event.target;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.contentEditable === "true"
+      ) {
+        return;
+      }
+
+      handlePaste(event);
+    };
+
+    document.addEventListener("paste", handleGlobalPaste);
+
+    return () => {
+      document.removeEventListener("paste", handleGlobalPaste);
+    };
+  }, []);
 
   const handleImageUpload = (file) => {
     const isImage = file.type.startsWith("image/");
@@ -210,6 +284,15 @@ const ImageCropperTool = ({ api, onUploadSuccess }) => {
                 <div>
                   <UploadOutlined style={{ fontSize: 48, color: "#999" }} />
                   <p>点击或拖拽图片到此区域上传</p>
+                  <p
+                    style={{
+                      color: "#1890ff",
+                      fontSize: "12px",
+                      marginTop: "8px",
+                    }}
+                  >
+                    支持 Ctrl+V 粘贴图片
+                  </p>
                 </div>
               )}
             </Dragger>

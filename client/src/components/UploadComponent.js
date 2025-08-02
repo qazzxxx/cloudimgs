@@ -69,6 +69,126 @@ const UploadComponent = ({ onUploadSuccess, api }) => {
     fetchConfig();
   }, [api]);
 
+  // 处理粘贴事件
+  const handlePaste = async (event) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await handlePastedImage(file);
+        }
+        break;
+      }
+    }
+  };
+
+  // 处理粘贴的图片
+  const handlePastedImage = async (file) => {
+    // 验证文件类型
+    const isImage = file.type.startsWith("image/");
+    if (!isImage) {
+      message.error("只能上传图片文件！");
+      return;
+    }
+
+    // 验证文件大小
+    const isLtMax = file.size <= config.maxFileSize;
+    if (!isLtMax) {
+      message.error(`图片大小不能超过${config.maxFileSizeMB}MB！`);
+      return;
+    }
+
+    // 生成文件名
+    const timestamp = new Date().getTime();
+    const extension = file.type.split("/")[1] || "png";
+    const fileName = `pasted-image-${timestamp}.${extension}`;
+
+    // 创建新的File对象，设置文件名
+    const renamedFile = new File([file], fileName, { type: file.type });
+
+    // 上传文件
+    await uploadFile(renamedFile);
+  };
+
+  // 上传文件的通用方法
+  const uploadFile = async (file) => {
+    let safeDir = sanitizeDir(dir);
+    if (safeDir.includes("..")) {
+      message.error("目录不能包含 .. 等非法字符");
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+    const formData = new FormData();
+
+    // 确保文件名编码正确，特别是中文文件名
+    const fileName = file.name;
+    formData.append("image", file, fileName);
+
+    const url = safeDir
+      ? `/upload?dir=${encodeURIComponent(safeDir)}`
+      : "/upload";
+
+    try {
+      const response = await api.post(url, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadProgress(percentCompleted);
+        },
+      });
+
+      if (response.data.success) {
+        setUploadedFiles((prev) => [...prev, response.data.data]);
+        message.success(`${fileName} 上传成功！`);
+        if (onUploadSuccess) {
+          onUploadSuccess();
+        }
+      } else {
+        message.error(response.data.error || "上传失败");
+      }
+    } catch (error) {
+      const msg = error?.response?.data?.error || error.message || "上传失败";
+      message.error(msg);
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // 添加全局粘贴事件监听
+  useEffect(() => {
+    const handleGlobalPaste = (event) => {
+      // 检查是否在输入框中，如果是则不处理粘贴
+      const target = event.target;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.contentEditable === "true"
+      ) {
+        return;
+      }
+
+      handlePaste(event);
+    };
+
+    document.addEventListener("paste", handleGlobalPaste);
+
+    return () => {
+      document.removeEventListener("paste", handleGlobalPaste);
+    };
+  }, [dir, config, api, onUploadSuccess]);
+
   const uploadProps = {
     name: "image",
     multiple: true,
@@ -89,53 +209,11 @@ const UploadComponent = ({ onUploadSuccess, api }) => {
       return true;
     },
     customRequest: async ({ file, onSuccess, onError }) => {
-      let safeDir = sanitizeDir(dir);
-      if (safeDir.includes("..")) {
-        message.error("目录不能包含 .. 等非法字符");
-        onError(new Error("目录不能包含 .. 等非法字符"));
-        return;
-      }
-      setUploading(true);
-      setUploadProgress(0);
-      const formData = new FormData();
-
-      // 确保文件名编码正确，特别是中文文件名
-      const fileName = file.name;
-      formData.append("image", file, fileName);
-
-      const url = safeDir
-        ? `/upload?dir=${encodeURIComponent(safeDir)}`
-        : "/upload";
       try {
-        const response = await api.post(url, formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-          onUploadProgress: (progressEvent) => {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            setUploadProgress(percentCompleted);
-          },
-        });
-        if (response.data.success) {
-          onSuccess(response.data);
-          setUploadedFiles((prev) => [...prev, response.data.data]);
-          message.success(`${fileName} 上传成功！`);
-          if (onUploadSuccess) {
-            onUploadSuccess();
-          }
-        } else {
-          message.error(response.data.error || "上传失败");
-          onError(new Error(response.data.error));
-        }
+        await uploadFile(file);
+        onSuccess();
       } catch (error) {
-        const msg = error?.response?.data?.error || error.message || "上传失败";
-        message.error(msg);
-        onError(new Error(msg));
-      } finally {
-        setUploading(false);
-        setUploadProgress(0);
+        onError(error);
       }
     },
   };
@@ -179,6 +257,12 @@ const UploadComponent = ({ onUploadSuccess, api }) => {
           <p className="ant-upload-text">点击或拖拽图片到此区域上传</p>
           <p className="ant-upload-hint">
             支持单个或批量上传，严禁上传非图片文件
+          </p>
+          <p
+            className="ant-upload-hint"
+            style={{ color: "#1890ff", fontSize: "12px" }}
+          >
+            支持 Ctrl+V 粘贴图片上传
           </p>
           <p
             style={{

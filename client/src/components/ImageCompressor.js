@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Card,
   Typography,
@@ -46,6 +46,77 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
   const [maintainAspectRatio, setMaintainAspectRatio] = useState(true);
 
   const canvasRef = useRef(null);
+
+  // 处理粘贴事件
+  const handlePaste = async (event) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await handlePastedImage(file);
+        }
+        break;
+      }
+    }
+  };
+
+  // 处理粘贴的图片
+  const handlePastedImage = async (file) => {
+    const isImage = file.type.startsWith("image/");
+    if (!isImage) {
+      message.error("只能上传图片文件！");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // 设置原始图片信息
+        setOriginalImage(e.target.result);
+        setOriginalSize(file.size);
+        setFileName(`pasted-image-${Date.now()}`); // 生成文件名
+
+        // 设置默认尺寸为原始图片尺寸
+        setWidth(img.width);
+        setHeight(img.height);
+        setMaintainAspectRatio(true);
+        setOriginalAspectRatio(img.width / img.height);
+
+        message.success("图片粘贴成功！");
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 添加全局粘贴事件监听
+  useEffect(() => {
+    const handleGlobalPaste = (event) => {
+      // 检查是否在输入框中，如果是则不处理粘贴
+      const target = event.target;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.contentEditable === "true"
+      ) {
+        return;
+      }
+
+      handlePaste(event);
+    };
+
+    document.addEventListener("paste", handleGlobalPaste);
+
+    return () => {
+      document.removeEventListener("paste", handleGlobalPaste);
+    };
+  }, []);
 
   // 处理图片上传
   const handleImageUpload = (file) => {
@@ -285,6 +356,15 @@ const ImageCompressor = ({ onUploadSuccess, api }) => {
                     style={{ fontSize: "48px", color: "#999" }}
                   />
                   <p>点击或拖拽图片到此区域上传</p>
+                  <p
+                    style={{
+                      color: "#1890ff",
+                      fontSize: "12px",
+                      marginTop: "8px",
+                    }}
+                  >
+                    支持 Ctrl+V 粘贴图片
+                  </p>
                 </div>
               )}
             </Dragger>

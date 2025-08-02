@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Card,
   Typography,
@@ -34,6 +34,87 @@ const SvgToPngTool = ({ onUploadSuccess, api }) => {
   const [uploadedUrl, setUploadedUrl] = useState("");
   const [fileName, setFileName] = useState("converted-image");
   const canvasRef = useRef(null);
+
+  // 处理粘贴事件
+  const handlePaste = async (event) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+
+      // 处理图片粘贴
+      if (item.type.startsWith("image/")) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await handlePastedImage(file);
+        }
+        break;
+      }
+
+      // 处理文本粘贴（可能是SVG代码）
+      if (item.type === "text/plain") {
+        item.getAsString((text) => {
+          // 检查是否是SVG代码
+          if (
+            text.trim().startsWith("<svg") ||
+            text.trim().startsWith("<?xml")
+          ) {
+            event.preventDefault();
+            setSvgCode(text);
+            setFileName(`pasted-svg-${Date.now()}`);
+            message.success("SVG代码已粘贴！");
+          }
+        });
+      }
+    }
+  };
+
+  // 处理粘贴的图片
+  const handlePastedImage = async (file) => {
+    const isImage = file.type.startsWith("image/");
+    if (!isImage) {
+      message.error("只能处理图片文件！");
+      return;
+    }
+
+    // 如果是SVG图片，尝试读取SVG代码
+    if (file.type === "image/svg+xml") {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setSvgCode(e.target.result);
+        setFileName(`pasted-svg-${Date.now()}`);
+        message.success("SVG图片已粘贴，代码已加载！");
+      };
+      reader.readAsText(file);
+    } else {
+      message.info("粘贴的图片不是SVG格式，请粘贴SVG图片或SVG代码");
+    }
+  };
+
+  // 添加全局粘贴事件监听
+  useEffect(() => {
+    const handleGlobalPaste = (event) => {
+      // 检查是否在输入框中，如果是则不处理粘贴
+      const target = event.target;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.contentEditable === "true"
+      ) {
+        return;
+      }
+
+      handlePaste(event);
+    };
+
+    document.addEventListener("paste", handleGlobalPaste);
+
+    return () => {
+      document.removeEventListener("paste", handleGlobalPaste);
+    };
+  }, []);
 
   // 转换SVG为PNG
   const convertSvgToPng = async () => {
@@ -231,6 +312,15 @@ const SvgToPngTool = ({ onUploadSuccess, api }) => {
                 onChange={(e) => setSvgCode(e.target.value)}
                 style={{ fontFamily: "monospace" }}
               />
+              <div
+                style={{
+                  textAlign: "center",
+                  color: "#1890ff",
+                  fontSize: "12px",
+                }}
+              >
+                支持 Ctrl+V 粘贴SVG代码或SVG图片
+              </div>
 
               <Button
                 type="primary"
