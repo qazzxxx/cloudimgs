@@ -9,6 +9,7 @@ import {
   Row,
   Col,
   theme,
+  Upload,
 } from "antd";
 import {
   CodeOutlined,
@@ -17,10 +18,12 @@ import {
   UploadOutlined,
   CopyOutlined,
   ClearOutlined,
+  InboxOutlined,
 } from "@ant-design/icons";
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
+const { Dragger } = Upload;
 
 const SvgToPngTool = ({ onUploadSuccess, api }) => {
   const {
@@ -275,6 +278,33 @@ const SvgToPngTool = ({ onUploadSuccess, api }) => {
     message.success(`已生成文件名: ${newFileName}`);
   };
 
+  // 处理SVG文件上传
+  const handleSvgFileUpload = (file) => {
+    const isSvg = file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
+    if (!isSvg) {
+      message.error('请上传SVG格式的文件！');
+      return false;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setSvgCode(e.target.result);
+      setFileName(file.name.replace(/\.svg$/i, ''));
+      message.success('SVG文件已加载！');
+    };
+    reader.readAsText(file);
+    
+    return false; // 阻止默认上传行为
+  };
+
+  const uploadProps = {
+    name: 'file',
+    multiple: false,
+    accept: '.svg,image/svg+xml',
+    beforeUpload: handleSvgFileUpload,
+    showUploadList: false,
+  };
+
   return (
     <div>
       <Title level={2}>
@@ -286,6 +316,26 @@ const SvgToPngTool = ({ onUploadSuccess, api }) => {
         <Col xs={24} lg={12}>
           <Card title="SVG代码输入" size="small">
             <Space direction="vertical" style={{ width: "100%" }} size="middle">
+              {/* 添加紧凑的文件上传区域 */}
+              <Dragger 
+                {...uploadProps} 
+                style={{ 
+                  padding: '12px',
+                  minHeight: '80px',
+                  marginBottom: '16px'
+                }}
+              >
+                <p className="ant-upload-drag-icon" style={{ margin: '4px 0' }}>
+                  <InboxOutlined style={{ fontSize: '24px' }} />
+                </p>
+                <p className="ant-upload-text" style={{ margin: '4px 0', fontSize: '14px' }}>
+                  点击或拖拽SVG文件到此处
+                </p>
+                <p className="ant-upload-hint" style={{ margin: '0', fontSize: '12px', color: '#999' }}>
+                  支持 .svg 格式文件
+                </p>
+              </Dragger>
+
               <div>
                 <Button
                   type="dashed"
