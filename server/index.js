@@ -241,6 +241,62 @@ app.post(
   }
 );
 
+/**
+ * 解析MP3帧头信息
+ */
+function parseMp3FrameHeader(header) {
+  // MP3帧头解析（简化版）
+  const version = (header >> 19) & 3;
+  const layer = (header >> 17) & 3;
+  const bitrateIndex = (header >> 12) & 15;
+  const sampleRateIndex = (header >> 10) & 3;
+
+  // 比特率表（MPEG-1 Layer III）
+  const bitrates = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
+  const sampleRates = [44100, 48000, 32000, 0];
+
+  if (bitrateIndex === 0 || bitrateIndex === 15 || sampleRateIndex === 3) {
+    return null; // 无效帧
+  }
+
+  const bitrate = bitrates[bitrateIndex];
+  const sampleRate = sampleRates[sampleRateIndex];
+
+  return {
+    bitrate: bitrate * 1000,
+    sampleRate: sampleRate,
+    frameSize: Math.floor((144 * bitrate * 1000) / sampleRate)
+  };
+}
+
+/**
+ * 解析MP3文件时长
+ */
+async function parseMp3Duration(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+
+  // 查找第一个MP3帧头
+  for (let i = 0; i < view.byteLength - 4; i++) {
+    if (view.getUint8(i) === 0xFF && (view.getUint8(i + 1) & 0xE0) === 0xE0) {
+      // 找到帧头，解析帧信息
+      const header = view.getUint32(i, false);
+      const frameInfo = parseMp3FrameHeader(header);
+
+      if (frameInfo) {
+        // 修复时长计算公式
+        const bitrate = frameInfo.bitrate; // bps
+        const fileSize = arrayBuffer.byteLength; // bytes
+
+        // 正确的时长计算：文件大小(字节) / (比特率(bps) / 8) = 秒数
+        const duration = fileSize / (bitrate / 8);
+        return duration;
+      }
+    }
+  }
+
+  throw new Error('Invalid MP3 file format');
+}
+
 // 1.1. 上传任意文件接口
 app.post(
   "/api/upload-file",
@@ -308,16 +364,31 @@ app.post(
       }
       
       const relPath = path.join(dir, finalFilename).replace(/\\/g, "/");
+      
+      // 计算MP3时长（如果适用）
+      let duration = null;
+      if (customFilename && customFilename.toLowerCase().endsWith('.mp3')) {
+        try {
+          const buffer = await fs.readFile(safeJoin(STORAGE_PATH, relPath));
+          const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+          const rawDuration = await parseMp3Duration(arrayBuffer);
+          duration = Math.ceil(rawDuration * 10) / 10;
+        } catch (error) {
+          console.error("MP3时长解析失败:", error);
+          // 根据需求，不中断上传，但duration设为null
+        }
+      }
 
       const fileInfo = {
         filename: finalFilename,
         originalName: displayName,
-        customFilename: customFilename || null, // 标识是否使用了自定义文件名
+        customFilename: customFilename || null,
         size: req.file.size,
         mimetype: req.file.mimetype,
         uploadTime: new Date().toISOString(),
         url: `/api/files/${encodeURIComponent(relPath)}`,
         relPath,
+        ...(duration !== null && { duration }), // 仅当计算成功时添加duration字段
       };
       res.json({
         success: true,
