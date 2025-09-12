@@ -161,6 +161,14 @@ const upload = multer({
   },
 });
 
+// 通用文件上传配置（支持任意文件类型）
+const uploadAny = multer({
+  storage: storage,
+  limits: {
+    fileSize: config.upload.maxFileSize,
+  },
+});
+
 // 递归获取图片文件
 async function getAllImages(dir = "") {
   const absDir = safeJoin(STORAGE_PATH, dir);
@@ -229,6 +237,49 @@ app.post(
     } catch (error) {
       console.error("上传错误:", error);
       res.status(500).json({ error: "上传失败" });
+    }
+  }
+);
+
+// 1.1. 上传任意文件接口
+app.post(
+  "/api/upload-file",
+  requirePassword,
+  uploadAny.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "没有选择文件" });
+      }
+      let dir = req.body.dir || req.query.dir || "";
+      dir = dir.replace(/\\/g, "/");
+      const relPath = path.join(dir, req.file.filename).replace(/\\/g, "/");
+
+      // 这里要对 originalName 做转码
+      let originalName = req.file.originalname;
+      try {
+        originalName = Buffer.from(originalName, "latin1").toString("utf8");
+      } catch (e) {}
+
+      const safeFilename = sanitizeFilename(req.file.filename);
+
+      const fileInfo = {
+        filename: safeFilename,
+        originalName: originalName, // 用转码后的
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        uploadTime: new Date().toISOString(),
+        url: `/api/files/${encodeURIComponent(relPath)}`,
+        relPath,
+      };
+      res.json({
+        success: true,
+        message: "文件上传成功",
+        data: fileInfo,
+      });
+    } catch (error) {
+      console.error("文件上传错误:", error);
+      res.status(500).json({ error: "文件上传失败" });
     }
   }
 );
@@ -325,6 +376,24 @@ app.get("/api/images/*", (req, res) => {
   }
 });
 
+// 4.1. 获取指定文件（支持多层目录）
+app.get("/api/files/*", (req, res) => {
+  const relPath = decodeURIComponent(req.params[0]);
+  try {
+    const filePath = safeJoin(STORAGE_PATH, relPath);
+    if (fs.existsSync(filePath)) {
+      // 设置正确的Content-Type
+      const mimeType = mime.lookup(filePath) || "application/octet-stream";
+      res.setHeader("Content-Type", mimeType);
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({ error: "文件不存在" });
+    }
+  } catch (e) {
+    res.status(400).json({ error: "非法路径" });
+  }
+});
+
 // 5. 删除图片（支持多层目录）
 app.delete("/api/images/*", requirePassword, async (req, res) => {
   const relPath = decodeURIComponent(req.params[0]);
@@ -335,6 +404,22 @@ app.delete("/api/images/*", requirePassword, async (req, res) => {
       res.json({ success: true });
     } else {
       res.status(404).json({ error: "图片不存在" });
+    }
+  } catch (e) {
+    res.status(400).json({ error: "非法路径" });
+  }
+});
+
+// 5.1. 删除文件（支持多层目录）
+app.delete("/api/files/*", requirePassword, async (req, res) => {
+  const relPath = decodeURIComponent(req.params[0]);
+  try {
+    const filePath = safeJoin(STORAGE_PATH, relPath);
+    if (await fs.pathExists(filePath)) {
+      await fs.remove(filePath);
+      res.json({ success: true, message: "文件删除成功" });
+    } else {
+      res.status(404).json({ error: "文件不存在" });
     }
   } catch (e) {
     res.status(400).json({ error: "非法路径" });
