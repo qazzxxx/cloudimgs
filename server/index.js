@@ -253,19 +253,66 @@ app.post(
       }
       let dir = req.body.dir || req.query.dir || "";
       dir = dir.replace(/\\/g, "/");
-      const relPath = path.join(dir, req.file.filename).replace(/\\/g, "/");
-
-      // 这里要对 originalName 做转码
-      let originalName = req.file.originalname;
-      try {
-        originalName = Buffer.from(originalName, "latin1").toString("utf8");
-      } catch (e) {}
-
-      const safeFilename = sanitizeFilename(req.file.filename);
+      
+      // 检查是否传入了自定义文件名
+      const customFilename = req.body.filename || req.query.filename;
+      let finalFilename;
+      let displayName;
+      
+      if (customFilename) {
+        // 使用自定义文件名
+        finalFilename = sanitizeFilename(customFilename);
+        displayName = customFilename;
+        
+        // 重命名文件
+        const oldPath = req.file.path;
+        const newPath = path.join(path.dirname(oldPath), finalFilename);
+        
+        // 处理文件名冲突
+        let counter = 1;
+        let actualNewPath = newPath;
+        const ext = path.extname(finalFilename);
+        const nameWithoutExt = path.basename(finalFilename, ext);
+        
+        if (!config.upload.allowDuplicateNames) {
+          while (fs.existsSync(actualNewPath)) {
+            if (config.upload.duplicateStrategy === "timestamp") {
+              const newName = `${nameWithoutExt}_${Date.now()}_${counter}${ext}`;
+              actualNewPath = path.join(path.dirname(oldPath), newName);
+              finalFilename = newName;
+            } else if (config.upload.duplicateStrategy === "counter") {
+              const newName = `${nameWithoutExt}_${counter}${ext}`;
+              actualNewPath = path.join(path.dirname(oldPath), newName);
+              finalFilename = newName;
+            } else if (config.upload.duplicateStrategy === "overwrite") {
+              break;
+            }
+            counter++;
+          }
+        }
+        
+        // 执行重命名
+        if (oldPath !== actualNewPath) {
+          fs.renameSync(oldPath, actualNewPath);
+        }
+      } else {
+        // 使用原有逻辑
+        finalFilename = sanitizeFilename(req.file.filename);
+        
+        // 这里要对 originalName 做转码
+        let originalName = req.file.originalname;
+        try {
+          originalName = Buffer.from(originalName, "latin1").toString("utf8");
+        } catch (e) {}
+        displayName = originalName;
+      }
+      
+      const relPath = path.join(dir, finalFilename).replace(/\\/g, "/");
 
       const fileInfo = {
-        filename: safeFilename,
-        originalName: originalName, // 用转码后的
+        filename: finalFilename,
+        originalName: displayName,
+        customFilename: customFilename || null, // 标识是否使用了自定义文件名
         size: req.file.size,
         mimetype: req.file.mimetype,
         uploadTime: new Date().toISOString(),
