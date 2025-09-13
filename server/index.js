@@ -372,7 +372,21 @@ app.post(
           const buffer = await fs.readFile(safeJoin(STORAGE_PATH, relPath));
           const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
           const rawDuration = await parseMp3Duration(arrayBuffer);
-          duration = Math.ceil(rawDuration * 10) / 10;
+          
+          // 精确到小数点后1位，根据小数点后第2位向上取整
+          // 例如：9.11 -> 9.2, 9.15 -> 9.2, 9.19 -> 9.2
+          const secondDecimal = Math.floor((rawDuration * 100) % 10);
+          const firstDecimal = Math.floor((rawDuration * 10) % 10);
+          
+          // 如果第二位小数大于0，则第一位小数加1
+          duration = secondDecimal > 0 
+            ? Math.floor(rawDuration) + (firstDecimal + 1) / 10 
+            : Math.floor(rawDuration) + firstDecimal / 10;
+            
+          // 处理进位情况（如9.9 + 0.1 = 10.0）
+          if (firstDecimal === 9 && secondDecimal > 0) {
+            duration = Math.floor(rawDuration) + 1;
+          }
         } catch (error) {
           console.error("MP3时长解析失败:", error);
           // 根据需求，不中断上传，但duration设为null
