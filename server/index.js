@@ -705,6 +705,143 @@ app.get("/api/config", (req, res) => {
   }
 });
 
+// 图片处理接口
+app.post(
+  "/api/process-image",
+  requirePassword,
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "没有选择图片文件" });
+      }
+
+      // 获取目标尺寸参数
+      const width = parseInt(req.body.width || req.query.width);
+      const height = parseInt(req.body.height || req.query.height);
+      
+      if (!width || !height || width <= 0 || height <= 0) {
+        return res.status(400).json({ error: "请提供有效的宽度和高度参数" });
+      }
+
+      // 获取目录参数
+      let dir = req.body.dir || req.query.dir || "";
+      dir = dir.replace(/\\/g, "/");
+
+      // 读取上传的图片
+      const inputBuffer = await fs.readFile(req.file.path);
+      
+      // 获取原图片信息
+      const metadata = await sharp(inputBuffer).metadata();
+      
+      // 计算缩放比例，保持纵横比
+      const scaleX = width / metadata.width;
+      const scaleY = height / metadata.height;
+      const scale = Math.min(scaleX, scaleY);
+      
+      // 计算缩放后的尺寸
+      const scaledWidth = Math.round(metadata.width * scale);
+      const scaledHeight = Math.round(metadata.height * scale);
+      
+      // 计算居中位置
+      const left = Math.round((width - scaledWidth) / 2);
+      const top = Math.round((height - scaledHeight) / 2);
+
+      // 创建透明背景并合成图片
+      const processedBuffer = await sharp({
+        create: {
+          width: width,
+          height: height,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 } // 透明背景
+        }
+      })
+      .composite([
+        {
+          input: await sharp(inputBuffer)
+            .resize(scaledWidth, scaledHeight)
+            .toBuffer(),
+          left: left,
+          top: top
+        }
+      ])
+      .png()
+      .toBuffer();
+
+      // 生成处理后的文件名
+      const ext = path.extname(req.file.originalname);
+      const nameWithoutExt = path.basename(req.file.originalname, ext);
+      let processedFilename = `${nameWithoutExt}_processed_${width}x${height}.png`;
+      
+      // 处理中文文件名
+      let originalName = req.file.originalname;
+      try {
+        originalName = Buffer.from(originalName, "latin1").toString("utf8");
+      } catch (e) {}
+      
+      processedFilename = sanitizeFilename(processedFilename);
+      
+      // 处理文件名冲突
+      const dest = safeJoin(STORAGE_PATH, dir);
+      let finalFilename = processedFilename;
+      let counter = 1;
+      
+      if (!config.upload.allowDuplicateNames) {
+        while (fs.existsSync(path.join(dest, finalFilename))) {
+          if (config.upload.duplicateStrategy === "timestamp") {
+            finalFilename = `${nameWithoutExt}_processed_${width}x${height}_${Date.now()}_${counter}.png`;
+          } else if (config.upload.duplicateStrategy === "counter") {
+            finalFilename = `${nameWithoutExt}_processed_${width}x${height}_${counter}.png`;
+          } else if (config.upload.duplicateStrategy === "overwrite") {
+            break;
+          }
+          counter++;
+        }
+      }
+      
+      // 保存处理后的图片
+      const processedFilePath = path.join(dest, finalFilename);
+      await fs.writeFile(processedFilePath, processedBuffer);
+      
+      // 删除临时上传文件
+      await fs.remove(req.file.path);
+      
+      const relPath = path.join(dir, finalFilename).replace(/\\/g, "/");
+      
+      const fileInfo = {
+        filename: finalFilename,
+        originalName: originalName,
+        processedSize: { width, height },
+        originalSize: { width: metadata.width, height: metadata.height },
+        size: processedBuffer.length,
+        mimetype: "image/png",
+        uploadTime: new Date().toISOString(),
+        url: `/api/images/${encodeURIComponent(relPath)}`,
+        relPath,
+      };
+      
+      res.json({
+        success: true,
+        message: "图片处理成功",
+        data: fileInfo,
+      });
+    } catch (error) {
+      console.error("图片处理错误:", error);
+      
+      // 清理临时文件
+      if (req.file && req.file.path) {
+        try {
+          await fs.remove(req.file.path);
+        } catch (cleanupError) {
+          console.error("清理临时文件失败:", cleanupError);
+        }
+      }
+      
+      res.status(500).json({ error: "图片处理失败" });
+    }
+  }
+);
+
 // SVG转PNG接口
 app.post("/api/svg2png", requirePassword, async (req, res) => {
   try {
