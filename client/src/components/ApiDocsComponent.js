@@ -108,6 +108,54 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
       },
     },
     {
+      key: "2",
+      method: "POST",
+      endpoint: "/api/upload-file",
+      description: "上传任意文件",
+      auth: "需要",
+      parameters: [
+        {
+          name: "file",
+          type: "file",
+          required: "是",
+          description: "要上传的文件",
+        },
+        {
+          name: "dir",
+          type: "string",
+          required: "否",
+          description: "存储目录路径（支持多层目录）",
+        },
+        {
+          name: "filename",
+          type: "string",
+          required: "否",
+          description: "自定义文件名（可选，如果提供且以.mp3结尾，会计算音频时长）",
+        },
+        {
+          name: "password",
+          type: "string",
+          required: "是*",
+          description: "访问密码（如果启用了密码保护）",
+        },
+      ],
+      response: {
+        success: "boolean",
+        message: "string",
+        data: {
+          filename: "string",
+          originalName: "string",
+          customFilename: "string | null",
+          size: "number",
+          mimetype: "string",
+          uploadTime: "string",
+          url: "string",
+          relPath: "string",
+          duration: "number (可选，对于.mp3文件)"
+        },
+      },
+    },
+    {
       key: "3",
       method: "GET",
       endpoint: "/api/random",
@@ -626,6 +674,30 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
 fetch('/api/random?format=json&password=your_password')
   .then(response => response.json())
   .then(data => console.log(data));`}
+                </pre>
+              </div>
+            </div>
+            <div>
+              <Text strong style={{ color: themeStyles.text }}>
+                4. 上传任意文件（使用curl）：
+              </Text>
+              <div
+                style={{
+                  background: themeStyles.bgCodeBlock,
+                  padding: "12px",
+                  borderRadius: "6px",
+                  marginTop: "8px",
+                  fontFamily: "monospace",
+                  fontSize: "14px",
+                  border: `1px solid ${themeStyles.border}`,
+                }}
+              >
+                <pre style={{ margin: 0, color: themeStyles.codeText }}>
+                  {`curl -X POST http://localhost:3000/api/upload-file \\
+  -H "x-access-password: your_password" \\
+  -F "file=@/path/to/file.ext" \\
+  -F "dir=my_folder" \\
+  -F "filename=custom.ext"`}
                 </pre>
               </div>
             </div>
