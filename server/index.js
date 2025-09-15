@@ -273,6 +273,14 @@ app.post(
       let dir = req.body.dir || req.query.dir || "";
       dir = dir.replace(/\\/g, "/");
       
+      // 创建目标目录（如果不存在）
+      if (dir) {
+        const targetDir = path.join(STORAGE_PATH, dir);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+      }
+      
       // 检查是否传入了自定义文件名
       const customFilename = req.body.filename || req.query.filename;
       let finalFilename;
@@ -285,7 +293,9 @@ app.post(
         
         // 重命名文件
         const oldPath = req.file.path;
-        const newPath = path.join(path.dirname(oldPath), finalFilename);
+        // 确保文件存储在指定目录
+        const targetDir = dir ? path.join(STORAGE_PATH, dir) : path.dirname(oldPath);
+        const newPath = path.join(targetDir, finalFilename);
         
         // 处理文件名冲突
         let counter = 1;
@@ -297,11 +307,11 @@ app.post(
           while (fs.existsSync(actualNewPath)) {
             if (config.upload.duplicateStrategy === "timestamp") {
               const newName = `${nameWithoutExt}_${Date.now()}_${counter}${ext}`;
-              actualNewPath = path.join(path.dirname(oldPath), newName);
+              actualNewPath = path.join(targetDir, newName);
               finalFilename = newName;
             } else if (config.upload.duplicateStrategy === "counter") {
               const newName = `${nameWithoutExt}_${counter}${ext}`;
-              actualNewPath = path.join(path.dirname(oldPath), newName);
+              actualNewPath = path.join(targetDir, newName);
               finalFilename = newName;
             } else if (config.upload.duplicateStrategy === "overwrite") {
               break;
@@ -310,7 +320,7 @@ app.post(
           }
         }
         
-        // 执行重命名
+        // 执行重命名和移动
         if (oldPath !== actualNewPath) {
           fs.renameSync(oldPath, actualNewPath);
         }
@@ -324,6 +334,14 @@ app.post(
           originalName = Buffer.from(originalName, "latin1").toString("utf8");
         } catch (e) {}
         displayName = originalName;
+        
+        // 如果指定了目录，则移动文件到该目录
+        if (dir) {
+          const oldPath = req.file.path;
+          const targetDir = path.join(STORAGE_PATH, dir);
+          const newPath = path.join(targetDir, finalFilename);
+          fs.renameSync(oldPath, newPath);
+        }
       }
       
       const relPath = path.join(dir, finalFilename).replace(/\\/g, "/");
@@ -335,20 +353,15 @@ app.post(
           const filePath = safeJoin(STORAGE_PATH, relPath);
           const rawDuration = await parseMp3Duration(filePath);
           
-          // 精确到小数点后1位，根据小数点后第2位向上取整
-          // 例如：9.11 -> 9.2, 9.15 -> 9.2, 9.19 -> 9.2
-          const secondDecimal = Math.floor((rawDuration * 100) % 10);
-          const firstDecimal = Math.floor((rawDuration * 10) % 10);
+          // 精确到小数点后2位，根据小数点后第3位向上取整
+          // 例如：9.114 -> 9.12, 9.125 -> 9.13, 9.199 -> 9.20
           
-          // 如果第二位小数大于0，则第一位小数加1
-          duration = secondDecimal > 0 
-            ? Math.floor(rawDuration) + (firstDecimal + 1) / 10 
-            : Math.floor(rawDuration) + firstDecimal / 10;
-            
-          // 处理进位情况（如9.9 + 0.1 = 10.0）
-          if (firstDecimal === 9 && secondDecimal > 0) {
-            duration = Math.floor(rawDuration) + 1;
-          }
+          // 将原始时长乘以1000并向上取整，然后除以100得到精确到小数点后2位的结果
+          // Math.ceil 向上取整，确保第三位小数有值时会进位
+          duration = Math.ceil(rawDuration * 1000) / 1000;
+          
+          // 格式化为保留2位小数
+          duration = parseFloat(duration.toFixed(2));
         } catch (error) {
           console.error("MP3时长解析失败:", error);
           // 根据需求，不中断上传，但duration设为null
