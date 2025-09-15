@@ -9,6 +9,7 @@ const { v4: uuidv4 } = require("uuid");
 const config = require("../config");
 const sharp = require("sharp");
 const mime = require("mime-types");
+const mm = require("music-metadata");
 
 const app = express();
 const PORT = config.server.port;
@@ -242,59 +243,21 @@ app.post(
 );
 
 /**
- * 解析MP3帧头信息
+ * 使用music-metadata库解析MP3文件时长
  */
-function parseMp3FrameHeader(header) {
-  // MP3帧头解析（简化版）
-  const version = (header >> 19) & 3;
-  const layer = (header >> 17) & 3;
-  const bitrateIndex = (header >> 12) & 15;
-  const sampleRateIndex = (header >> 10) & 3;
-
-  // 比特率表（MPEG-1 Layer III）
-  const bitrates = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
-  const sampleRates = [44100, 48000, 32000, 0];
-
-  if (bitrateIndex === 0 || bitrateIndex === 15 || sampleRateIndex === 3) {
-    return null; // 无效帧
+async function parseMp3Duration(filePath) {
+  try {
+    // 使用music-metadata库解析音频文件
+    const metadata = await mm.parseFile(filePath, {
+      duration: true
+    });
+    
+    // 获取时长（秒）
+    return metadata.format.duration;
+  } catch (error) {
+    console.error('解析MP3时长失败:', error);
+    throw new Error('Invalid MP3 file format');
   }
-
-  const bitrate = bitrates[bitrateIndex];
-  const sampleRate = sampleRates[sampleRateIndex];
-
-  return {
-    bitrate: bitrate * 1000,
-    sampleRate: sampleRate,
-    frameSize: Math.floor((144 * bitrate * 1000) / sampleRate)
-  };
-}
-
-/**
- * 解析MP3文件时长
- */
-async function parseMp3Duration(arrayBuffer) {
-  const view = new DataView(arrayBuffer);
-
-  // 查找第一个MP3帧头
-  for (let i = 0; i < view.byteLength - 4; i++) {
-    if (view.getUint8(i) === 0xFF && (view.getUint8(i + 1) & 0xE0) === 0xE0) {
-      // 找到帧头，解析帧信息
-      const header = view.getUint32(i, false);
-      const frameInfo = parseMp3FrameHeader(header);
-
-      if (frameInfo) {
-        // 修复时长计算公式
-        const bitrate = frameInfo.bitrate; // bps
-        const fileSize = arrayBuffer.byteLength; // bytes
-
-        // 正确的时长计算：文件大小(字节) / (比特率(bps) / 8) = 秒数
-        const duration = fileSize / (bitrate / 8);
-        return duration;
-      }
-    }
-  }
-
-  throw new Error('Invalid MP3 file format');
 }
 
 // 1.1. 上传任意文件接口
@@ -367,11 +330,10 @@ app.post(
       
       // 计算MP3时长（如果适用）
       let duration = null;
-      if (customFilename && customFilename.toLowerCase().endsWith('.mp3')) {
+      if (req.file.mimetype === 'audio/mpeg' || (customFilename && customFilename.toLowerCase().endsWith('.mp3'))) {
         try {
-          const buffer = await fs.readFile(safeJoin(STORAGE_PATH, relPath));
-          const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-          const rawDuration = await parseMp3Duration(arrayBuffer);
+          const filePath = safeJoin(STORAGE_PATH, relPath);
+          const rawDuration = await parseMp3Duration(filePath);
           
           // 精确到小数点后1位，根据小数点后第2位向上取整
           // 例如：9.11 -> 9.2, 9.15 -> 9.2, 9.19 -> 9.2
