@@ -100,9 +100,8 @@ const storage = multer.diskStorage({
     const dest = safeJoin(STORAGE_PATH, dir);
     // 使用同步方式确保目录存在
     try {
-      if (config.storage.autoCreateDirs) {
-        fs.ensureDirSync(dest);
-      }
+      // 始终创建目录，不再依赖配置项
+      fs.ensureDirSync(dest);
       cb(null, dest);
     } catch (error) {
       cb(error);
@@ -211,6 +210,22 @@ app.post(
       }
       let dir = req.body.dir || req.query.dir || "";
       dir = dir.replace(/\\/g, "/");
+      
+      // 创建目标目录（如果不存在）
+      if (dir) {
+        const targetDir = path.join(STORAGE_PATH, dir);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+        
+        // 如果文件已上传但需要移动到指定目录
+        const oldPath = req.file.path;
+        const newPath = path.join(targetDir, req.file.filename);
+        if (oldPath !== newPath && fs.existsSync(oldPath)) {
+          fs.renameSync(oldPath, newPath);
+        }
+      }
+      
       const relPath = path.join(dir, req.file.filename).replace(/\\/g, "/");
 
       // 这里要对 originalName 做转码
