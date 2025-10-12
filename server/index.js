@@ -198,15 +198,34 @@ async function getAllImages(dir = "") {
   return results;
 }
 
+// 处理 multer 错误的中间件
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    // 处理 Multer 错误
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        success: false,
+        error: `文件大小超过限制，最大允许 ${Math.round((config.upload.maxFileSize / (1024 * 1024)) * 100) / 100}MB`
+      });
+    }
+    return res.status(400).json({ success: false, error: `上传错误: ${err.message}` });
+  } else if (err) {
+    // 处理其他错误
+    return res.status(400).json({ success: false, error: err.message });
+  }
+  next();
+};
+
 // 1. 上传图片接口
 app.post(
   "/api/upload",
   requirePassword,
   upload.single("image"),
+  handleMulterError,
   async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: "没有选择文件" });
+        return res.status(400).json({ success: false, error: "没有选择文件" });
       }
       let dir = req.body.dir || req.query.dir || "";
       dir = dir.replace(/\\/g, "/");
@@ -252,7 +271,7 @@ app.post(
       });
     } catch (error) {
       console.error("上传错误:", error);
-      res.status(500).json({ error: "上传失败" });
+      res.status(500).json({ success: false, error: "上传失败，请稍后重试" });
     }
   }
 );
@@ -280,10 +299,11 @@ app.post(
   "/api/upload-file",
   requirePassword,
   uploadAny.single("file"),
+  handleMulterError,
   async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: "没有选择文件" });
+        return res.status(400).json({ success: false, error: "没有选择文件" });
       }
       let dir = req.body.dir || req.query.dir || "";
       dir = dir.replace(/\\/g, "/");
@@ -401,7 +421,7 @@ app.post(
       });
     } catch (error) {
       console.error("文件上传错误:", error);
-      res.status(500).json({ error: "文件上传失败" });
+      res.status(500).json({ success: false, error: "文件上传失败，请稍后重试" });
     }
   }
 );
