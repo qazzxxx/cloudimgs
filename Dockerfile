@@ -99,7 +99,10 @@ COPY --from=builder --chown=cloudimgs:nodejs /app/client/build ./client/build
 
 # 创建上传目录并设置权限
 RUN mkdir -p uploads logs && \
-    chown -R cloudimgs:nodejs uploads logs
+    chown -R cloudimgs:nodejs uploads logs && \
+    chmod -R 775 uploads logs && \
+    # 添加 cloudimgs 用户到 root 组以获取足够权限
+    addgroup cloudimgs root
 
 # 验证文件复制
 RUN echo "=== Production Image Verification ===" && \
@@ -123,4 +126,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/api/stats', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # 启动应用
-CMD ["npm", "start"] 
+CMD ["npm", "start"]
