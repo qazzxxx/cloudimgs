@@ -66,12 +66,9 @@ COPY --from=builder --chown=cloudimgs:nodejs /app/server ./server
 COPY --from=builder --chown=cloudimgs:nodejs /app/config.js ./
 COPY --from=builder --chown=cloudimgs:nodejs /app/client/build ./client/build
 
-# 创建必要的目录并设置权限
+# 创建必要的目录
 RUN mkdir -p uploads logs && \
-    chown -R cloudimgs:nodejs uploads logs && \
-    chmod -R 775 uploads logs && \
-    # 添加 cloudimgs 用户到 root 组以获取足够权限
-    addgroup cloudimgs root
+    chown -R cloudimgs:nodejs uploads logs
 
 # 切换到非root用户
 USER cloudimgs
@@ -85,4 +82,4 @@ ENV PORT=3001
 ENV STORAGE_PATH=/app/uploads
 
 # 启动应用
-CMD ["npm", "start"]
+CMD ["npm", "start"] 
