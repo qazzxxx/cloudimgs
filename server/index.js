@@ -216,6 +216,46 @@ const handleMulterError = (err, req, res, next) => {
   next();
 };
 
+// 处理 base64 编码的图片
+const handleBase64Image = async (base64Data, dir, originalName) => {
+  // 提取 MIME 类型和实际数据
+  const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) {
+    throw new Error('无效的 base64 图片格式');
+  }
+
+  const mimetype = matches[1];
+  const buffer = Buffer.from(matches[2], 'base64');
+  
+  // 生成文件名
+  const ext = mimetype.split('/')[1] || 'png';
+  const filename = `${Date.now()}-${Math.floor(Math.random() * 1000)}.${ext}`;
+  
+  // 确保目标目录存在
+  const targetDir = dir ? path.join(STORAGE_PATH, dir) : STORAGE_PATH;
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+  
+  // 保存文件
+  const filePath = path.join(targetDir, filename);
+  await fs.promises.writeFile(filePath, buffer);
+  
+  // 返回文件信息
+  const relPath = path.join(dir, filename).replace(/\\/g, "/");
+  const safeFilename = sanitizeFilename(filename);
+  
+  return {
+    filename: safeFilename,
+    originalName: originalName || safeFilename,
+    size: buffer.length,
+    mimetype,
+    uploadTime: new Date().toISOString(),
+    url: `/api/images/${encodeURIComponent(relPath)}`,
+    relPath,
+  };
+};
+
 // 1. 上传图片接口
 app.post(
   "/api/upload",
@@ -224,11 +264,28 @@ app.post(
   handleMulterError,
   async (req, res) => {
     try {
+      let dir = req.body.dir || req.query.dir || "";
+      dir = dir.replace(/\\/g, "/");
+      
+      // 检查是否是 base64 编码的图片
+      if (req.body.base64Image) {
+        try {
+          const fileInfo = await handleBase64Image(req.body.base64Image, dir, req.body.originalName);
+          return res.json({
+            success: true,
+            message: "base64 图片上传成功",
+            data: fileInfo,
+          });
+        } catch (error) {
+          console.error("base64 上传错误:", error);
+          return res.status(400).json({ success: false, error: error.message || "base64 图片处理失败" });
+        }
+      }
+      
+      // 处理常规文件上传
       if (!req.file) {
         return res.status(400).json({ success: false, error: "没有选择文件" });
       }
-      let dir = req.body.dir || req.query.dir || "";
-      dir = dir.replace(/\\/g, "/");
       
       // 创建目标目录（如果不存在）
       if (dir) {
