@@ -16,7 +16,7 @@ const PORT = config.server.port;
 
 // 中间件
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // 增加限制以支持大型 base64 数据
 app.use(express.static(path.join(__dirname, "../client/build")));
 
 // 配置存储路径
@@ -260,7 +260,6 @@ const handleBase64Image = async (base64Data, dir, originalName) => {
 app.post(
   "/api/upload-base64",
   requirePassword,
-  express.json({ limit: '50mb' }),
   async (req, res) => {
     try {
       let dir = req.body.dir || req.query.dir || "";
