@@ -256,7 +256,40 @@ const handleBase64Image = async (base64Data, dir, originalName) => {
   };
 };
 
-// 1. 上传图片接口
+// 1. 上传 base64 编码图片接口
+app.post(
+  "/api/upload-base64",
+  requirePassword,
+  express.json({ limit: '50mb' }),
+  async (req, res) => {
+    try {
+      let dir = req.body.dir || req.query.dir || "";
+      dir = dir.replace(/\\/g, "/");
+      
+      // 检查是否提供了 base64 图片数据
+      if (!req.body.base64Image) {
+        return res.status(400).json({ success: false, error: "缺少 base64Image 参数" });
+      }
+      
+      try {
+        const fileInfo = await handleBase64Image(req.body.base64Image, dir, req.body.originalName);
+        return res.json({
+          success: true,
+          message: "base64 图片上传成功",
+          data: fileInfo,
+        });
+      } catch (error) {
+        console.error("base64 上传错误:", error);
+        return res.status(400).json({ success: false, error: error.message || "base64 图片处理失败" });
+      }
+    } catch (error) {
+      console.error("上传错误:", error);
+      res.status(500).json({ success: false, error: "上传失败，请稍后重试" });
+    }
+  }
+);
+
+// 1.1 上传图片接口 (常规文件上传)
 app.post(
   "/api/upload",
   requirePassword,
@@ -266,21 +299,6 @@ app.post(
     try {
       let dir = req.body.dir || req.query.dir || "";
       dir = dir.replace(/\\/g, "/");
-      
-      // 检查是否是 base64 编码的图片
-      if (req.body.base64Image) {
-        try {
-          const fileInfo = await handleBase64Image(req.body.base64Image, dir, req.body.originalName);
-          return res.json({
-            success: true,
-            message: "base64 图片上传成功",
-            data: fileInfo,
-          });
-        } catch (error) {
-          console.error("base64 上传错误:", error);
-          return res.status(400).json({ success: false, error: error.message || "base64 图片处理失败" });
-        }
-      }
       
       // 处理常规文件上传
       if (!req.file) {
