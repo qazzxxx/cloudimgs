@@ -68,6 +68,32 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
   // API接口数据
   const apiData = [
     {
+      key: "base64",
+      method: "POST",
+      endpoint: "/api/upload-base64",
+      description: "上传 base64 图片",
+      auth: "需要",
+      parameters: [
+        { name: "base64Image", type: "string", required: "是", description: "dataURL 格式的图片数据" },
+        { name: "dir", type: "string", required: "否", description: "存储目录路径（支持多层目录）" },
+        { name: "originalName", type: "string", required: "否", description: "自定义原始文件名" },
+        { name: "password", type: "string", required: "是*", description: "访问密码（如果启用了密码保护）" },
+      ],
+      response: {
+        success: "boolean",
+        message: "string",
+        data: {
+          filename: "string",
+          originalName: "string",
+          size: "number",
+          mimetype: "string",
+          uploadTime: "string",
+          url: "string",
+          relPath: "string",
+        },
+      },
+    },
+    {
       key: "1",
       method: "POST",
       endpoint: "/api/upload",
@@ -111,7 +137,7 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
       key: "2",
       method: "POST",
       endpoint: "/api/upload-file",
-      description: "上传任意文件",
+      description: "上传任意文件（支持MP3/MP4时长解析）",
       auth: "需要",
       parameters: [
         {
@@ -130,7 +156,7 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
           name: "filename",
           type: "string",
           required: "否",
-          description: "自定义文件名（可选，如果提供且以.mp3结尾，会计算音频时长）",
+          description: "自定义文件名（如以.mp3/.mp4结尾，将解析时长）",
         },
         {
           name: "password",
@@ -151,7 +177,7 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
           uploadTime: "string",
           url: "string",
           relPath: "string",
-          duration: "number (可选，对于.mp3文件)"
+          duration: "number (可选，对于.mp3/.mp4文件)"
         },
       },
     },
@@ -200,6 +226,17 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
       response: "图片文件",
     },
     {
+      key: "4.1",
+      method: "GET",
+      endpoint: "/api/files/*",
+      description: "获取指定文件",
+      auth: "否",
+      parameters: [
+        { name: "path", type: "string", required: "是", description: "文件路径（URL路径参数）" },
+      ],
+      response: "文件内容（自动设置Content-Type）",
+    },
+    {
       key: "5",
       method: "DELETE",
       endpoint: "/api/images/*",
@@ -222,6 +259,18 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
       response: {
         success: "boolean",
       },
+    },
+    {
+      key: "5.1",
+      method: "DELETE",
+      endpoint: "/api/files/*",
+      description: "删除文件",
+      auth: "需要",
+      parameters: [
+        { name: "path", type: "string", required: "是", description: "文件路径（URL路径参数）" },
+        { name: "password", type: "string", required: "是*", description: "访问密码（如果启用了密码保护）" },
+      ],
+      response: { success: "boolean", message: "string" },
     },
     {
       key: "6",
@@ -280,6 +329,71 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
           totalImages: "number",
           totalSize: "number",
           storagePath: "string",
+        },
+      },
+    },
+    {
+      key: "8",
+      method: "POST",
+      endpoint: "/api/process-image",
+      description: "处理图片并保存为指定尺寸PNG",
+      auth: "需要",
+      parameters: [
+        { name: "image", type: "file", required: "是", description: "要处理的图片文件" },
+        { name: "width", type: "number", required: "是", description: "目标宽度" },
+        { name: "height", type: "number", required: "是", description: "目标高度" },
+        { name: "dir", type: "string", required: "否", description: "存储目录路径" },
+        { name: "password", type: "string", required: "是*", description: "访问密码（如果启用了密码保护）" },
+      ],
+      response: {
+        success: "boolean",
+        message: "string",
+        data: {
+          filename: "string",
+          originalName: "string",
+          processedSize: { width: "number", height: "number" },
+          originalSize: { width: "number", height: "number" },
+          size: "number",
+          mimetype: "string",
+          uploadTime: "string",
+          url: "string",
+          relPath: "string",
+        },
+      },
+    },
+    {
+      key: "9",
+      method: "POST",
+      endpoint: "/api/svg2png",
+      description: "SVG 转 PNG",
+      auth: "需要",
+      parameters: [
+        { name: "svgCode", type: "string", required: "是", description: "SVG 源代码" },
+        { name: "password", type: "string", required: "是*", description: "访问密码（如果启用了密码保护）" },
+      ],
+      response: "PNG 文件（二进制）",
+    },
+    {
+      key: "10",
+      method: "GET",
+      endpoint: "/api/images",
+      description: "获取图片列表（支持分页与搜索）",
+      auth: "需要",
+      parameters: [
+        { name: "dir", type: "string", required: "否", description: "指定目录路径（支持多层目录）" },
+        { name: "page", type: "number", required: "否", description: "页码，默认1" },
+        { name: "pageSize", type: "number", required: "否", description: "每页数量，默认10" },
+        { name: "search", type: "string", required: "否", description: "按文件名搜索（包含匹配）" },
+        { name: "password", type: "string", required: "是*", description: "访问密码（如果启用了密码保护）" },
+      ],
+      response: {
+        success: "boolean",
+        data: "Image[]",
+        pagination: {
+          current: "number",
+          pageSize: "number",
+          total: "number",
+          totalPages: "number",
         },
       },
     },

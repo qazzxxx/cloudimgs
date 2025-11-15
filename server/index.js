@@ -368,6 +368,16 @@ async function parseMp3Duration(filePath) {
   }
 }
 
+async function parseMp4Duration(filePath) {
+  try {
+    const metadata = await mm.parseFile(filePath, { duration: true });
+    return metadata.format.duration;
+  } catch (error) {
+    console.error('解析MP4时长失败:', error);
+    throw new Error('Invalid MP4 file format');
+  }
+}
+
 // 1.1. 上传任意文件接口
 app.post(
   "/api/upload-file",
@@ -474,6 +484,17 @@ app.post(
         } catch (error) {
           console.error("MP3时长解析失败:", error);
           // 根据需求，不中断上传，但duration设为null
+        }
+      }
+
+      if (duration === null && (req.file.mimetype === 'video/mp4' || (customFilename && customFilename.toLowerCase().endsWith('.mp4')))) {
+        try {
+          const filePath = safeJoin(STORAGE_PATH, relPath);
+          const rawDuration = await parseMp4Duration(filePath);
+          duration = Math.ceil(rawDuration * 1000) / 1000;
+          duration = parseFloat(duration.toFixed(2));
+        } catch (error) {
+          console.error("MP4时长解析失败:", error);
         }
       }
 

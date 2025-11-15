@@ -149,16 +149,19 @@ environment:
 }
 ```
 
-### 📋 获取图片列表
+### 📋 获取图片列表（分页与搜索）
 
 **接口地址：** `GET /api/images`
 
 **认证要求：** 如果启用了密码保护，需要提供访问密码
 
-| 参数名   | 类型   | 必填 | 描述                           |
-| -------- | ------ | ---- | ------------------------------ |
-| dir      | string | 否   | 指定目录路径（支持多层目录）   |
-| password | string | 是\* | 访问密码（如果启用了密码保护） |
+| 参数名   | 类型   | 必填 | 描述                                   |
+| -------- | ------ | ---- | -------------------------------------- |
+| dir      | string | 否   | 指定目录路径（支持多层目录）           |
+| page     | number | 否   | 页码，默认 `1`                         |
+| pageSize | number | 否   | 每页数量，默认 `10`                    |
+| search   | string | 否   | 按文件名搜索（包含匹配，不区分大小写） |
+| password | string | 是\* | 访问密码（如果启用了密码保护）         |
 
 **响应示例：**
 
@@ -173,7 +176,13 @@ environment:
       "uploadTime": "2024-01-01T12:00:00.000Z",
       "url": "/api/images/image.jpg"
     }
-  ]
+  ],
+  "pagination": {
+    "current": 1,
+    "pageSize": 10,
+    "total": 100,
+    "totalPages": 10
+  }
 }
 ```
 
@@ -250,18 +259,25 @@ environment:
 
 **认证要求：** 如果启用了密码保护，需要提供访问密码
 
-| 参数名   | 类型   | 必填 | 描述                           |
-| -------- | ------ | ---- | ------------------------------ |
-| path     | string | 是   | 图片路径（URL 路径参数）       |
-| password | string | 是\* | 访问密码（如果启用了密码保护） |
+| 参数名   | 类型   | 必填 | 描述                     |
+| -------- | ------ | ---- | ------------------------ |
+| path     | string | 是   | 图片路径（URL 路径参数） |
+| password | string | 是\* | 访问密码                 |
 
-**响应示例：**
+**响应示例：** `{ "success": true }`
 
-```json
-{
-  "success": true
-}
-```
+### 🗑️ 删除文件
+
+**接口地址：** `DELETE /api/files/{path}`
+
+**认证要求：** 如果启用了密码保护，需要提供访问密码
+
+| 参数名   | 类型   | 必填 | 描述                     |
+| -------- | ------ | ---- | ------------------------ |
+| path     | string | 是   | 文件路径（URL 路径参数） |
+| password | string | 是\* | 访问密码                 |
+
+**响应示例：** `{ "success": true, "message": "文件删除成功" }`
 
 ### 📖 获取指定图片
 
@@ -274,6 +290,18 @@ environment:
 | path   | string | 是   | 图片路径（URL 路径参数） |
 
 **响应格式：** 直接返回图片文件
+
+### 📄 获取指定文件
+
+**接口地址：** `GET /api/files/{path}`
+
+**认证要求：** 无需认证
+
+| 参数名 | 类型   | 必填 | 描述                     |
+| ------ | ------ | ---- | ------------------------ |
+| path   | string | 是   | 文件路径（URL 路径参数） |
+
+**响应格式：** 直接返回文件，自动设置 `Content-Type`
 
 ## 使用示例
 
@@ -331,8 +359,90 @@ fetch("/api/images?dir=2024/06/10", {
 // 获取JSON格式的图片信息
 fetch("/api/random?format=json&password=your_password")
   .then((response) => response.json())
-  .then((data) => console.log(data));
+.then((data) => console.log(data));
 ```
+
+### 📎 上传任意文件（含时长解析）
+
+**接口地址：** `POST /api/upload-file`
+
+**认证要求：** 如果启用了密码保护，需要提供访问密码
+
+| 参数名   | 类型   | 必填 | 描述                                                |
+| -------- | ------ | ---- | --------------------------------------------------- |
+| file     | file   | 是   | 要上传的文件                                        |
+| dir      | string | 否   | 存储目录路径（支持多层目录）                        |
+| filename | string | 否   | 自定义文件名（以 .mp3/.mp4 结尾将解析并返回时长）  |
+| password | string | 是\* | 访问密码（如果启用了密码保护）                      |
+
+**响应示例：**
+
+```json
+{
+  "success": true,
+  "message": "文件上传成功",
+  "data": {
+    "filename": "video.mp4",
+    "originalName": "原始名.mp4",
+    "customFilename": null,
+    "size": 123456,
+    "mimetype": "video/mp4",
+    "uploadTime": "2024-01-01T12:00:00.000Z",
+    "url": "/api/files/dir/video.mp4",
+    "relPath": "dir/video.mp4",
+    "duration": 12.34
+  }
+}
+```
+
+> 时长单位为秒，保留两位小数，对第三位小数向上取整。支持根据 `mimetype` 为 `audio/mpeg` 或 `video/mp4`，以及自定义文件名后缀 `.mp3/.mp4` 进行解析。
+
+### 🧾 上传 base64 图片
+
+**接口地址：** `POST /api/upload-base64`
+
+| 参数名       | 类型   | 必填 | 描述                        |
+| ------------ | ------ | ---- | --------------------------- |
+| base64Image  | string | 是   | dataURL 格式的图片数据      |
+| dir          | string | 否   | 存储目录路径                |
+| originalName | string | 否   | 自定义原始文件名            |
+| password     | string | 是\* | 访问密码（如果启用了密码保护） |
+
+**响应：** 同图片上传返回结构，`url` 指向 `/api/images/...`
+
+### ✂️ 图片处理
+
+**接口地址：** `POST /api/process-image`
+
+| 参数名   | 类型   | 必填 | 描述           |
+| -------- | ------ | ---- | -------------- |
+| image    | file   | 是   | 要处理的图片   |
+| width    | number | 是   | 目标宽度       |
+| height   | number | 是   | 目标高度       |
+| dir      | string | 否   | 存储目录路径   |
+| password | string | 是\* | 访问密码       |
+
+**响应：** 返回处理后的 PNG 文件信息（保存在存储目录），包含 `processedSize`、`originalSize`、`url` 等。
+
+### 🛠️ SVG 转 PNG
+
+**接口地址：** `POST /api/svg2png`
+
+| 参数名   | 类型   | 必填 | 描述      |
+| -------- | ------ | ---- | --------- |
+| svgCode  | string | 是   | SVG 源码  |
+| password | string | 是\* | 访问密码  |
+
+**响应格式：** 直接返回 PNG 文件二进制
+
+### 🔐 认证接口
+
+- `GET /api/auth/status` 返回 `{ requiresPassword: boolean }`
+- `POST /api/auth/verify` 请求体 `password`，返回 `{ success, message }`
+
+### ⚙️ 配置接口
+
+- `GET /api/config` 返回前端可用配置（上传限制、存储路径等）
 
 ### 4. 删除图片
 
