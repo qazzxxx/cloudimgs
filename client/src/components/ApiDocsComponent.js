@@ -1,5 +1,5 @@
 import React from "react";
-import { Table, Card, Typography, Space, Tag, Divider } from "antd";
+import { Table, Card, Typography, Space, Tag, Divider, Button, message } from "antd";
 import { ApiOutlined, InfoCircleOutlined } from "@ant-design/icons";
 
 const { Title, Paragraph, Text } = Typography;
@@ -66,6 +66,9 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
   };
 
   // API接口数据
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const savedPassword = typeof window !== "undefined" ? (localStorage.getItem("cloudimgs_password") || "") : "";
+
   const apiData = [
     {
       key: "base64",
@@ -399,6 +402,72 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
     },
   ];
 
+  const buildCurl = (api) => {
+    const endpoint = `${origin}${api.endpoint}`;
+    const pwdHeader = savedPassword ? ` -H "X-Access-Password: ${savedPassword}"` : "";
+    const methodFlag = api.method && api.method !== "GET" ? ` -X ${api.method}` : "";
+
+    if (api.endpoint === "/api/upload") {
+      return `curl${methodFlag} ${endpoint}${pwdHeader} \\\n+  -F "image=@/path/to/image.jpg" \\\n+  -F "dir=my_folder"`;
+    }
+    if (api.endpoint === "/api/upload-file") {
+      return `curl${methodFlag} ${endpoint}${pwdHeader} \\\n+  -F "file=@/path/to/file.ext" \\\n+  -F "dir=my_folder" \\\n+  -F "filename=custom.ext"`;
+    }
+    if (api.endpoint === "/api/upload-base64") {
+      const payload = JSON.stringify({ base64Image: "data:image/png;base64,....", dir: "my_folder", originalName: "name.png" });
+      return `curl${methodFlag} ${endpoint}${pwdHeader} \\\n+  -H "Content-Type: application/json" \\\n+  -d '${payload}'`;
+    }
+    if (api.endpoint === "/api/process-image") {
+      return `curl${methodFlag} ${endpoint}${pwdHeader} \\\n+  -F "image=@/path/to/image.jpg" \\\n+  -F "width=800" \\\n+  -F "height=600" \\\n+  -F "dir=my_folder"`;
+    }
+    if (api.endpoint === "/api/svg2png") {
+      const payload = JSON.stringify({ svgCode: "<svg>...</svg>" });
+      return `curl${methodFlag} ${endpoint}${pwdHeader} \\\n+  -H "Content-Type: application/json" \\\n+  -d '${payload}'`;
+    }
+    if (api.endpoint === "/api/images") {
+      const url = `${endpoint}?dir=my_folder&page=1&pageSize=10&search=keyword`;
+      return `curl ${url}${pwdHeader}`;
+    }
+    if (api.endpoint === "/api/random") {
+      const url = `${endpoint}?dir=my_folder&format=json`;
+      return `curl ${url}${pwdHeader}`;
+    }
+    if (api.endpoint === "/api/auth/status") {
+      return `curl ${endpoint}`;
+    }
+    if (api.endpoint === "/api/auth/verify") {
+      const payload = JSON.stringify({ password: savedPassword || "your_password" });
+      return `curl -X POST ${endpoint} \\\n+  -H "Content-Type: application/json" \\\n+  -d '${payload}'`;
+    }
+    if (api.endpoint === "/api/config") {
+      return `curl ${endpoint}`;
+    }
+    if (api.endpoint === "/api/images/*") {
+      const url = `${origin}/api/images/path/to/image.jpg`;
+      return `curl ${url}`;
+    }
+    if (api.endpoint === "/api/files/*") {
+      const url = `${origin}/api/files/path/to/file.ext`;
+      return `curl ${url}`;
+    }
+    if (api.endpoint === "/api/images/*" && api.method === "DELETE") {
+      const url = `${origin}/api/images/path/to/image.jpg`;
+      return `curl -X DELETE ${url}${pwdHeader}`;
+    }
+    if (api.endpoint === "/api/files/*" && api.method === "DELETE") {
+      const url = `${origin}/api/files/path/to/file.ext`;
+      return `curl -X DELETE ${url}${pwdHeader}`;
+    }
+    return `curl${methodFlag} ${endpoint}${pwdHeader}`;
+  };
+
+  const handleCopyCurl = (api) => {
+    const cmd = buildCurl(api);
+    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(cmd).then(() => message.success("已复制 curl"));
+    }
+  };
+
   // 参数表格列定义
   const parameterColumns = [
     {
@@ -641,6 +710,15 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
                     <Tag color={api.auth === "需要" ? "red" : "green"}>
                       {api.auth === "需要" ? "需要认证" : "无需认证"}
                     </Tag>
+                    <span style={{ ...codeBlockStyle }}>
+                      {origin}{api.endpoint}
+                    </span>
+                    {savedPassword && (
+                      <Tag color="purple">密码: {savedPassword}</Tag>
+                    )}
+                    <Button type="primary" size="small" onClick={() => handleCopyCurl(api)}>
+                      复制 curl
+                    </Button>
                   </Space>
                 </div>
 
@@ -690,20 +768,9 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
                       width: "100%",
                     }}
                   >
-                    {typeof api.response === "string" ? (
-                      api.response
-                    ) : (
-                      <pre
-                        style={{
-                          margin: 0,
-                          whiteSpace: "pre-wrap",
-                          color: themeStyles.codeText,
-                          fontSize: isMobile ? "12px" : "14px",
-                        }}
-                      >
-                        {JSON.stringify(api.response, null, 2)}
-                      </pre>
-                    )}
+                    <pre style={{ margin: 0, whiteSpace: "pre-wrap", color: themeStyles.codeText, fontSize: isMobile ? "12px" : "14px" }}>
+                      {buildCurl(api)}
+                    </pre>
                   </div>
                 </div>
               </Card>
