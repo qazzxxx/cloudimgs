@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getPassword, clearPassword } from "./secureStorage";
 
 // 创建axios实例
 const api = axios.create({
@@ -9,7 +10,7 @@ const api = axios.create({
 // 请求拦截器 - 添加密码到请求头
 api.interceptors.request.use(
   (config) => {
-    const password = localStorage.getItem("cloudimgs_password");
+    const password = getPassword();
     if (password) {
       config.headers["X-Access-Password"] = password;
     }
@@ -27,9 +28,7 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response && error.response.status === 401) {
-      // 密码错误或未授权，清除本地存储的密码
-      localStorage.removeItem("cloudimgs_password");
-      // 重定向到登录页面
+      clearPassword();
       window.location.reload();
     }
     return Promise.reject(error);

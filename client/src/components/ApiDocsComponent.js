@@ -1,5 +1,6 @@
 import React from "react";
 import { Table, Card, Typography, Space, Tag, Divider, Button, message } from "antd";
+import { getPassword } from "../utils/secureStorage";
 import { ApiOutlined, InfoCircleOutlined } from "@ant-design/icons";
 
 const { Title, Paragraph, Text } = Typography;
@@ -67,7 +68,33 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
 
   // API接口数据
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const savedPassword = typeof window !== "undefined" ? (localStorage.getItem("cloudimgs_password") || "") : "";
+  const savedPassword = typeof window !== "undefined" ? (getPassword() || "") : "";
+
+  const copyText = (text) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    const input = document.createElement("input");
+    input.style.position = "fixed";
+    input.style.top = "-10000px";
+    input.style.zIndex = "-999";
+    document.body.appendChild(input);
+    input.value = text;
+    input.focus();
+    input.select();
+    try {
+      const ok = document.execCommand("copy");
+      document.body.removeChild(input);
+      if (!ok) {
+        message.error("复制失败");
+      } else {
+        message.success("已复制");
+      }
+    } catch (e) {
+      document.body.removeChild(input);
+      message.error("浏览器不支持复制功能");
+    }
+  };
 
   const apiData = [
     {
@@ -463,9 +490,7 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
 
   const handleCopyCurl = (api) => {
     const cmd = buildCurl(api);
-    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(cmd).then(() => message.success("已复制 curl"));
-    }
+    copyText(cmd);
   };
 
   // 参数表格列定义
@@ -713,9 +738,7 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
                     <span style={{ ...codeBlockStyle }}>
                       {origin}{api.endpoint}
                     </span>
-                    {savedPassword && (
-                      <Tag color="purple">密码: {savedPassword}</Tag>
-                    )}
+                    {/* 移除密码明文展示，降低泄露风险 */}
                     <Button type="primary" size="small" onClick={() => handleCopyCurl(api)}>
                       复制 curl
                     </Button>

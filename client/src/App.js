@@ -39,6 +39,7 @@ import LoginComponent from "./components/LoginComponent";
 import ImageCropperTool from "./components/ImageCropperTool";
 import ApiDocsComponent from "./components/ApiDocsComponent";
 import api from "./utils/api";
+import { getPassword, clearPassword } from "./utils/secureStorage";
 
 const { Header, Content, Sider } = Layout;
 
@@ -75,7 +76,7 @@ function AppContent({ currentTheme, onThemeChange }) {
 
         if (data.requiresPassword) {
           setPasswordRequired(true);
-          const savedPassword = localStorage.getItem("cloudimgs_password");
+          const savedPassword = getPassword();
           if (savedPassword) {
             // 验证保存的密码是否有效
             const verifyResponse = await fetch("/api/auth/verify", {
@@ -89,7 +90,7 @@ function AppContent({ currentTheme, onThemeChange }) {
             if (verifyResponse.ok) {
               setIsAuthenticated(true);
             } else {
-              localStorage.removeItem("cloudimgs_password");
+              clearPassword();
             }
           }
         } else {
@@ -114,7 +115,7 @@ function AppContent({ currentTheme, onThemeChange }) {
 
   // 登出处理
   const handleLogout = () => {
-    localStorage.removeItem("cloudimgs_password");
+    clearPassword();
     setIsAuthenticated(false);
     message.success("已退出登录");
   };
@@ -152,11 +153,6 @@ function AppContent({ currentTheme, onThemeChange }) {
     if (!isAuthenticated) return;
 
     try {
-      console.log("Fetching stats, isAuthenticated:", isAuthenticated);
-      console.log(
-        "Password from localStorage:",
-        localStorage.getItem("cloudimgs_password")
-      );
       const response = await api.get("/stats");
       if (response.data.success) {
         setStats(response.data.data);

@@ -219,9 +219,33 @@ const UploadComponent = ({ onUploadSuccess, api }) => {
   };
 
   const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      message.success("链接已复制到剪贴板");
-    });
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard
+        .writeText(text)
+        .then(() => message.success("链接已复制到剪贴板"))
+        .catch(() => message.error("复制失败"));
+      return;
+    }
+    const input = document.createElement("input");
+    input.style.position = "fixed";
+    input.style.top = "-10000px";
+    input.style.zIndex = "-999";
+    document.body.appendChild(input);
+    input.value = text;
+    input.focus();
+    input.select();
+    try {
+      const ok = document.execCommand("copy");
+      document.body.removeChild(input);
+      if (!ok) {
+        message.error("复制失败");
+      } else {
+        message.success("链接已复制到剪贴板");
+      }
+    } catch (e) {
+      document.body.removeChild(input);
+      message.error("当前浏览器不支持复制功能");
+    }
   };
 
   const formatFileSize = (bytes) => {

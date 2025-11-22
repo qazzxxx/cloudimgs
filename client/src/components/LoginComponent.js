@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { setPassword, clearPassword } from "../utils/secureStorage";
 import { Form, Input, Button, Card, message, Typography } from "antd";
 import { LockOutlined } from "@ant-design/icons";
 
@@ -22,8 +23,8 @@ const LoginComponent = ({ onLoginSuccess }) => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      // 将密码存储到 localStorage 中，用于后续API调用
-      localStorage.setItem("cloudimgs_password", values.password);
+      // 将密码加密后存储，用于后续API调用
+      setPassword(values.password);
 
       // 测试密码是否正确
       const response = await fetch("/api/auth/verify", {
@@ -40,12 +41,12 @@ const LoginComponent = ({ onLoginSuccess }) => {
       } else {
         const errorData = await response.json();
         message.error(errorData.error || "密码错误");
-        localStorage.removeItem("cloudimgs_password");
+        clearPassword();
       }
     } catch (error) {
       console.error("登录失败:", error);
       message.error("登录失败，请检查网络连接");
-      localStorage.removeItem("cloudimgs_password");
+      clearPassword();
     } finally {
       setLoading(false);
     }
