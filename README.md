@@ -1,10 +1,10 @@
-# CloudImgs - 简单、方便的开源图床项目，支持 NAS 部署
+# 云图 - 简单、方便的开源图床项目，支持 NAS 部署
 
 ## 软件预览
 
 | 桌面端                                               | 移动端                                                     |
 | ---------------------------------------------------- | ---------------------------------------------------------- |
-| ![CloudImgs 桌面端预览](client/public/cloudimgs.png) | ![CloudImgs 移动端预览](client/public/cloudimgsmobile.png) |
+| ![云图 桌面端预览](client/public/cloudimgs.png) | ![云图 移动端预览](client/public/cloudimgsmobile.png) |
 
 一个简单、方便的开源图床项目，一键 NAS 部署，支持图片上传、管理、预览和分享。
 

@@ -659,7 +659,7 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
               <InfoCircleOutlined
                 style={{ marginRight: "8px", color: themeStyles.primary }}
               />
-              本文档详细列出了CloudImgs支持的所有API接口，包括参数说明、认证要求和返回格式。
+              本文档详细列出了云图支持的所有API接口，包括参数说明、认证要求和返回格式。
             </Paragraph>
             <div
               style={{

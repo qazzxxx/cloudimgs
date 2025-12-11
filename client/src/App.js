@@ -307,7 +307,7 @@ function AppContent({ currentTheme, onThemeChange }) {
       >
         <div style={{ textAlign: "center", color: "white" }}>
           <div style={{ fontSize: "24px", marginBottom: "16px" }}>
-            CloudImgs
+            云图
           </div>
           <div>正在检查认证状态...</div>
         </div>

@@ -71,7 +71,7 @@ const LoginComponent = ({ onLoginSuccess }) => {
       >
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <Title level={2} style={{ marginBottom: "8px" }}>
-            CloudImgs
+            云图
           </Title>
           <Text type="secondary">请输入访问密码</Text>
         </div>

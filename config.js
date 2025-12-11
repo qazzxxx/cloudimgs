@@ -1,4 +1,4 @@
-// CloudImgs 配置文件
+// 云图 配置文件
 module.exports = {
   // 上传配置
   upload: {

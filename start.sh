@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 启动 CloudImgs 图床应用..."
+echo "🚀 启动 云图 应用..."
 
 # 检查 Node.js 是否安装
 if ! command -v node &> /dev/null; then

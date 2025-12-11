@@ -1,6 +1,6 @@
 {
-  "short_name": "CloudImgs",
-  "name": "CloudImgs - 现代图床应用",
+  "short_name": "云图",
+  "name": "云图",
   "description": "基于 Node.js + React + Ant Design 的现代化图床应用，支持图片上传、管理、预览和API接口",
   "icons": [
     {
