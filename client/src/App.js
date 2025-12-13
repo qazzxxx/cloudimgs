@@ -328,7 +328,7 @@ function AppContent({ currentTheme, onThemeChange }) {
               borderRight: `1px solid ${colorBorder}`,
             }}
           >
-            <div style={{ padding: "16px", textAlign: "center" }}>
+            <div style={{ padding: "18px 16px 16px", textAlign: "center" }}>
               <LogoWithText />
             </div>
             <Menu

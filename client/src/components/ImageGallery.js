@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
+  Masonry,
   Card,
   Button,
   Space,
   Typography,
-  Row,
-  Col,
   Modal,
   message,
   Popconfirm,
@@ -317,143 +316,142 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
         />
       ) : (
         <>
-          <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
-            {images.map((image, index) => (
-              <Col xs={24} sm={12} md={8} lg={6} xl={4} key={index}>
-                <Card
-                  hoverable
-                  size={isMobile ? "small" : "default"}
-                  cover={
-                    <div style={{ position: "relative" }}>
-                      <img
-                        alt={image.filename}
-                        src={image.url}
-                        style={{
-                          height: isMobile ? 150 : 200,
-                          width: "100%",
-                          objectFit: "cover",
-                          cursor: "pointer",
-                        }}
-                        onClick={() => handlePreview(image)}
-                      />
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: isMobile ? 4 : 8,
-                          right: isMobile ? 4 : 8,
-                          background: "rgba(0,0,0,0.6)",
-                          borderRadius: "4px",
-                          padding: isMobile ? "1px 4px" : "2px 6px",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: "white",
-                            fontSize: isMobile ? "10px" : "12px",
-                          }}
-                        >
-                          {formatFileSize(image.size)}
-                        </Text>
-                      </div>
-                    </div>
-                  }
-                  actions={[
-                    <Button
-                      type="text"
-                      size={isMobile ? "small" : "middle"}
-                      icon={<EyeOutlined />}
+          <Masonry
+            columns={
+              isMobile ? 1 : screens.lg ? 4 : screens.md ? 3 : screens.sm ? 2 : 1
+            }
+            gutter={isMobile ? 8 : 16}
+            items={images.map((image, index) => ({
+              key: image.relPath || `item-${index}`,
+              data: image,
+            }))}
+            itemRender={({ data: image }) => (
+              <Card
+                hoverable
+                size={isMobile ? "small" : "default"}
+                cover={
+                  <div style={{ position: "relative" }}>
+                    <img
+                      alt={image.filename}
+                      src={image.url}
+                      style={{
+                        width: "100%",
+                        objectFit: "cover",
+                        cursor: "pointer",
+                      }}
                       onClick={() => handlePreview(image)}
-                      title="预览"
-                    />,
-                    <Button
-                      type="text"
-                      size={isMobile ? "small" : "middle"}
-                      icon={<DownloadOutlined />}
-                      onClick={() => handleDownload(image)}
-                      title="下载"
-                    />,
-                    <Button
-                      type="text"
-                      size={isMobile ? "small" : "middle"}
-                      icon={<CopyOutlined />}
-                      onClick={() =>
-                        copyToClipboard(`${window.location.origin}${image.url}`)
-                      }
-                      title="复制链接"
-                    />,
-                    <Popconfirm
-                      title="确定要删除这张图片吗？"
-                      onConfirm={() => handleDelete(image.relPath)}
-                      okText="确定"
-                      cancelText="取消"
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        background: "rgba(0,0,0,0.6)",
+                        borderRadius: 4,
+                        padding: "2px 6px",
+                      }}
                     >
-                      <Button
-                        type="text"
-                        size={isMobile ? "small" : "middle"}
-                        danger
-                        icon={<DeleteOutlined />}
-                        title="删除"
-                      />
-                    </Popconfirm>,
-                  ]}
-                >
-                  <Card.Meta
-                    title={
-                      <Text
-                        ellipsis
-                        style={{
-                          maxWidth: "100%",
-                          fontSize: isMobile ? "13px" : "14px",
-                        }}
-                      >
-                        {image.filename}
+                      <Text style={{ color: "white", fontSize: 12 }}>
+                        {formatFileSize(image.size)}
                       </Text>
-                    }
-                    description={
-                      <Space direction="vertical" size="small">
-                        {/* 子目录显示 */}
-                        {image.relPath && image.relPath.includes("/") && (
-                          <Text
-                            type="secondary"
-                            style={{ fontSize: isMobile ? "11px" : "12px" }}
-                          >
-                            <span
-                              style={{
-                                background: colorBgContainer,
-                                border: `1px solid ${colorBorder}`,
-                                borderRadius: 4,
-                                padding: isMobile ? "1px 4px" : "2px 6px",
-                                marginRight: 4,
-                              }}
-                            >
-                              {image.relPath.substring(
-                                0,
-                                image.relPath.lastIndexOf("/")
-                              )}
-                            </span>
-                          </Text>
-                        )}
+                    </div>
+                  </div>
+                }
+              >
+                <Card.Meta
+                  title={
+                    <Text
+                      ellipsis
+                      style={{
+                        maxWidth: "100%",
+                        fontSize: isMobile ? "13px" : "14px",
+                      }}
+                    >
+                      {image.filename}
+                    </Text>
+                  }
+                  description={
+                    <Space direction="vertical" size="small">
+                      {image.relPath && image.relPath.includes("/") && (
                         <Text
                           type="secondary"
                           style={{ fontSize: isMobile ? "11px" : "12px" }}
                         >
-                          {dayjs(image.uploadTime).format(
-                            "YYYY-MM-DD HH:mm:ss"
-                          )}
+                          <span
+                            style={{
+                              background: colorBgContainer,
+                              border: `1px solid ${colorBorder}`,
+                              borderRadius: 4,
+                              padding: isMobile ? "1px 4px" : "2px 6px",
+                              marginRight: 4,
+                            }}
+                          >
+                            {image.relPath.substring(
+                              0,
+                              image.relPath.lastIndexOf("/")
+                            )}
+                          </span>
                         </Text>
-                        <Tag
-                          color="blue"
-                          style={{ fontSize: isMobile ? "11px" : "12px" }}
+                      )}
+                      <Text
+                        type="secondary"
+                        style={{ fontSize: isMobile ? "11px" : "12px" }}
+                      >
+                        {dayjs(image.uploadTime).format("YYYY-MM-DD HH:mm:ss")}
+                      </Text>
+                      <Tag
+                        color="blue"
+                        style={{ fontSize: isMobile ? "11px" : "12px" }}
+                      >
+                        {formatFileSize(image.size)}
+                      </Tag>
+                      <Space size="small" wrap>
+                        <Button
+                          type="text"
+                          size={isMobile ? "small" : "middle"}
+                          icon={<EyeOutlined />}
+                          onClick={() => handlePreview(image)}
+                          title="预览"
+                        />
+                        <Button
+                          type="text"
+                          size={isMobile ? "small" : "middle"}
+                          icon={<DownloadOutlined />}
+                          onClick={() => handleDownload(image)}
+                          title="下载"
+                        />
+                        <Button
+                          type="text"
+                          size={isMobile ? "small" : "middle"}
+                          icon={<CopyOutlined />}
+                          onClick={() =>
+                            copyToClipboard(
+                              `${window.location.origin}${image.url}`
+                            )
+                          }
+                          title="复制链接"
+                        />
+                        <Popconfirm
+                          title="确定要删除这张图片吗？"
+                          onConfirm={() => handleDelete(image.relPath)}
+                          okText="确定"
+                          cancelText="取消"
                         >
-                          {formatFileSize(image.size)}
-                        </Tag>
+                          <Button
+                            type="text"
+                            size={isMobile ? "small" : "middle"}
+                            danger
+                            icon={<DeleteOutlined />}
+                            title="删除"
+                          />
+                        </Popconfirm>
                       </Space>
-                    }
-                  />
-                </Card>
-              </Col>
-            ))}
-          </Row>
+                    </Space>
+                  }
+                />
+              </Card>
+            )}
+          />
 
           {/* 分页组件 */}
           {pagination.total > 0 && (
