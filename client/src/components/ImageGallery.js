@@ -9,6 +9,7 @@ import {
   Popconfirm,
   Tag,
   Input,
+  Tooltip,
   Empty,
   Spin,
   Grid,
@@ -347,7 +348,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
             columns={
               isMobile ? 1 : screens.lg ? 4 : screens.md ? 3 : screens.sm ? 2 : 1
             }
-            gutter={isMobile ? 8 : 16}
+            gutter={isMobile ? 6 : 12}
             items={images.map((image, index) => ({
               key: image.relPath || `item-${index}`,
               data: image,
@@ -375,7 +376,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                     transform:
                       hoverKey ===
                       (image.relPath || image.url || image.filename)
-                        ? "scale(1.03)"
+                        ? "scale(1.1)"
                         : "scale(1)",
                   }}
                   onClick={() => handlePreview(image)}
@@ -389,49 +390,57 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                       hoverKey === (image.relPath || image.url || image.filename)
                         ? "flex"
                         : "none",
-                    gap: 6,
+                    gap: 4,
+                    background: "rgba(0,0,0,0.35)",
+                    borderRadius: 16,
+                    padding: 4,
                   }}
                 >
-                  <Button
-                    type="primary"
-                    size="small"
-                    ghost
-                    icon={<EyeOutlined />}
-                    onClick={() => handlePreview(image)}
-                    title="预览"
-                  />
-                  <Button
-                    type="primary"
-                    size="small"
-                    ghost
-                    icon={<DownloadOutlined />}
-                    onClick={() => handleDownload(image)}
-                    title="下载"
-                  />
-                  <Button
-                    type="primary"
-                    size="small"
-                    ghost
-                    icon={<CopyOutlined />}
-                    onClick={() =>
-                      copyToClipboard(`${window.location.origin}${image.url}`)
-                    }
-                    title="复制链接"
-                  />
+                  <Tooltip title="预览">
+                    <Button
+                      type="text"
+                      shape="circle"
+                      size="small"
+                      icon={<EyeOutlined style={{ color: "rgba(255,255,255,0.95)" }} />}
+                      onClick={() => handlePreview(image)}
+                    />
+                  </Tooltip>
+                  <Tooltip title="下载">
+                    <Button
+                      type="text"
+                      shape="circle"
+                      size="small"
+                      icon={
+                        <DownloadOutlined style={{ color: "rgba(255,255,255,0.9)" }} />
+                      }
+                      onClick={() => handleDownload(image)}
+                    />
+                  </Tooltip>
+                  <Tooltip title="复制链接">
+                    <Button
+                      type="text"
+                      shape="circle"
+                      size="small"
+                      icon={<CopyOutlined style={{ color: "rgba(255,255,255,0.9)" }} />}
+                      onClick={() =>
+                        copyToClipboard(`${window.location.origin}${image.url}`)
+                      }
+                    />
+                  </Tooltip>
                   <Popconfirm
                     title="确定要删除这张图片吗？"
                     onConfirm={() => handleDelete(image.relPath)}
                     okText="确定"
                     cancelText="取消"
                   >
-                    <Button
-                      size="small"
-                      danger
-                      type="primary"
-                      ghost
-                      icon={<DeleteOutlined />}
-                      title="删除"
-                    />
+                    <Tooltip title="删除">
+                      <Button
+                        type="text"
+                        shape="circle"
+                        size="small"
+                        icon={<DeleteOutlined style={{ color: "rgba(255,77,79,0.9)" }} />}
+                      />
+                    </Tooltip>
                   </Popconfirm>
                 </div>
               </div>
