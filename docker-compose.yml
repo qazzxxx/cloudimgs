@@ -7,17 +7,14 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./uploads:/app/uploads:rw # 上传目录配置
-      - ./logs:/app/logs:rw      # 日志目录挂载
+      - ./uploads:/app/uploads:rw # 上传目录配置，明确读写权限
     restart: unless-stopped
     container_name: cloudimgs-app
+    # 使用 root 用户运行以解决权限问题
+    user: "root"
     environment:
       - NODE_ENV=production
       - PORT=3001
       - STORAGE_PATH=/app/uploads
-      - PUID=1000
-      - PGID=1000
-      - UMASK=002
-      - TZ=Asia/Shanghai
       # 密码保护配置（可选）
       # - PASSWORD=your_password_here

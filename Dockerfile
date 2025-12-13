@@ -83,21 +83,23 @@ RUN echo "=== Build Result ===" && \
 # 生产阶段
 FROM node:18-alpine AS production
 
-# 运行时工具与时区数据
-RUN apk add --no-cache su-exec tzdata
+# 创建非root用户
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S cloudimgs -u 1001
 
 # 设置工作目录
 WORKDIR /app
 
 # 从构建阶段复制node_modules和应用文件
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/server ./server
-COPY --from=builder /app/config.js ./
-COPY --from=builder /app/client/build ./client/build
+COPY --from=builder --chown=cloudimgs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=cloudimgs:nodejs /app/package*.json ./
+COPY --from=builder --chown=cloudimgs:nodejs /app/server ./server
+COPY --from=builder --chown=cloudimgs:nodejs /app/config.js ./
+COPY --from=builder --chown=cloudimgs:nodejs /app/client/build ./client/build
 
 # 创建上传目录并设置权限
-RUN mkdir -p uploads logs
+RUN mkdir -p uploads logs && \
+    chown -R cloudimgs:nodejs uploads logs
 
 # 验证文件复制
 RUN echo "=== Production Image Verification ===" && \
@@ -105,9 +107,8 @@ RUN echo "=== Production Image Verification ===" && \
     echo "=== Node modules verification ===" && \
     ls -la node_modules/ | head -10
 
-# 复制并设置入口脚本
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# 切换到非root用户
+USER cloudimgs
 
 # 暴露端口
 EXPOSE 3001
@@ -116,12 +117,10 @@ EXPOSE 3001
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV STORAGE_PATH=/app/uploads
-ENV TZ=UTC
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/api/stats', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# 入口 + 启动应用
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+# 启动应用
 CMD ["npm", "start"] 
