@@ -55,6 +55,8 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [imageMeta, setImageMeta] = useState(null);
   const [metaLoading, setMetaLoading] = useState(false);
+  const [isEditingDir, setIsEditingDir] = useState(false);
+  const [dirValue, setDirValue] = useState("");
 
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -215,6 +217,12 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     setIsEditingName(false);
     setImageMeta(null);
     setMetaLoading(true);
+    const currentDir =
+      file.relPath && file.relPath.includes("/")
+        ? file.relPath.substring(0, file.relPath.lastIndexOf("/"))
+        : "";
+    setDirValue(currentDir);
+    setIsEditingDir(false);
     api
       .get(`/images/meta/${encodeURIComponent(file.relPath)}`)
       .then((res) => {
@@ -591,25 +599,92 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                     </Button>
                   </div>
                 )}
-                {previewFile.relPath && previewFile.relPath.includes("/") && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Text type="secondary" style={{ fontSize: isMobile ? 12 : 13 }}>
                     所属目录：
-                    <span
-                      style={{
-                        background: colorBgContainer,
-                        border: `1px solid ${colorBorder}`,
-                        borderRadius: 4,
-                        padding: "2px 6px",
-                        marginLeft: 6,
-                      }}
-                    >
-                      {previewFile.relPath.substring(
-                        0,
-                        previewFile.relPath.lastIndexOf("/")
-                      )}
-                    </span>
                   </Text>
-                )}
+                  {!isEditingDir ? (
+                    <>
+                      <span
+                        style={{
+                          background: colorBgContainer,
+                          border: `1px solid ${colorBorder}`,
+                          borderRadius: 4,
+                          padding: "2px 6px",
+                        }}
+                      >
+                        {dirValue || "根目录"}
+                      </span>
+                      <Button
+                        type="link"
+                        size="small"
+                        onClick={() => setIsEditingDir(true)}
+                      >
+                        修改
+                      </Button>
+                    </>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                      <div style={{ flex: 1, minWidth: 220 }}>
+                        <DirectorySelector
+                          value={dirValue}
+                          onChange={setDirValue}
+                          size={isMobile ? "small" : "middle"}
+                          api={api}
+                          placeholder="选择或输入新目录"
+                        />
+                      </div>
+                      <Button
+                        type="primary"
+                        size={isMobile ? "small" : "middle"}
+                        onClick={async () => {
+                          const oldRel = previewFile.relPath;
+                          try {
+                            const res = await api.put(
+                              `/images/${encodeURIComponent(oldRel)}`,
+                              { newDir: dirValue || "" }
+                            );
+                            if (res.data && res.data.success) {
+                              const updated = res.data.data;
+                              setPreviewFile(updated);
+                              setPreviewTitle(updated.filename);
+                              setPreviewImage(updated.url);
+                              setImages((prev) =>
+                                prev.map((img) =>
+                                  img.relPath === oldRel ? { ...img, ...updated } : img
+                                )
+                              );
+                              setIsEditingDir(false);
+                              message.success("目录已更新");
+                            } else {
+                              message.error(res.data?.error || "更新目录失败");
+                            }
+                          } catch (e) {
+                            message.error("更新目录失败");
+                          }
+                        }}
+                      >
+                        保存
+                      </Button>
+                      <Button
+                        size={isMobile ? "small" : "middle"}
+                        onClick={() => {
+                          setIsEditingDir(false);
+                          setDirValue(
+                            previewFile.relPath && previewFile.relPath.includes("/")
+                              ? previewFile.relPath.substring(
+                                  0,
+                                  previewFile.relPath.lastIndexOf("/")
+                                )
+                              : ""
+                          );
+                        }}
+                      >
+                        取消
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 <Text style={{ fontSize: isMobile ? 12 : 13 }}>
                   大小：{formatFileSize(previewFile.size)}
                 </Text>

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Select, Input, Space, Typography, Divider } from "antd";
+import React, { useState, useEffect, useRef } from "react";
+import { Select, Input, Space, Typography, Divider, Button } from "antd";
 import { FolderOutlined, PlusOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
@@ -19,8 +19,7 @@ const DirectorySelector = ({
   const [directories, setDirectories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [showInput, setShowInput] = useState(false);
-  const [isInputMode, setIsInputMode] = useState(false);
+  const inputRef = useRef(null);
 
   // 获取目录列表
   const fetchDirectories = async () => {
@@ -48,8 +47,6 @@ const DirectorySelector = ({
 
   const handleSelectChange = (selectedValue) => {
     setInputValue(selectedValue || "");
-    setShowInput(false);
-    setIsInputMode(false);
     if (onChange) {
       onChange(selectedValue);
     }
@@ -63,26 +60,9 @@ const DirectorySelector = ({
     }
   };
 
-  const handleInputConfirm = () => {
-    if (inputValue.trim()) {
-      if (onChange) {
-        onChange(inputValue.trim());
-      }
-    }
-    setShowInput(false);
-    setIsInputMode(false);
-  };
-
-  const handleInputBlur = () => {
-    // 延迟处理，避免与点击事件冲突
-    setTimeout(() => {
-      handleInputConfirm();
-    }, 200);
-  };
-
   const handleInputKeyPress = (e) => {
     if (e.key === "Enter") {
-      handleInputConfirm();
+      addNewDirectory();
     }
   };
 
@@ -90,16 +70,28 @@ const DirectorySelector = ({
     // 搜索功能已通过filterOption实现
   };
 
-  const handleDropdownVisibleChange = (open) => {
-    if (!open && !isInputMode) {
-      setShowInput(false);
+  const addNewDirectory = (e) => {
+    if (e) e.preventDefault?.();
+    const val = (inputValue || "").trim();
+    if (!val) return;
+    const name =
+      val
+        .split("/")
+        .filter(Boolean)
+        .pop() || val;
+    setDirectories((prev) => {
+      if (!prev.find((d) => d.path === val)) {
+        return [...prev, { name, path: val, fullPath: "" }];
+      }
+      return prev;
+    });
+    if (onChange) {
+      onChange(val);
     }
-  };
-
-  const handleInputNewDirectory = () => {
-    setIsInputMode(true);
-    setShowInput(true);
-    setInputValue(""); // 清空输入值，准备输入新目录
+    setInputValue("");
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
   };
 
   return (
@@ -114,7 +106,6 @@ const DirectorySelector = ({
         size={size}
         loading={loading}
         onSearch={handleSearch}
-        onDropdownVisibleChange={handleDropdownVisibleChange}
         filterOption={(input, option) => {
           if (!input) return true;
           const optionText =
@@ -128,20 +119,20 @@ const DirectorySelector = ({
             {allowInput && (
               <>
                 <Divider style={{ margin: "8px 0" }} />
-                <div
-                  style={{
-                    padding: "8px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    color: "#1890ff",
-                  }}
-                  onClick={handleInputNewDirectory}
-                >
-                  <PlusOutlined />
-                  <Text>输入新目录</Text>
-                </div>
+                <Space style={{ padding: "0 8px 8px", width: "100%" }}>
+                  <Input
+                    placeholder="输入新目录路径（如：2025/12/13）"
+                    ref={inputRef}
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onKeyPress={handleInputKeyPress}
+                    size={size}
+                  />
+                  <Button type="text" icon={<PlusOutlined />} onClick={addNewDirectory}>
+                    添加
+                  </Button>
+                </Space>
               </>
             )}
           </div>
@@ -162,25 +153,7 @@ const DirectorySelector = ({
           </Option>
         ))}
       </Select>
-
-      {allowInput && showInput && (
-        <Input
-          size={size}
-          placeholder="输入新目录路径（如：2024/06/10）"
-          value={inputValue}
-          onChange={handleInputChange}
-          onBlur={handleInputBlur}
-          onKeyPress={handleInputKeyPress}
-          autoFocus
-          style={{ marginTop: "8px" }}
-        />
-      )}
-
-      {value && (!showInput || !allowInput) && (
-        <div style={{ fontSize: "12px", color: "#666" }}>
-          <Text type="secondary">当前目录: {value || "根目录"}</Text>
-        </div>
-      )}
+      
     </Space>
   );
 };

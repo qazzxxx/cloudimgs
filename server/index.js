@@ -752,20 +752,35 @@ app.put("/api/images/*", requirePassword, async (req, res) => {
     if (!(await fs.pathExists(oldFilePath))) {
       return res.status(404).json({ success: false, error: "图片不存在" });
     }
-    let newName = req.body.newName || req.query.newName;
-    if (!newName || typeof newName !== "string") {
-      return res.status(400).json({ success: false, error: "缺少 newName 参数" });
-    }
-    newName = sanitizeFilename(newName.trim());
-    const dir = path.dirname(relPath);
+    // 支持重命名与移动目录
+    let newName = req.body.newName || req.query.newName || null;
+    let newDir = req.body.newDir || req.query.newDir || null;
+
+    const currentDir = path.dirname(relPath).replace(/\\/g, "/");
     const origExt = path.extname(relPath);
-    // 如果未提供扩展名，保留原扩展名
-    if (!path.extname(newName)) {
-      newName = `${path.basename(newName)}${origExt}`;
+    const origBase = path.basename(relPath);
+
+    // 处理新名称
+    if (typeof newName === "string") {
+      newName = sanitizeFilename(newName.trim());
+      if (!path.extname(newName)) {
+        newName = `${path.basename(newName)}${origExt}`;
+      }
+    } else {
+      newName = origBase;
     }
+
+    // 处理新目录
+    if (typeof newDir === "string") {
+      newDir = newDir.replace(/\\/g, "/").trim();
+    } else {
+      newDir = currentDir;
+    }
+
     // 目标路径
-    const targetDir = safeJoin(STORAGE_PATH, dir);
-    let newRelPath = path.join(dir, newName).replace(/\\/g, "/");
+    const targetDir = safeJoin(STORAGE_PATH, newDir);
+    await fs.ensureDir(targetDir);
+    let newRelPath = path.join(newDir, newName).replace(/\\/g, "/");
     let newFilePath = safeJoin(STORAGE_PATH, newRelPath);
     // 处理重复策略
     if (!config.upload.allowDuplicateNames && oldFilePath !== newFilePath) {
@@ -781,7 +796,7 @@ app.put("/api/images/*", requirePassword, async (req, res) => {
         } else if (config.upload.duplicateStrategy === "overwrite") {
           break;
         }
-        newRelPath = path.join(dir, finalName).replace(/\\/g, "/");
+        newRelPath = path.join(newDir, finalName).replace(/\\/g, "/");
         newFilePath = safeJoin(STORAGE_PATH, newRelPath);
         counter++;
       }
@@ -796,7 +811,7 @@ app.put("/api/images/*", requirePassword, async (req, res) => {
       uploadTime: stats.mtime.toISOString(),
       url: `/api/images/${encodeURIComponent(newRelPath)}`,
     };
-    return res.json({ success: true, message: "重命名成功", data: updated });
+    return res.json({ success: true, message: "更新成功", data: updated });
   } catch (e) {
     console.error("图片重命名错误:", e);
     return res.status(400).json({ success: false, error: e.message || "重命名失败" });
