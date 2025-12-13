@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Masonry,
-  Card,
   Button,
   Space,
   Typography,
@@ -14,8 +13,6 @@ import {
   Spin,
   Grid,
   theme,
-  Pagination,
-  Select,
 } from "antd";
 import {
   DeleteOutlined,
@@ -31,7 +28,6 @@ import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
-const { Option } = Select;
 
 const ImageGallery = ({ onDelete, onRefresh, api }) => {
   const {
@@ -50,6 +46,9 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hoverKey, setHoverKey] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const loadMoreRef = useRef(null);
 
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -65,33 +64,18 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     totalPages: 0,
   });
 
-  // 分页大小选项
-  const pageSizeOptions = [10, 20, 50, 100];
-
-  // 保存分页大小到localStorage
-  const savePageSize = (size) => {
-    localStorage.setItem("imageGalleryPageSize", size.toString());
-  };
-
-  // 处理分页大小变化
-  const handlePageSizeChange = (size) => {
-    setPageSize(size);
-    setCurrentPage(1); // 重置到第一页
-    savePageSize(size);
-  };
-
-  // 处理页码变化
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
   const fetchImages = async (
     targetDir = dir,
     targetPage = currentPage,
     targetPageSize = pageSize,
-    targetSearch = searchText
+    targetSearch = searchText,
+    append = false
   ) => {
-    setLoading(true);
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const params = {
         page: targetPage,
@@ -102,13 +86,19 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
 
       const res = await api.get("/images", { params });
       if (res.data.success) {
-        setImages(res.data.data);
+        setImages((prev) => (append ? prev.concat(res.data.data) : res.data.data));
         setPagination(res.data.pagination);
+        const p = res.data.pagination;
+        setHasMore(p.current < p.totalPages);
       }
     } catch (e) {
       message.error("获取图片列表失败");
     } finally {
-      setLoading(false);
+      if (append) {
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -118,31 +108,25 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
 
   // 统一的数据获取逻辑
   useEffect(() => {
-    // 首次加载
     if (!isInitialized.current) {
       fetchImages("", 1, pageSize, "");
       isInitialized.current = true;
       return;
     }
-
-    // 搜索防抖
     if (searchTimerRef.current) {
       clearTimeout(searchTimerRef.current);
     }
-
-    searchTimerRef.current = setTimeout(
-      () => {
-        fetchImages(dir, currentPage, pageSize, searchText);
-      },
-      searchText ? 500 : 0
-    ); // 搜索时防抖500ms，其他情况立即执行
-
+    searchTimerRef.current = setTimeout(() => {
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchImages(dir, 1, pageSize, searchText, false);
+    }, searchText ? 500 : 0);
     return () => {
       if (searchTimerRef.current) {
         clearTimeout(searchTimerRef.current);
       }
     };
-  }, [dir, currentPage, pageSize, searchText]);
+  }, [dir, pageSize, searchText]);
 
   // 当搜索文本变化时重置到第一页
   useEffect(() => {
@@ -150,6 +134,35 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
       setCurrentPage(1);
     }
   }, [searchText]);
+
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    if (currentPage > 1) {
+      fetchImages(dir, currentPage, pageSize, searchText, true);
+    }
+  }, [currentPage]);
+
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (
+          entry.isIntersecting &&
+          hasMore &&
+          !loading &&
+          !loadingMore &&
+          images.length > 0
+        ) {
+          setCurrentPage((p) => p + 1);
+        }
+      },
+      { root: null, rootMargin: "200px", threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, images.length]);
 
   const handleDelete = async (relPath) => {
     try {
@@ -419,57 +432,10 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
             )}
           />
 
-          {/* 分页组件 */}
-          {pagination.total > 0 && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginTop: isMobile ? "20px" : "32px",
-                flexDirection: isMobile ? "column" : "row",
-                gap: isMobile ? "12px" : "0",
-              }}
-            >
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "8px" }}
-              >
-                <Text
-                  type="secondary"
-                  style={{ fontSize: isMobile ? "12px" : "14px" }}
-                >
-                  每页显示：
-                </Text>
-                <Select
-                  value={pageSize}
-                  onChange={handlePageSizeChange}
-                  style={{ width: isMobile ? "80px" : "100px" }}
-                  size={isMobile ? "small" : "middle"}
-                >
-                  {pageSizeOptions.map((size) => (
-                    <Option key={size} value={size}>
-                      {size} 条
-                    </Option>
-                  ))}
-                </Select>
-              </div>
-
-              {pagination.total > pageSize && (
-                <Pagination
-                  current={pagination.current}
-                  total={pagination.total}
-                  pageSize={pagination.pageSize}
-                  onChange={handlePageChange}
-                  showSizeChanger={false}
-                  showQuickJumper={!isMobile}
-                  showTotal={(total, range) =>
-                    !isMobile
-                      ? `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
-                      : ""
-                  }
-                  size={isMobile ? "small" : "default"}
-                />
-              )}
+          <div ref={loadMoreRef} style={{ height: 1 }} />
+          {loadingMore && (
+            <div style={{ textAlign: "center", padding: isMobile ? 12 : 16 }}>
+              <Spin />
             </div>
           )}
         </>
