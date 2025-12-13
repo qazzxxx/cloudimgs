@@ -5,7 +5,7 @@ module.exports = {
     // 允许的文件格式（扩展名）
     allowedExtensions: process.env.ALLOWED_EXTENSIONS
       ? process.env.ALLOWED_EXTENSIONS.split(",")
-      : [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"],
+      : [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg",".avif"],
 
     // 允许的MIME类型
     allowedMimeTypes: [
@@ -14,6 +14,7 @@ module.exports = {
       "image/png",
       "image/gif",
       "image/webp",
+      "image/avif",
       "image/bmp",
       "image/svg+xml",
       "audio/mpeg",
