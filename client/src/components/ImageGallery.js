@@ -45,9 +45,11 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const [previewTitle, setPreviewTitle] = useState("");
+  const [previewFile, setPreviewFile] = useState(null);
   const [dir, setDir] = useState("");
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hoverKey, setHoverKey] = useState(null);
 
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -174,6 +176,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     setPreviewImage(file.url);
     setPreviewVisible(true);
     setPreviewTitle(file.filename);
+    setPreviewFile(file);
   };
 
   const handleDownload = (file) => {
@@ -326,130 +329,93 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
               data: image,
             }))}
             itemRender={({ data: image }) => (
-              <Card
-                hoverable
-                size={isMobile ? "small" : "default"}
-                cover={
-                  <div style={{ position: "relative" }}>
-                    <img
-                      alt={image.filename}
-                      src={image.url}
-                      style={{
-                        width: "100%",
-                        objectFit: "cover",
-                        cursor: "pointer",
-                      }}
-                      onClick={() => handlePreview(image)}
-                    />
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 8,
-                        right: 8,
-                        background: "rgba(0,0,0,0.6)",
-                        borderRadius: 4,
-                        padding: "2px 6px",
-                      }}
-                    >
-                      <Text style={{ color: "white", fontSize: 12 }}>
-                        {formatFileSize(image.size)}
-                      </Text>
-                    </div>
-                  </div>
+              <div
+                style={{ position: "relative" }}
+                onMouseEnter={() =>
+                  setHoverKey(image.relPath || image.url || image.filename)
                 }
+                onMouseLeave={() => setHoverKey(null)}
               >
-                <Card.Meta
-                  title={
-                    <Text
-                      ellipsis
-                      style={{
-                        maxWidth: "100%",
-                        fontSize: isMobile ? "13px" : "14px",
-                      }}
-                    >
-                      {image.filename}
-                    </Text>
-                  }
-                  description={
-                    <Space direction="vertical" size="small">
-                      {image.relPath && image.relPath.includes("/") && (
-                        <Text
-                          type="secondary"
-                          style={{ fontSize: isMobile ? "11px" : "12px" }}
-                        >
-                          <span
-                            style={{
-                              background: colorBgContainer,
-                              border: `1px solid ${colorBorder}`,
-                              borderRadius: 4,
-                              padding: isMobile ? "1px 4px" : "2px 6px",
-                              marginRight: 4,
-                            }}
-                          >
-                            {image.relPath.substring(
-                              0,
-                              image.relPath.lastIndexOf("/")
-                            )}
-                          </span>
-                        </Text>
-                      )}
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: isMobile ? "11px" : "12px" }}
-                      >
-                        {dayjs(image.uploadTime).format("YYYY-MM-DD HH:mm:ss")}
-                      </Text>
-                      <Tag
-                        color="blue"
-                        style={{ fontSize: isMobile ? "11px" : "12px" }}
-                      >
-                        {formatFileSize(image.size)}
-                      </Tag>
-                      <Space size="small" wrap>
-                        <Button
-                          type="text"
-                          size={isMobile ? "small" : "middle"}
-                          icon={<EyeOutlined />}
-                          onClick={() => handlePreview(image)}
-                          title="预览"
-                        />
-                        <Button
-                          type="text"
-                          size={isMobile ? "small" : "middle"}
-                          icon={<DownloadOutlined />}
-                          onClick={() => handleDownload(image)}
-                          title="下载"
-                        />
-                        <Button
-                          type="text"
-                          size={isMobile ? "small" : "middle"}
-                          icon={<CopyOutlined />}
-                          onClick={() =>
-                            copyToClipboard(
-                              `${window.location.origin}${image.url}`
-                            )
-                          }
-                          title="复制链接"
-                        />
-                        <Popconfirm
-                          title="确定要删除这张图片吗？"
-                          onConfirm={() => handleDelete(image.relPath)}
-                          okText="确定"
-                          cancelText="取消"
-                        >
-                          <Button
-                            type="text"
-                            size={isMobile ? "small" : "middle"}
-                            danger
-                            icon={<DeleteOutlined />}
-                            title="删除"
-                          />
-                        </Popconfirm>
-                      </Space>
-                    </Space>
-                  }
+                <img
+                  alt={image.filename}
+                  src={image.url}
+                  style={{
+                    width: "100%",
+                    objectFit: "cover",
+                    cursor: "pointer",
+                    display: "block",
+                  }}
+                  onClick={() => handlePreview(image)}
                 />
-              </Card>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    left: 8,
+                    background: "rgba(0,0,0,0.6)",
+                    borderRadius: 4,
+                    padding: "2px 6px",
+                  }}
+                >
+                  <Text style={{ color: "white", fontSize: 12 }}>
+                    {formatFileSize(image.size)}
+                  </Text>
+                </div>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    display:
+                      hoverKey === (image.relPath || image.url || image.filename)
+                        ? "flex"
+                        : "none",
+                    gap: 6,
+                  }}
+                >
+                  <Button
+                    type="primary"
+                    size="small"
+                    ghost
+                    icon={<EyeOutlined />}
+                    onClick={() => handlePreview(image)}
+                    title="预览"
+                  />
+                  <Button
+                    type="primary"
+                    size="small"
+                    ghost
+                    icon={<DownloadOutlined />}
+                    onClick={() => handleDownload(image)}
+                    title="下载"
+                  />
+                  <Button
+                    type="primary"
+                    size="small"
+                    ghost
+                    icon={<CopyOutlined />}
+                    onClick={() =>
+                      copyToClipboard(`${window.location.origin}${image.url}`)
+                    }
+                    title="复制链接"
+                  />
+                  <Popconfirm
+                    title="确定要删除这张图片吗？"
+                    onConfirm={() => handleDelete(image.relPath)}
+                    okText="确定"
+                    cancelText="取消"
+                  >
+                    <Button
+                      size="small"
+                      danger
+                      type="primary"
+                      ghost
+                      icon={<DeleteOutlined />}
+                      title="删除"
+                    />
+                  </Popconfirm>
+                </div>
+              </div>
             )}
           />
 
@@ -519,20 +485,114 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
           top: isMobile ? 10 : 20,
           maxWidth: isMobile ? "100vw" : "1200px",
         }}
-        bodyStyle={{
-          padding: isMobile ? "12px" : "24px",
-          textAlign: "center",
+        styles={{
+          body: {
+            padding: isMobile ? "12px" : "24px",
+          },
         }}
       >
-        <img
-          alt="preview"
+        <div
           style={{
-            width: "100%",
-            maxHeight: isMobile ? "70vh" : "80vh",
-            objectFit: "contain",
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: "flex-start",
+            gap: isMobile ? 12 : 24,
           }}
-          src={previewImage}
-        />
+        >
+          <div style={{ flex: 3 }}>
+            <img
+              alt="preview"
+              style={{
+                width: "100%",
+                maxHeight: isMobile ? "60vh" : "75vh",
+                objectFit: "contain",
+                display: "block",
+              }}
+              src={previewImage}
+            />
+          </div>
+          {previewFile && (
+            <div style={{ flex: 2, textAlign: "left" }}>
+              <Space direction="vertical" size="small" style={{ width: "100%" }}>
+                <Title level={isMobile ? 4 : 3} style={{ margin: 0 }}>
+                  {previewFile.filename}
+                </Title>
+                {previewFile.relPath && previewFile.relPath.includes("/") && (
+                  <Text type="secondary" style={{ fontSize: isMobile ? 12 : 13 }}>
+                    所属目录：
+                    <span
+                      style={{
+                        background: colorBgContainer,
+                        border: `1px solid ${colorBorder}`,
+                        borderRadius: 4,
+                        padding: "2px 6px",
+                        marginLeft: 6,
+                      }}
+                    >
+                      {previewFile.relPath.substring(
+                        0,
+                        previewFile.relPath.lastIndexOf("/")
+                      )}
+                    </span>
+                  </Text>
+                )}
+                <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                  大小：{formatFileSize(previewFile.size)}
+                </Text>
+                <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                  类型：{previewFile.mimetype || "-"}
+                </Text>
+                <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                  上传时间：
+                  {dayjs(previewFile.uploadTime).format("YYYY-MM-DD HH:mm:ss")}
+                </Text>
+                <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                  链接：
+                  <a
+                    href={previewFile.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ wordBreak: "break-all", marginLeft: 6 }}
+                  >
+                    {`${window.location.origin}${previewFile.url}`}
+                  </a>
+                </Text>
+                <Space size="small" wrap style={{ marginTop: 8 }}>
+                  <Button
+                    size={isMobile ? "small" : "middle"}
+                    icon={<CopyOutlined />}
+                    onClick={() =>
+                      copyToClipboard(`${window.location.origin}${previewFile.url}`)
+                    }
+                  >
+                    复制链接
+                  </Button>
+                  <Button
+                    size={isMobile ? "small" : "middle"}
+                    icon={<DownloadOutlined />}
+                    onClick={() => handleDownload(previewFile)}
+                  >
+                    下载
+                  </Button>
+                  <Popconfirm
+                    title="确定要删除这张图片吗？"
+                    onConfirm={() => handleDelete(previewFile.relPath)}
+                    okText="确定"
+                    cancelText="取消"
+                  >
+                    <Button
+                      danger
+                      size={isMobile ? "small" : "middle"}
+                      icon={<DeleteOutlined />}
+                    >
+                      删除
+                    </Button>
+                  </Popconfirm>
+                </Space>
+              </Space>
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );
