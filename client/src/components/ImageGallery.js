@@ -19,7 +19,7 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   CopyOutlined,
-  EyeOutlined,
+  EditOutlined,
   SearchOutlined,
   ReloadOutlined,
   FolderOutlined,
@@ -32,7 +32,7 @@ const { Search } = Input;
 
 const ImageGallery = ({ onDelete, onRefresh, api }) => {
   const {
-    token: { colorBgContainer, colorBorder },
+    token: { colorBgContainer, colorBorder, colorPrimary },
   } = theme.useToken();
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
@@ -50,6 +50,11 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const loadMoreRef = useRef(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [imageMeta, setImageMeta] = useState(null);
+  const [metaLoading, setMetaLoading] = useState(false);
 
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -202,6 +207,25 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     setPreviewVisible(true);
     setPreviewTitle(file.filename);
     setPreviewFile(file);
+    const ext = file.filename.includes(".")
+      ? file.filename.substring(file.filename.lastIndexOf("."))
+      : "";
+    const base = ext ? file.filename.slice(0, -ext.length) : file.filename;
+    setRenameValue(base);
+    setIsEditingName(false);
+    setImageMeta(null);
+    setMetaLoading(true);
+    api
+      .get(`/images/meta/${encodeURIComponent(file.relPath)}`)
+      .then((res) => {
+        if (res.data && res.data.success) {
+          setImageMeta(res.data.data);
+        }
+      })
+      .catch(() => {
+        // 忽略错误，不阻塞预览
+      })
+      .finally(() => setMetaLoading(false));
   };
 
   const handleDownload = (file) => {
@@ -396,15 +420,6 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                     padding: 4,
                   }}
                 >
-                  <Tooltip title="预览">
-                    <Button
-                      type="text"
-                      shape="circle"
-                      size="small"
-                      icon={<EyeOutlined style={{ color: "rgba(255,255,255,0.95)" }} />}
-                      onClick={() => handlePreview(image)}
-                    />
-                  </Tooltip>
                   <Tooltip title="下载">
                     <Button
                       type="text"
@@ -460,7 +475,10 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
         open={previewVisible}
         title={previewTitle}
         footer={null}
-        onCancel={() => setPreviewVisible(false)}
+        onCancel={() => {
+          setPreviewVisible(false);
+          setIsEditingName(false);
+        }}
         width={isMobile ? "95%" : "80%"}
         style={{
           top: isMobile ? 10 : 20,
@@ -495,9 +513,84 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
           {previewFile && (
             <div style={{ flex: 2, textAlign: "left" }}>
               <Space direction="vertical" size="small" style={{ width: "100%" }}>
-                <Title level={isMobile ? 4 : 3} style={{ margin: 0 }}>
-                  {previewFile.filename}
+                <Title
+                  level={isMobile ? 4 : 3}
+                  style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}
+                >
+                  <span>{previewFile.filename}</span>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<EditOutlined style={{ color: colorPrimary }} />}
+                    onClick={() => setIsEditingName((v) => !v)}
+                  />
                 </Title>
+                {isEditingName && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Input
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      size={isMobile ? "small" : "middle"}
+                      placeholder="输入新文件名（不含扩展名）"
+                      style={{ maxWidth: 280 }}
+                    />
+                    <Button
+                      type="primary"
+                      loading={renaming}
+                      size={isMobile ? "small" : "middle"}
+                      onClick={async () => {
+                        const oldRel = previewFile.relPath;
+                        const ext =
+                          previewFile.filename.includes(".")
+                            ? previewFile.filename.substring(
+                                previewFile.filename.lastIndexOf(".")
+                              )
+                            : "";
+                        const newNameRaw = renameValue.trim();
+                        if (!newNameRaw) {
+                          message.warning("请输入新文件名");
+                          return;
+                        }
+                        const hasExt = /\.[A-Za-z0-9]+$/.test(newNameRaw);
+                        const newName = hasExt ? newNameRaw : `${newNameRaw}${ext}`;
+                        try {
+                          setRenaming(true);
+                          const res = await api.put(
+                            `/images/${encodeURIComponent(oldRel)}`,
+                            { newName }
+                          );
+                          if (res.data && res.data.success) {
+                            const updated = res.data.data;
+                            setPreviewFile(updated);
+                            setPreviewTitle(updated.filename);
+                            setPreviewImage(updated.url);
+                            setImages((prev) =>
+                              prev.map((img) =>
+                                img.relPath === oldRel ? { ...img, ...updated } : img
+                              )
+                            );
+                            setIsEditingName(false);
+                            message.success("重命名成功");
+                          } else {
+                            message.error(res.data?.error || "重命名失败");
+                          }
+                        } catch (e) {
+                          message.error("重命名失败");
+                        } finally {
+                          setRenaming(false);
+                        }
+                      }}
+                    >
+                      保存
+                    </Button>
+                    <Button
+                      size={isMobile ? "small" : "middle"}
+                      onClick={() => setIsEditingName(false)}
+                    >
+                      取消
+                    </Button>
+                  </div>
+                )}
                 {previewFile.relPath && previewFile.relPath.includes("/") && (
                   <Text type="secondary" style={{ fontSize: isMobile ? 12 : 13 }}>
                     所属目录：
@@ -520,9 +613,111 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                 <Text style={{ fontSize: isMobile ? 12 : 13 }}>
                   大小：{formatFileSize(previewFile.size)}
                 </Text>
-                <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                  类型：{previewFile.mimetype || "-"}
-                </Text>
+                {metaLoading ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Spin size="small" />
+                    <Text style={{ fontSize: isMobile ? 12 : 13 }} type="secondary">
+                      正在读取图片信息…
+                    </Text>
+                  </div>
+                ) : (
+                  imageMeta && (
+                    <>
+                      <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                        尺寸：{imageMeta.width} × {imageMeta.height}
+                      </Text>
+                      <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                        格式：{imageMeta.format || "-"}
+                      </Text>
+                      <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                        通道：{imageMeta.channels ?? "-"}
+                      </Text>
+                      <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                        含Alpha：{imageMeta.hasAlpha ? "是" : "否"}
+                      </Text>
+                      {imageMeta.space && (
+                        <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                          颜色空间：{imageMeta.space}
+                        </Text>
+                      )}
+                      {imageMeta.dominant && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <Text style={{ fontSize: isMobile ? 12 : 13 }}>主色：</Text>
+                          <span
+                            style={{
+                              width: 16,
+                              height: 16,
+                              borderRadius: 3,
+                              border: `1px solid ${colorBorder}`,
+                              background: `rgb(${imageMeta.dominant.r},${imageMeta.dominant.g},${imageMeta.dominant.b})`,
+                            }}
+                          />
+                          <Text type="secondary" style={{ fontSize: isMobile ? 12 : 13 }}>
+                            rgb({imageMeta.dominant.r},{imageMeta.dominant.g},{imageMeta.dominant.b})
+                          </Text>
+                        </div>
+                      )}
+                      <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                        EXIF：{imageMeta.exif && Object.keys(imageMeta.exif).length ? "存在" : (imageMeta.exifPresent ? "存在" : "无")}
+                      </Text>
+                      {imageMeta.orientation && (
+                        <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                          方向：{imageMeta.orientation}
+                        </Text>
+                      )}
+                      {imageMeta.exif && (
+                        <>
+                          {(imageMeta.exif.make || imageMeta.exif.model) && (
+                            <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                              设备：{[imageMeta.exif.make, imageMeta.exif.model].filter(Boolean).join(" ")}
+                            </Text>
+                          )}
+                          {imageMeta.exif.lensModel && (
+                            <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                              镜头：{imageMeta.exif.lensModel}
+                            </Text>
+                          )}
+                          {(imageMeta.exif.fNumber || imageMeta.exif.exposureTime || imageMeta.exif.iso) && (
+                            <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                              曝光：{[
+                                imageMeta.exif.fNumber ? `f/${imageMeta.exif.fNumber}` : null,
+                                imageMeta.exif.exposureTime ? `${imageMeta.exif.exposureTime}s` : null,
+                                imageMeta.exif.iso ? `ISO ${imageMeta.exif.iso}` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </Text>
+                          )}
+                          {imageMeta.exif.dateTimeOriginal && (
+                            <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                              拍摄时间：{dayjs(imageMeta.exif.dateTimeOriginal).format("YYYY-MM-DD HH:mm:ss")}
+                            </Text>
+                          )}
+                          {(imageMeta.exif.latitude != null && imageMeta.exif.longitude != null) && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                                GPS：{imageMeta.exif.latitude.toFixed(6)}, {imageMeta.exif.longitude.toFixed(6)}
+                              </Text>
+                              <a
+                                href={`https://www.google.com/maps?q=${imageMeta.exif.latitude},${imageMeta.exif.longitude}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ fontSize: isMobile ? 12 : 13 }}
+                              >
+                                地图
+                              </a>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {imageMeta.createTime && (
+                        <Text style={{ fontSize: isMobile ? 12 : 13 }}>
+                          创建时间：{dayjs(imageMeta.createTime).format("YYYY-MM-DD HH:mm:ss")}
+                        </Text>
+                      )}
+                    </>
+                  )
+                )}
                 <Text style={{ fontSize: isMobile ? 12 : 13 }}>
                   上传时间：
                   {dayjs(previewFile.uploadTime).format("YYYY-MM-DD HH:mm:ss")}

@@ -10,6 +10,7 @@ const config = require("../config");
 const sharp = require("sharp");
 const mime = require("mime-types");
 const mm = require("music-metadata");
+const exifr = require("exifr");
 
 const app = express();
 const PORT = config.server.port;
@@ -598,6 +599,84 @@ app.get("/api/random", requirePassword, async (req, res) => {
   }
 });
 
+// 4.2. 获取图片元信息（尺寸/格式/主色/EXIF等）- 必须优先于 /api/images/* 路由
+app.get("/api/images/meta/*", requirePassword, async (req, res) => {
+  const relPath = decodeURIComponent(req.params[0]);
+  try {
+    const filePath = safeJoin(STORAGE_PATH, relPath);
+    if (!(await fs.pathExists(filePath))) {
+      return res.status(404).json({ success: false, error: "图片不存在" });
+    }
+    const fstats = await fs.stat(filePath);
+    const mimeType = mime.lookup(filePath) || "application/octet-stream";
+    let meta = {};
+    let exif = {};
+    try {
+      const img = sharp(filePath);
+      const m = await img.metadata();
+      const s = await img.stats();
+      meta = {
+        width: m.width || null,
+        height: m.height || null,
+        format: m.format || null,
+        channels: m.channels || null,
+        hasAlpha: m.hasAlpha === true || m.channels === 4,
+        orientation: m.orientation || null,
+        space: m.space || null,
+        dominant: s.dominant || null,
+        exifPresent: !!m.exif,
+      };
+      // 解析EXIF详细信息
+      try {
+        const ex = await exifr.parse(filePath, {
+          tiff: true,
+          ifd0: true,
+          exif: true,
+          gps: true,
+        });
+        if (ex) {
+          const latitude = ex.latitude ?? ex.GPSLatitude ?? null;
+          const longitude = ex.longitude ?? ex.GPSLongitude ?? null;
+          const date =
+            ex.DateTimeOriginal || ex.CreateDate || ex.ModifyDate || null;
+          exif = {
+            make: ex.Make || null,
+            model: ex.Model || null,
+            lensModel: ex.LensModel || null,
+            dateTimeOriginal: date ? new Date(date).toISOString() : null,
+            iso: ex.ISO || ex.ISOSpeedRatings || null,
+            exposureTime: ex.ExposureTime || null,
+            fNumber: ex.FNumber || null,
+            focalLength: ex.FocalLength || null,
+            latitude,
+            longitude,
+            altitude: ex.GPSAltitude ?? null,
+          };
+        }
+      } catch (e) {
+        // EXIF解析失败不阻断
+      }
+    } catch (e) {
+      meta = {};
+    }
+    return res.json({
+      success: true,
+      data: {
+        filename: path.basename(relPath),
+        relPath: relPath.replace(/\\/g, "/"),
+        size: fstats.size,
+        uploadTime: fstats.mtime.toISOString(),
+        createTime: fstats.birthtime ? fstats.birthtime.toISOString() : null,
+        mime: mimeType,
+        ...meta,
+        exif,
+      },
+    });
+  } catch (e) {
+    return res.status(400).json({ success: false, error: "非法路径" });
+  }
+});
+
 // 4. 获取指定图片（支持多层目录）
 app.get("/api/images/*", (req, res) => {
   const relPath = decodeURIComponent(req.params[0]);
@@ -631,6 +710,8 @@ app.get("/api/files/*", (req, res) => {
   }
 });
 
+ 
+
 // 5. 删除图片（支持多层目录）
 app.delete("/api/images/*", requirePassword, async (req, res) => {
   const relPath = decodeURIComponent(req.params[0]);
@@ -660,6 +741,65 @@ app.delete("/api/files/*", requirePassword, async (req, res) => {
     }
   } catch (e) {
     res.status(400).json({ error: "非法路径" });
+  }
+});
+
+// 图片重命名（支持多层目录）
+app.put("/api/images/*", requirePassword, async (req, res) => {
+  const relPath = decodeURIComponent(req.params[0]);
+  try {
+    const oldFilePath = safeJoin(STORAGE_PATH, relPath);
+    if (!(await fs.pathExists(oldFilePath))) {
+      return res.status(404).json({ success: false, error: "图片不存在" });
+    }
+    let newName = req.body.newName || req.query.newName;
+    if (!newName || typeof newName !== "string") {
+      return res.status(400).json({ success: false, error: "缺少 newName 参数" });
+    }
+    newName = sanitizeFilename(newName.trim());
+    const dir = path.dirname(relPath);
+    const origExt = path.extname(relPath);
+    // 如果未提供扩展名，保留原扩展名
+    if (!path.extname(newName)) {
+      newName = `${path.basename(newName)}${origExt}`;
+    }
+    // 目标路径
+    const targetDir = safeJoin(STORAGE_PATH, dir);
+    let newRelPath = path.join(dir, newName).replace(/\\/g, "/");
+    let newFilePath = safeJoin(STORAGE_PATH, newRelPath);
+    // 处理重复策略
+    if (!config.upload.allowDuplicateNames && oldFilePath !== newFilePath) {
+      const nameWithoutExt = path.basename(newName, path.extname(newName));
+      const extension = path.extname(newName);
+      let finalName = newName;
+      let counter = 1;
+      while (await fs.pathExists(newFilePath)) {
+        if (config.upload.duplicateStrategy === "timestamp") {
+          finalName = `${nameWithoutExt}_${Date.now()}_${counter}${extension}`;
+        } else if (config.upload.duplicateStrategy === "counter") {
+          finalName = `${nameWithoutExt}_${counter}${extension}`;
+        } else if (config.upload.duplicateStrategy === "overwrite") {
+          break;
+        }
+        newRelPath = path.join(dir, finalName).replace(/\\/g, "/");
+        newFilePath = safeJoin(STORAGE_PATH, newRelPath);
+        counter++;
+      }
+    }
+    // 执行重命名
+    await fs.rename(oldFilePath, newFilePath);
+    const stats = await fs.stat(newFilePath);
+    const updated = {
+      filename: path.basename(newRelPath),
+      relPath: newRelPath,
+      size: stats.size,
+      uploadTime: stats.mtime.toISOString(),
+      url: `/api/images/${encodeURIComponent(newRelPath)}`,
+    };
+    return res.json({ success: true, message: "重命名成功", data: updated });
+  } catch (e) {
+    console.error("图片重命名错误:", e);
+    return res.status(400).json({ success: false, error: e.message || "重命名失败" });
   }
 });
 

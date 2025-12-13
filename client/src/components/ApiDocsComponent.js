@@ -1,7 +1,7 @@
 import React from "react";
 import { Table, Card, Typography, Space, Tag, Divider, Button, message } from "antd";
 import { getPassword } from "../utils/secureStorage";
-import { ApiOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { ApiOutlined, InfoCircleOutlined, DownOutlined } from "@ant-design/icons";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -72,7 +72,15 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
 
   const copyText = (text) => {
     if (navigator.clipboard && window.isSecureContext) {
-      return navigator.clipboard.writeText(text);
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          message.success("已复制");
+        })
+        .catch(() => {
+          message.error("复制失败");
+        });
+      return;
     }
     const input = document.createElement("input");
     input.style.position = "fixed";
@@ -605,6 +613,11 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
   // 响应式 gap
   const cardGap = isMobile ? 12 : 24;
 
+  const [expandedMap, setExpandedMap] = React.useState({});
+  const toggleExpand = (key) => {
+    setExpandedMap((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
     <div
       style={{
@@ -742,11 +755,24 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
                     <Button type="primary" size="small" onClick={() => handleCopyCurl(api)}>
                       复制 curl
                     </Button>
+                    <Button
+                      type="text"
+                      size="small"
+                      onClick={() => toggleExpand(api.key)}
+                      style={{ display: "inline-flex", alignItems: "center" }}
+                    >
+                      <DownOutlined
+                        style={{
+                          transition: "transform 0.2s",
+                          transform: expandedMap[api.key] ? "rotate(180deg)" : "rotate(0deg)",
+                        }}
+                      />
+                    </Button>
                   </Space>
                 </div>
 
                 {/* 参数表格 */}
-                {api.parameters && api.parameters.length > 0 && (
+                {expandedMap[api.key] && api.parameters && api.parameters.length > 0 && (
                   <div style={{ marginBottom: isMobile ? 8 : 16 }}>
                     <span
                       style={{
@@ -768,34 +794,7 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
                   </div>
                 )}
 
-                {/* 响应说明 */}
-                <div>
-                  <span
-                    style={{
-                      fontWeight: 600,
-                      color: themeStyles.text,
-                      fontSize: isMobile ? 13 : undefined,
-                    }}
-                  >
-                    响应格式：
-                  </span>
-                  <div
-                    style={{
-                      ...codeBlockStyle,
-                      padding: isMobile ? "8px" : "12px",
-                      marginTop: "8px",
-                      fontFamily: "monospace",
-                      fontSize: isMobile ? "12px" : "14px",
-                      border: `1px solid ${themeStyles.border}`,
-                      color: themeStyles.codeText,
-                      width: "100%",
-                    }}
-                  >
-                    <pre style={{ margin: 0, whiteSpace: "pre-wrap", color: themeStyles.codeText, fontSize: isMobile ? "12px" : "14px" }}>
-                      {buildCurl(api)}
-                    </pre>
-                  </div>
-                </div>
+                {/* 响应格式展示已移除 */}
               </Card>
             ))}
           </div>
