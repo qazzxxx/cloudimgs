@@ -722,9 +722,7 @@ async function getStats(dir = "") {
       totalSize += subStats.totalSize;
     } else {
       const ext = path.extname(file).toLowerCase();
-      if (
-        [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"].includes(ext)
-      ) {
+      if (config.upload.allowedExtensions.includes(ext)) {
         totalImages++;
         totalSize += stats.size;
       }
