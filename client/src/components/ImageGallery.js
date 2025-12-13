@@ -168,7 +168,18 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     try {
       await api.delete(`/images/${encodeURIComponent(relPath)}`);
       message.success("删除成功");
-      fetchImages(dir, currentPage, pageSize, searchText);
+      setImages((prev) => prev.filter((img) => img.relPath !== relPath));
+      const ps = pagination.pageSize || pageSize;
+      const newTotal = Math.max(0, (pagination.total || images.length) - 1);
+      const newTotalPages = Math.max(1, Math.ceil(newTotal / ps));
+      const newCurrent = Math.min(pagination.current || 1, newTotalPages);
+      setPagination({
+        ...pagination,
+        total: newTotal,
+        totalPages: newTotalPages,
+        current: newCurrent,
+      });
+      setHasMore(newCurrent < newTotalPages);
       if (onDelete) {
         onDelete(relPath);
       }
@@ -343,7 +354,10 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
             }))}
             itemRender={({ data: image }) => (
               <div
-                style={{ position: "relative" }}
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                }}
                 onMouseEnter={() =>
                   setHoverKey(image.relPath || image.url || image.filename)
                 }
@@ -357,23 +371,15 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                     objectFit: "cover",
                     cursor: "pointer",
                     display: "block",
+                    transition: "transform 200ms ease",
+                    transform:
+                      hoverKey ===
+                      (image.relPath || image.url || image.filename)
+                        ? "scale(1.03)"
+                        : "scale(1)",
                   }}
                   onClick={() => handlePreview(image)}
                 />
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 8,
-                    left: 8,
-                    background: "rgba(0,0,0,0.6)",
-                    borderRadius: 4,
-                    padding: "2px 6px",
-                  }}
-                >
-                  <Text style={{ color: "white", fontSize: 12 }}>
-                    {formatFileSize(image.size)}
-                  </Text>
-                </div>
                 <div
                   style={{
                     position: "absolute",
