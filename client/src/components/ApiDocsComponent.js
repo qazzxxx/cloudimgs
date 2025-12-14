@@ -1,5 +1,5 @@
 import React from "react";
-import { Table, Card, Typography, Space, Tag, Divider, Button, message } from "antd";
+import { Table, Card, Typography, Space, Tag, Button, message } from "antd";
 import { getPassword } from "../utils/secureStorage";
 import { ApiOutlined, InfoCircleOutlined, DownOutlined } from "@ant-design/icons";
 

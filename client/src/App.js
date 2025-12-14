@@ -8,6 +8,8 @@ import {
   Grid,
   Button,
   Drawer,
+  Spin,
+  Space,
 } from "antd";
 import {
   BrowserRouter as Router,
@@ -296,21 +298,11 @@ function AppContent({ currentTheme, onThemeChange }) {
   // 在认证加载期间显示加载状态
   if (authLoading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        }}
-      >
-        <div style={{ textAlign: "center", color: "white" }}>
-          <div style={{ fontSize: "24px", marginBottom: "16px" }}>
-            云图
-          </div>
-          <div>正在检查认证状态...</div>
-        </div>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+        <Space direction="vertical" align="center" size="large">
+          <LogoWithText />
+          <Spin size="large" tip="正在检查认证状态..." />
+        </Space>
       </div>
     );
   }

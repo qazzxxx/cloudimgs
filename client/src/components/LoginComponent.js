@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { setPassword, clearPassword } from "../utils/secureStorage";
-import { Form, Input, Button, Card, message, Typography } from "antd";
+import { Form, Input, Button, Card, message, Typography, Space } from "antd";
 import { LockOutlined } from "@ant-design/icons";
+import LogoWithText from "./LogoWithText";
 
 const { Title, Text } = Typography;
 
@@ -55,60 +56,105 @@ const LoginComponent = ({ onLoginSuccess }) => {
   return (
     <div
       style={{
+        position: "relative",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        overflow: "hidden",
       }}
     >
-      <Card
+      <style>{`
+        @keyframes float1 { 0% { transform: translateY(0); } 50% { transform: translateY(-8px); } 100% { transform: translateY(0); } }
+        @keyframes float2 { 0% { transform: translateY(0); } 50% { transform: translateY(10px); } 100% { transform: translateY(0); } }
+        @keyframes float3 { 0% { transform: translateY(0); } 50% { transform: translateY(-6px); } 100% { transform: translateY(0); } }
+      `}</style>
+      <div
         style={{
-          width: 400,
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-          borderRadius: "12px",
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
         }}
+        aria-hidden="true"
       >
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <Title level={2} style={{ marginBottom: "8px" }}>
-            云图
-          </Title>
-          <Text type="secondary">请输入访问密码</Text>
-        </div>
-
-        <Form name="login" onFinish={onFinish} autoComplete="off" size="large">
-          <Form.Item
-            name="password"
-            rules={[
-              {
-                required: true,
-                message: "请输入密码！",
-              },
-            ]}
-          >
-            <Input.Password
-              prefix={<LockOutlined />}
-              placeholder="请输入访问密码"
-              style={{ borderRadius: "8px" }}
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={loading}
-              style={{
-                width: "100%",
-                borderRadius: "8px",
-                height: "40px",
-              }}
+        <div
+          style={{
+            position: "absolute",
+            left: "-60px",
+            top: "-60px",
+            width: "200px",
+            height: "200px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(closest-side, rgba(142,197,252,0.25), rgba(142,197,252,0))",
+            filter: "blur(6px)",
+            animation: "float1 8s ease-in-out infinite",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            right: "-80px",
+            bottom: "-80px",
+            width: "260px",
+            height: "260px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(closest-side, rgba(224,195,252,0.22), rgba(224,195,252,0))",
+            filter: "blur(8px)",
+            animation: "float2 10s ease-in-out infinite",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "20%",
+            transform: "translateX(-50%)",
+            width: "180px",
+            height: "180px",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(closest-side, rgba(161,196,253,0.18), rgba(161,196,253,0))",
+            filter: "blur(5px)",
+            animation: "float3 9s ease-in-out infinite",
+          }}
+        />
+      </div>
+      <Space direction="vertical" align="center" size="large" style={{ width: "100%" }}>
+        <LogoWithText />
+        <Card
+          style={{
+            width: 420,
+            maxWidth: "92vw",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.06)",
+            borderRadius: "12px",
+            backdropFilter: "saturate(1.1)",
+          }}
+        >
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <Text type="secondary">请输入访问密码</Text>
+          </div>
+          <Form name="login" onFinish={onFinish} autoComplete="off" size="large">
+            <Form.Item
+              name="password"
+              rules={[
+                {
+                  required: true,
+                  message: "请输入密码！",
+                },
+              ]}
             >
-              登录
-            </Button>
-          </Form.Item>
-        </Form>
-      </Card>
+              <Input.Password prefix={<LockOutlined />} placeholder="请输入访问密码" style={{ borderRadius: "8px" }} />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={loading} style={{ width: "100%", borderRadius: "8px", height: "40px" }}>
+                登录
+              </Button>
+            </Form.Item>
+          </Form>
+        </Card>
+      </Space>
     </div>
   );
 };
