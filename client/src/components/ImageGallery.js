@@ -498,21 +498,24 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
             maxHeight: isMobile ? "90vh" : "80vh",
             overflow: "hidden",
           },
+          container: {
+            padding: 0,
+          }
         }}
       >
         <div
           style={{
             display: "flex",
-            flexDirection: "row",
+            flexDirection: isMobile ? "column" : "row",
             alignItems: "stretch",
             gap: isMobile ? 8 : 16,
-            height: isMobile ? "90vh" : "80vh",
+            height: "80vh",
           }}
         >
           <div
             style={{
               flex: 3,
-              height: "100%",
+              height: isMobile ? "50vh" : "100%",
               overflow: "hidden",
               position: "relative",
               backgroundColor: "#000",
@@ -565,7 +568,8 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
               style={{
                 flex: 2,
                 textAlign: "left",
-                height: "100%",
+                height: isMobile ? "auto" : "100%",
+                maxHeight: isMobile ? "40vh" : "100%",
                 overflowY: "auto",
                 padding: isMobile ? 8 : '26px 16px',
               }}
@@ -660,7 +664,8 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                           background: colorBgContainer,
                           border: `1px solid ${colorBorder}`,
                           borderRadius: 4,
-                          padding: "2px 6px",
+                          padding: "0px 6px",
+                          lineHeight: 1.3
                         }}
                       >
                         {dirValue || "根目录"}
@@ -674,19 +679,19 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                       </Button>
                     </>
                   ) : (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-                      <div style={{ flex: 1, minWidth: 220 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, width: "72%" }}>
+                      <div style={{ flex: 1, minWidth: 160 }}>
                         <DirectorySelector
                           value={dirValue}
                           onChange={setDirValue}
-                          size={isMobile ? "small" : "middle"}
+                          size="small"
                           api={api}
                           placeholder="选择或输入新目录"
                         />
                       </div>
                       <Button
                         type="primary"
-                        size={isMobile ? "small" : "middle"}
+                        size="small"
                         onClick={async () => {
                           const oldRel = previewFile.relPath;
                           try {
@@ -717,7 +722,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                         保存
                       </Button>
                       <Button
-                        size={isMobile ? "small" : "middle"}
+                        size="small"
                         onClick={() => {
                           setIsEditingDir(false);
                           setDirValue(
@@ -736,7 +741,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                   )}
                 </div>
                 <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                  大小：{formatFileSize(previewFile.size)}
+                  图片大小：{formatFileSize(previewFile.size)}
                 </Text>
                 {metaLoading ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -749,16 +754,10 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                   imageMeta && (
                     <>
                       <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                        尺寸：{imageMeta.width} × {imageMeta.height}
+                        图片尺寸：{imageMeta.width} × {imageMeta.height}
                       </Text>
                       <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                        格式：{imageMeta.format || "-"}
-                      </Text>
-                      <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                        通道：{imageMeta.channels ?? "-"}
-                      </Text>
-                      <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                        含Alpha：{imageMeta.hasAlpha ? "是" : "否"}
+                        图片格式：{imageMeta.format || "-"}
                       </Text>
                       {imageMeta.space && (
                         <Text style={{ fontSize: isMobile ? 12 : 13 }}>
@@ -767,7 +766,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                       )}
                       {imageMeta.dominant && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <Text style={{ fontSize: isMobile ? 12 : 13 }}>主色：</Text>
+                          <Text style={{ fontSize: isMobile ? 12 : 13 }}>图片主色：</Text>
                           <span
                             style={{
                               width: 16,
@@ -782,29 +781,26 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                           </Text>
                         </div>
                       )}
-                      <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                        EXIF：{imageMeta.exif && Object.keys(imageMeta.exif).length ? "存在" : (imageMeta.exifPresent ? "存在" : "无")}
-                      </Text>
                       {imageMeta.orientation && (
                         <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                          方向：{imageMeta.orientation}
+                          图片方向：{imageMeta.orientation}
                         </Text>
                       )}
                       {imageMeta.exif && (
                         <>
                           {(imageMeta.exif.make || imageMeta.exif.model) && (
                             <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                              设备：{[imageMeta.exif.make, imageMeta.exif.model].filter(Boolean).join(" ")}
+                              拍摄设备：{[imageMeta.exif.make, imageMeta.exif.model].filter(Boolean).join(" ")}
                             </Text>
                           )}
                           {imageMeta.exif.lensModel && (
                             <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                              镜头：{imageMeta.exif.lensModel}
+                              图片镜头：{imageMeta.exif.lensModel}
                             </Text>
                           )}
                           {(imageMeta.exif.fNumber || imageMeta.exif.exposureTime || imageMeta.exif.iso) && (
                             <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                              曝光：{[
+                              图片曝光：{[
                                 imageMeta.exif.fNumber ? `f/${imageMeta.exif.fNumber}` : null,
                                 imageMeta.exif.exposureTime ? `${imageMeta.exif.exposureTime}s` : null,
                                 imageMeta.exif.iso ? `ISO ${imageMeta.exif.iso}` : null,
@@ -821,7 +817,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                           {(imageMeta.exif.latitude != null && imageMeta.exif.longitude != null) && (
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                                GPS：{imageMeta.exif.latitude.toFixed(6)}, {imageMeta.exif.longitude.toFixed(6)}
+                                拍摄位置：{imageMeta.exif.latitude.toFixed(6)}, {imageMeta.exif.longitude.toFixed(6)}
                               </Text>
                               <a
                                 href={`https://www.google.com/maps?q=${imageMeta.exif.latitude},${imageMeta.exif.longitude}`}
@@ -848,7 +844,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                   {dayjs(previewFile.uploadTime).format("YYYY-MM-DD HH:mm:ss")}
                 </Text>
                 <Text style={{ fontSize: isMobile ? 12 : 13 }}>
-                  链接：
+                  图片链接：
                   <a
                     href={previewFile.url}
                     target="_blank"
