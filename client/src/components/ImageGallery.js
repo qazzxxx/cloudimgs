@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Masonry,
   Button,
@@ -57,6 +57,20 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
   const [metaLoading, setMetaLoading] = useState(false);
   const [isEditingDir, setIsEditingDir] = useState(false);
   const [dirValue, setDirValue] = useState("");
+
+  const groups = useMemo(() => {
+    const map = new Map();
+    for (const img of images) {
+      const key = dayjs(img.uploadTime).format("YYYY年MM月DD日");
+      const arr = map.get(key) || [];
+      arr.push(img);
+      map.set(key, arr);
+    }
+    const dates = Array.from(map.keys()).sort(
+      (a, b) => dayjs(b).valueOf() - dayjs(a).valueOf()
+    );
+    return dates.map((d) => ({ date: d, items: map.get(d) }));
+  }, [images]);
 
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -376,100 +390,115 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
         />
       ) : (
         <>
-          <Masonry
-            columns={
-              isMobile ? 1 : screens.lg ? 4 : screens.md ? 3 : screens.sm ? 2 : 1
-            }
-            gutter={isMobile ? 6 : 12}
-            items={images.map((image, index) => ({
-              key: image.relPath || `item-${index}`,
-              data: image,
-            }))}
-            itemRender={({ data: image }) => (
+          {groups.map((group) => (
+            <div key={group.date} style={{ marginBottom: isMobile ? 12 : 16 }}>
               <div
                 style={{
-                  position: "relative",
-                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: isMobile ? 8 : 12,
                 }}
-                onMouseEnter={() =>
-                  setHoverKey(image.relPath || image.url || image.filename)
-                }
-                onMouseLeave={() => setHoverKey(null)}
               >
-                <img
-                  alt={image.filename}
-                  src={image.url}
-                  style={{
-                    width: "100%",
-                    objectFit: "cover",
-                    cursor: "pointer",
-                    display: "block",
-                    transition: "transform 200ms ease",
-                    transform:
-                      hoverKey ===
-                      (image.relPath || image.url || image.filename)
-                        ? "scale(1.1)"
-                        : "scale(1)",
-                  }}
-                  onClick={() => handlePreview(image)}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    display:
-                      hoverKey === (image.relPath || image.url || image.filename)
-                        ? "flex"
-                        : "none",
-                    gap: 4,
-                    background: "rgba(0,0,0,0.35)",
-                    borderRadius: 16,
-                    padding: 4,
-                  }}
-                >
-                  <Tooltip title="下载">
-                    <Button
-                      type="text"
-                      shape="circle"
-                      size="small"
-                      icon={
-                        <DownloadOutlined style={{ color: "rgba(255,255,255,0.9)" }} />
-                      }
-                      onClick={() => handleDownload(image)}
-                    />
-                  </Tooltip>
-                  <Tooltip title="复制链接">
-                    <Button
-                      type="text"
-                      shape="circle"
-                      size="small"
-                      icon={<CopyOutlined style={{ color: "rgba(255,255,255,0.9)" }} />}
-                      onClick={() =>
-                        copyToClipboard(`${window.location.origin}${image.url}`)
-                      }
-                    />
-                  </Tooltip>
-                  <Popconfirm
-                    title="确定要删除这张图片吗？"
-                    onConfirm={() => handleDelete(image.relPath)}
-                    okText="确定"
-                    cancelText="取消"
-                  >
-                    <Tooltip title="删除">
-                      <Button
-                        type="text"
-                        shape="circle"
-                        size="small"
-                        icon={<DeleteOutlined style={{ color: "rgba(255,77,79,0.9)" }} />}
-                      />
-                    </Tooltip>
-                  </Popconfirm>
-                </div>
+                <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>
+                  {group.date}
+                </Title>
               </div>
-            )}
-          />
-
+              <Masonry
+                columns={
+                  isMobile ? 1 : screens.lg ? 4 : screens.md ? 3 : screens.sm ? 2 : 1
+                }
+                gutter={isMobile ? 6 : 12}
+                items={group.items.map((image, index) => ({
+                  key: image.relPath || `item-${group.date}-${index}`,
+                  data: image,
+                }))}
+                itemRender={({ data: image }) => (
+                  <div
+                    style={{
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                    onMouseEnter={() =>
+                      setHoverKey(image.relPath || image.url || image.filename)
+                    }
+                    onMouseLeave={() => setHoverKey(null)}
+                  >
+                    <img
+                      alt={image.filename}
+                      src={image.url}
+                      style={{
+                        width: "100%",
+                        objectFit: "cover",
+                        cursor: "pointer",
+                        display: "block",
+                        transition: "transform 200ms ease",
+                        transform:
+                          hoverKey ===
+                          (image.relPath || image.url || image.filename)
+                            ? "scale(1.1)"
+                            : "scale(1)",
+                      }}
+                      onClick={() => handlePreview(image)}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        display:
+                          hoverKey === (image.relPath || image.url || image.filename)
+                            ? "flex"
+                            : "none",
+                        gap: 4,
+                        background: "rgba(0,0,0,0.35)",
+                        borderRadius: 16,
+                        padding: 4,
+                      }}
+                    >
+                      <Tooltip title="下载">
+                        <Button
+                          type="text"
+                          shape="circle"
+                          size="small"
+                          icon={
+                            <DownloadOutlined style={{ color: "rgba(255,255,255,0.9)" }} />
+                          }
+                          onClick={() => handleDownload(image)}
+                        />
+                      </Tooltip>
+                      <Tooltip title="复制链接">
+                        <Button
+                          type="text"
+                          shape="circle"
+                          size="small"
+                          icon={<CopyOutlined style={{ color: "rgba(255,255,255,0.9)" }} />}
+                          onClick={() =>
+                            copyToClipboard(`${window.location.origin}${image.url}`)
+                          }
+                        />
+                      </Tooltip>
+                      <Popconfirm
+                        title="确定要删除这张图片吗？"
+                        onConfirm={() => handleDelete(image.relPath)}
+                        okText="确定"
+                        cancelText="取消"
+                      >
+                        <Tooltip title="删除">
+                          <Button
+                            type="text"
+                            shape="circle"
+                            size="small"
+                            icon={<DeleteOutlined style={{ color: "rgba(255,77,79,0.9)" }} />}
+                          />
+                        </Tooltip>
+                      </Popconfirm>
+                    </div>
+                  </div>
+                )}
+              />
+            </div>
+          ))}
           <div ref={loadMoreRef} style={{ height: 1 }} />
           {loadingMore && (
             <div style={{ textAlign: "center", padding: isMobile ? 12 : 16 }}>
