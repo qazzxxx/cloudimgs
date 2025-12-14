@@ -481,7 +481,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
 
       <Modal
         open={previewVisible}
-        title={previewTitle}
+        title={null}
         footer={null}
         onCancel={() => {
           setPreviewVisible(false);
@@ -494,32 +494,82 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
         }}
         styles={{
           body: {
-            padding: isMobile ? "12px" : "24px",
+            padding: 0,
+            maxHeight: isMobile ? "90vh" : "80vh",
+            overflow: "hidden",
           },
         }}
       >
         <div
           style={{
             display: "flex",
-            flexDirection: isMobile ? "column" : "row",
-            alignItems: "flex-start",
-            gap: isMobile ? 12 : 24,
+            flexDirection: "row",
+            alignItems: "stretch",
+            gap: isMobile ? 8 : 16,
+            height: isMobile ? "90vh" : "80vh",
           }}
         >
-          <div style={{ flex: 3 }}>
+          <div
+            style={{
+              flex: 3,
+              height: "100%",
+              overflow: "hidden",
+              position: "relative",
+              backgroundColor: "#000",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                backgroundImage: `url(${previewImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                filter: "blur(18px)",
+                transform: "scale(1.08)",
+                zIndex: 0,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                background: "rgba(0,0,0,0.35)",
+                zIndex: 1,
+              }}
+            />
             <img
               alt="preview"
               style={{
                 width: "100%",
-                maxHeight: isMobile ? "60vh" : "75vh",
+                height: "100%",
                 objectFit: "contain",
+                objectPosition: "center",
                 display: "block",
+                margin: 0,
+                padding: 0,
+                position: "relative",
+                zIndex: 2,
               }}
               src={previewImage}
             />
           </div>
           {previewFile && (
-            <div style={{ flex: 2, textAlign: "left" }}>
+            <div
+              style={{
+                flex: 2,
+                textAlign: "left",
+                height: "100%",
+                overflowY: "auto",
+                padding: isMobile ? 8 : '26px 16px',
+              }}
+            >
               <Space direction="vertical" size="small" style={{ width: "100%" }}>
                 <Title
                   level={isMobile ? 4 : 3}
