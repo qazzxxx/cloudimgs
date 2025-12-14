@@ -92,6 +92,41 @@ function isAllowedFile(file) {
   return isAllowedExt && isAllowedMime;
 }
 
+const FORBIDDEN_EXTENSIONS = [
+  ".php",
+  ".html",
+  ".htm",
+  ".js",
+  ".mjs",
+  ".ts",
+  ".sh",
+  ".bat",
+  ".exe",
+  ".dll",
+  ".com",
+  ".cgi",
+  ".pl",
+  ".py",
+  ".jar",
+  ".apk",
+  ".msi",
+];
+const FORBIDDEN_MIME_PREFIXES = [
+  "text/html",
+  "application/x-httpd-php",
+  "application/javascript",
+  "text/javascript",
+  "application/x-sh",
+  "application/x-msdownload",
+  "application/vnd.android.package-archive",
+];
+function isForbiddenFile(file) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (FORBIDDEN_EXTENSIONS.includes(ext)) return true;
+  const mime = (file.mimetype || "").toLowerCase();
+  if (FORBIDDEN_MIME_PREFIXES.some((m) => mime.startsWith(m))) return true;
+  return false;
+}
 // 配置multer，支持多层目录和中文文件名
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -165,6 +200,12 @@ const upload = multer({
 // 通用文件上传配置（支持任意文件类型）
 const uploadAny = multer({
   storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (isForbiddenFile(file)) {
+      return cb(new Error("不允许上传可执行或危险文件类型"));
+    }
+    cb(null, true);
+  },
   limits: {
     fileSize: config.upload.maxFileSize,
   },
@@ -226,6 +267,9 @@ const handleBase64Image = async (base64Data, dir, originalName) => {
   }
 
   const mimetype = matches[1];
+  if (!/^image\//.test(mimetype)) {
+    throw new Error('仅允许图片类型的 base64 上传');
+  }
   const buffer = Buffer.from(matches[2], 'base64');
   
   // 生成文件名
