@@ -721,16 +721,69 @@ app.get("/api/images/meta/*", requirePassword, async (req, res) => {
   }
 });
 
-// 4. 获取指定图片（支持多层目录）
-app.get("/api/images/*", (req, res) => {
+// 4. 获取指定图片（支持多层目录、实时处理）
+app.get("/api/images/*", async (req, res) => {
   const relPath = decodeURIComponent(req.params[0]);
   try {
     const filePath = safeJoin(STORAGE_PATH, relPath);
-    if (fs.existsSync(filePath)) {
-      res.sendFile(filePath);
-    } else {
-      res.status(404).json({ error: "图片不存在" });
+    if (!(await fs.pathExists(filePath))) {
+      return res.status(404).json({ error: "图片不存在" });
     }
+    const w = req.query.w ? parseInt(req.query.w) : undefined;
+    const h = req.query.h ? parseInt(req.query.h) : undefined;
+    const qRaw = req.query.q ? parseInt(req.query.q) : undefined;
+    const q = qRaw && qRaw > 0 && qRaw <= 100 ? qRaw : undefined;
+    let fmt = (req.query.fmt || "").toLowerCase();
+    if (fmt === "jpg") fmt = "jpeg";
+    const hasTransform = w || h || q || fmt;
+    if (!hasTransform) {
+      const mimeType = mime.lookup(filePath) || "application/octet-stream";
+      res.setHeader("Content-Type", mimeType);
+      return res.sendFile(filePath);
+    }
+    let img = sharp(filePath);
+    if (w || h) {
+      img = img.resize({
+        width: w,
+        height: h,
+        fit: "cover",
+        position: "center",
+        withoutEnlargement: true,
+      });
+    }
+    let outMime = mime.lookup(filePath) || "application/octet-stream";
+    if (fmt === "webp") {
+      img = img.webp({ quality: q ?? 80 });
+      outMime = "image/webp";
+    } else if (fmt === "jpeg") {
+      img = img.jpeg({ quality: q ?? 80 });
+      outMime = "image/jpeg";
+    } else if (fmt === "png") {
+      img = img.png();
+      outMime = "image/png";
+    } else if (fmt === "avif") {
+      img = img.avif({ quality: q ?? 50 });
+      outMime = "image/avif";
+    } else if (q) {
+      const orig = (mime.lookup(filePath) || "").toLowerCase();
+      if (orig.includes("jpeg") || orig.includes("jpg")) {
+        img = img.jpeg({ quality: q });
+        outMime = "image/jpeg";
+      } else if (orig.includes("webp")) {
+        img = img.webp({ quality: q });
+        outMime = "image/webp";
+      } else if (orig.includes("avif")) {
+        img = img.avif({ quality: q });
+        outMime = "image/avif";
+      } else {
+        img = img.png();
+        outMime = "image/png";
+      }
+    }
+    const buffer = await img.toBuffer();
+    res.setHeader("Content-Type", outMime);
+    res.setHeader("Cache-Control", "public, max-age=31536000");
+    res.send(buffer);
   } catch (e) {
     res.status(400).json({ error: "非法路径" });
   }
