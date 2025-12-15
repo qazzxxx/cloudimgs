@@ -251,7 +251,7 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
       key: "4",
       method: "GET",
       endpoint: "/api/images/*",
-      description: "获取指定图片",
+      description: "获取指定图片（支持尺寸/质量/格式处理）",
       auth: "否",
       parameters: [
         {
@@ -260,6 +260,10 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
           required: "是",
           description: "图片路径（URL路径参数）",
         },
+        { name: "w", type: "number", required: "否", description: "目标宽度（px）" },
+        { name: "h", type: "number", required: "否", description: "目标高度（px）" },
+        { name: "q", type: "number", required: "否", description: "图片质量（1-100）" },
+        { name: "fmt", type: "string", required: "否", description: "输出格式（如 webp、jpeg、png）" },
       ],
       response: "图片文件",
     },
@@ -478,7 +482,7 @@ const ApiDocsComponent = ({ currentTheme = "light" }) => {
       return `curl ${endpoint}`;
     }
     if (api.endpoint === "/api/images/*") {
-      const url = `${origin}/api/images/path/to/image.jpg`;
+      const url = `${origin}/api/images/path/to/image.jpg?w=500&h=300&q=80&fmt=webp`;
       return `curl ${url}`;
     }
     if (api.endpoint === "/api/files/*") {
