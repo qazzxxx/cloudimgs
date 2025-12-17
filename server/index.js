@@ -232,7 +232,7 @@ async function getAllImages(dir = "") {
           relPath: relPath.replace(/\\/g, "/"),
           size: stats.size,
           uploadTime: stats.mtime.toISOString(),
-          url: `/api/images/${encodeURIComponent(relPath.replace(/\\/g, "/"))}`,
+          url: `/api/images/${relPath.replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/")}`,
         });
       }
     }
@@ -296,7 +296,7 @@ const handleBase64Image = async (base64Data, dir, originalName) => {
     size: buffer.length,
     mimetype,
     uploadTime: new Date().toISOString(),
-    url: `/api/images/${encodeURIComponent(relPath)}`,
+    url: `/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
     relPath,
   };
 };
@@ -320,7 +320,10 @@ app.post(
         return res.json({
           success: true,
           message: "base64 图片上传成功",
-          data: fileInfo,
+          data: {
+            ...fileInfo,
+            fullUrl: `${req.protocol}://${req.get("host")}${fileInfo.url}`,
+          },
         });
       } catch (error) {
         console.error("base64 上传错误:", error);
@@ -380,8 +383,9 @@ app.post(
         size: req.file.size,
         mimetype: req.file.mimetype,
         uploadTime: new Date().toISOString(),
-        url: `/api/images/${encodeURIComponent(relPath)}`,
+        url: `/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
         relPath,
+        fullUrl: `${req.protocol}://${req.get("host")}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
       };
       res.json({
         success: true,
@@ -550,8 +554,9 @@ app.post(
         size: req.file.size,
         mimetype: req.file.mimetype,
         uploadTime: new Date().toISOString(),
-        url: `/api/files/${encodeURIComponent(relPath)}`,
+        url: `/api/files/${relPath.split("/").map(encodeURIComponent).join("/")}`,
         relPath,
+        fullUrl: `${req.protocol}://${req.get("host")}/api/files/${relPath.split("/").map(encodeURIComponent).join("/")}`,
         ...(duration !== null && { duration }), // 仅当计算成功时添加duration字段
       };
       res.json({
@@ -1171,8 +1176,9 @@ app.post(
         size: processedBuffer.length,
         mimetype: "image/png",
         uploadTime: new Date().toISOString(),
-        url: `/api/images/${encodeURIComponent(relPath)}`,
+        url: `/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
         relPath,
+        fullUrl: `${req.protocol}://${req.get("host")}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
       };
       
       res.json({
