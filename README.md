@@ -1,4 +1,4 @@
-## 云图 - 简单、方便的无数据库图床项目，支持 NAS 部署，支持各种灵活的API开放接口
+## 云图 - 简单、方便的无数据库图床项目，支持 NAS 部署，支持各种灵活的API开放接口，PicGo插件直接安装使用
 
 [![云图 GitHub's stars](https://img.shields.io/github/stars/qazzxxx/cloudimgs?style=social)](https://github.com/qazzxxx/cloudimgs/stargazers)
 [![云图 GitHub's forks](https://img.shields.io/github/forks/qazzxxx/cloudimgs?style=social)](https://github.com/qazzxxx/cloudimgs/network/members)
