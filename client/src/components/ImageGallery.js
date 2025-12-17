@@ -326,7 +326,11 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
           />
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => fetchImages(dir, currentPage, pageSize, searchText)}
+            onClick={() => {
+              setCurrentPage(1);
+              setHasMore(true);
+              fetchImages(dir, 1, pageSize, searchText, false);
+            }}
             loading={loading}
             style={{ width: isMobile ? "100%" : "auto" }}
           >
