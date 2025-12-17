@@ -19,6 +19,19 @@ const PORT = config.server.port;
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // 增加限制以支持大型 base64 数据
 app.use(express.static(path.join(__dirname, "../client/build")));
+app.enable("trust proxy");
+
+function getProtocol(req) {
+  const proto = req.headers["x-forwarded-proto"] || req.protocol;
+  if (Array.isArray(proto)) return proto[0];
+  return String(proto).split(",")[0].trim();
+}
+function getHost(req) {
+  return req.headers["x-forwarded-host"] || req.get("host");
+}
+function getBaseUrl(req) {
+  return `${getProtocol(req)}://${getHost(req)}`;
+}
 
 // 配置存储路径
 const STORAGE_PATH = config.storage.path;
@@ -177,7 +190,6 @@ const storage = multer.diskStorage({
       }
     }
 
-    console.log("保存文件名:", finalName, "原始文件名:", file.originalname);
     cb(null, finalName);
   },
 });
@@ -322,7 +334,7 @@ app.post(
           message: "base64 图片上传成功",
           data: {
             ...fileInfo,
-            fullUrl: `${req.protocol}://${req.get("host")}${fileInfo.url}`,
+            fullUrl: `${getBaseUrl(req)}${fileInfo.url}`,
           },
         });
       } catch (error) {
@@ -385,7 +397,7 @@ app.post(
         uploadTime: new Date().toISOString(),
         url: `/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
         relPath,
-        fullUrl: `${req.protocol}://${req.get("host")}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
+        fullUrl: `${getBaseUrl(req)}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
       };
       res.json({
         success: true,
@@ -556,7 +568,7 @@ app.post(
         uploadTime: new Date().toISOString(),
         url: `/api/files/${relPath.split("/").map(encodeURIComponent).join("/")}`,
         relPath,
-        fullUrl: `${req.protocol}://${req.get("host")}/api/files/${relPath.split("/").map(encodeURIComponent).join("/")}`,
+        fullUrl: `${getBaseUrl(req)}/api/files/${relPath.split("/").map(encodeURIComponent).join("/")}`,
         ...(duration !== null && { duration }), // 仅当计算成功时添加duration字段
       };
       res.json({
@@ -1178,7 +1190,7 @@ app.post(
         uploadTime: new Date().toISOString(),
         url: `/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
         relPath,
-        fullUrl: `${req.protocol}://${req.get("host")}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
+        fullUrl: `${getBaseUrl(req)}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
       };
       
       res.json({
