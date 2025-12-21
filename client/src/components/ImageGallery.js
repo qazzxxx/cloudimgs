@@ -79,6 +79,58 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hoverKey, setHoverKey] = useState(null);
+  const [hoverLocation, setHoverLocation] = useState("");
+
+  useEffect(() => {
+    if (!hoverKey) {
+        setHoverLocation("");
+        return;
+    }
+    
+    // Find image
+    const img = images.find(i => (i.relPath || i.url || i.filename) === hoverKey);
+    if (!img) return;
+
+    // Debounce slightly or just fetch
+    let active = true;
+    
+    const fetchLoc = async () => {
+        try {
+            // 1. Get Meta
+            const res = await api.get(`/images/meta/${encodeURIComponent(img.relPath)}`);
+            if (!active) return;
+            
+            if (res.data?.success && res.data.data?.exif?.latitude) {
+                const { latitude, longitude } = res.data.data.exif;
+                
+                // 2. Reverse Geocode
+                // Use a public API (Nominatim)
+                // Note: In production, consider caching this or moving to backend
+                const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&accept-language=zh-CN`);
+                const geoData = await geoRes.json();
+                
+                if (active && geoData) {
+                    // Extract city/district
+                    const addr = geoData.address;
+                    // Try to find the most relevant "city" level name
+                    const city = addr.city || addr.town || addr.county || addr.district || addr.state;
+                    setHoverLocation(city ? `${city}` : (geoData.display_name ? geoData.display_name.split(',')[0] : "未知位置"));
+                }
+            }
+        } catch (e) {
+            // console.error(e); // Silent fail for location fetch
+        }
+    };
+
+    // Delay to avoid spamming on fast scroll
+    const timer = setTimeout(fetchLoc, 300);
+    
+    return () => {
+        active = false;
+        clearTimeout(timer);
+    };
+  }, [hoverKey, images, api]);
+
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const loadMoreRef = useRef(null);
@@ -229,6 +281,61 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasMore, loading, loadingMore, images.length]);
+
+  const [previewLocation, setPreviewLocation] = useState("");
+
+  // Effect for fetching address in Preview Modal
+  useEffect(() => {
+    if (!previewVisible || !imageMeta?.exif?.latitude) {
+        setPreviewLocation("");
+        return;
+    }
+
+    const { latitude, longitude } = imageMeta.exif;
+    let active = true;
+
+    const fetchPreviewLoc = async () => {
+        try {
+            const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&accept-language=zh-CN`);
+            const geoData = await geoRes.json();
+            
+            if (active && geoData) {
+                const addr = geoData.address;
+                // Construct detailed address: Province + City + District + Street + Name
+                // Example: 山东省 临沂市 兰山区 xx路 xx号
+                const parts = [];
+                if (addr.province) parts.push(addr.province);
+                if (addr.city && addr.city !== addr.province) parts.push(addr.city);
+                if (addr.district || addr.county) parts.push(addr.district || addr.county);
+                if (addr.road || addr.street || addr.pedestrian) parts.push(addr.road || addr.street || addr.pedestrian);
+                if (addr.house_number) parts.push(addr.house_number);
+                
+                // If specific name exists (amenity, building, etc.), append it
+                const name = geoData.display_name.split(',')[0];
+                if (name && !parts.includes(name)) {
+                    // Sometimes name is just street number or road, check if redundant
+                    parts.push(name);
+                }
+
+                // If parts is empty or too short, fallback to display_name or city
+                let fullAddr = parts.join(" ");
+                
+                // Fallback logic
+                if (!fullAddr) {
+                     fullAddr = geoData.display_name;
+                }
+                
+                setPreviewLocation(fullAddr);
+            }
+        } catch (e) {
+            // console.error(e);
+        }
+    };
+
+    fetchPreviewLoc();
+    
+    return () => { active = false; };
+  }, [previewVisible, imageMeta]);
 
   // Handle file uploads (Drag & Drop + Paste)
   const handleUploadFiles = async (files) => {
@@ -845,6 +952,14 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                             </span>
                             <span>·</span>
                             <span>{formatFileSize(image.size)}</span>
+                            {hoverLocation && (
+                                <>
+                                    <span>·</span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <EnvironmentOutlined /> {hoverLocation}
+                                    </span>
+                                </>
+                            )}
                           </div>
 
                           {/* Action Buttons */}
@@ -1261,6 +1376,14 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                                 <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>上传时间</div>
                                 <div style={{ fontSize: 13, color: textColor }}>{dayjs(previewFile.uploadTime).format("YYYY-MM-DD")}</div>
                             </div>
+                            {previewLocation && (
+                                <div style={{ gridColumn: 'span 2' }}>
+                                    <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>拍摄地点</div>
+                                    <div style={{ fontSize: 13, color: textColor, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <EnvironmentOutlined /> {previewLocation}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
