@@ -29,7 +29,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       clearPassword();
-      window.location.reload();
+      // Don't reload, let the app handle the auth state change
+      // window.location.reload(); 
     }
     return Promise.reject(error);
   }

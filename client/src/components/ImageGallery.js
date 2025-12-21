@@ -30,13 +30,27 @@ import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Search } = Input;
 
-const ImageGallery = ({ onDelete, onRefresh, api }) => {
+const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
   const {
-    token: { colorBgContainer, colorBorder, colorPrimary },
+    token: { colorBgContainer, colorBorder, colorPrimary, colorTextSecondary, colorText },
   } = theme.useToken();
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+  const isDark = theme.useToken().theme?.id === 1 || colorBgContainer === "#141414"; // Rough check for dark mode, better to pass prop or use context if available. But checking bg color is safer.
+  // Actually antd v5 useToken doesn't directly expose 'isDark'. 
+  // We can infer it from the background color or pass it from App.js.
+  // Let's use a simple heuristic based on standard dark mode bg.
+  const isDarkMode = colorBgContainer === "#141414" || colorBgContainer === "#000000" || colorBgContainer === "#1f1f1f";
+
+  // Define capsule styles based on theme
+  const capsuleStyle = {
+    background: isDarkMode ? "rgba(0, 0, 0, 0.65)" : "rgba(255, 255, 255, 0.65)",
+    border: `1px solid ${isDarkMode ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.4)"}`,
+    boxShadow: isDarkMode ? "0 8px 32px rgba(0, 0, 0, 0.4)" : "0 8px 32px rgba(0, 0, 0, 0.08)",
+    dividerColor: isDarkMode ? "rgba(255, 255, 255, 0.15)" : "rgba(0,0,0,0.1)",
+    iconColor: isDarkMode ? "rgba(255, 255, 255, 0.45)" : "rgba(0,0,0,0.4)",
+  };
 
   const [searchText, setSearchText] = useState("");
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -93,6 +107,11 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     targetSearch = searchText,
     append = false
   ) => {
+    // Check authentication first
+    if (isAuthenticated === false) {
+        return;
+    }
+
     if (append) {
       setLoadingMore(true);
     } else {
@@ -114,7 +133,10 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
         setHasMore(p.current < p.totalPages);
       }
     } catch (e) {
-      message.error("获取图片列表失败");
+        // Silent fail or minimal logging to avoid spamming user if it's just auth
+        if (e.response && e.response.status !== 401) {
+             message.error("获取图片列表失败");
+        }
     } finally {
       if (append) {
         setLoadingMore(false);
@@ -148,7 +170,7 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
         clearTimeout(searchTimerRef.current);
       }
     };
-  }, [dir, pageSize, searchText]);
+  }, [dir, pageSize, searchText, isAuthenticated]); // Add isAuthenticated dependency
 
   // 当搜索文本变化时重置到第一页
   useEffect(() => {
@@ -290,129 +312,112 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
     }
   };
 
+  // Helper to distribute items into columns
+  const getColumns = (items) => {
+    const columnsCount = isMobile ? 2 : screens.xl ? 5 : screens.lg ? 4 : screens.md ? 3 : 2;
+    const columns = Array.from({ length: columnsCount }, () => []);
+    items.forEach((item, index) => {
+      columns[index % columnsCount].push(item);
+    });
+    return columns;
+  };
+
   return (
-    <div>
+    <div style={{ padding: isMobile ? "12px" : "24px", minHeight: "100vh" }}>
+      {/* Floating Capsule Header */}
       <div
         style={{
           display: "flex",
-          flexDirection: isMobile ? "column" : "row",
-          justifyContent: isMobile ? "flex-start" : "space-between",
-          alignItems: isMobile ? "stretch" : "center",
-          marginBottom: isMobile ? 16 : 24,
-          gap: isMobile ? 12 : 0,
+          justifyContent: "center",
+          alignItems: "center",
+          marginBottom: 32,
+          position: "sticky",
+          top: 20,
+          zIndex: 100,
+          pointerEvents: "none", // Allow clicks to pass through the container area
         }}
       >
-        <Title level={isMobile ? 3 : 2}>图片管理</Title>
-        <Space
-          direction={isMobile ? "vertical" : "horizontal"}
-          style={{ width: isMobile ? "100%" : "auto" }}
-          size={isMobile ? "small" : "middle"}
-        >
-          <DirectorySelector
-            value={dir}
-            onChange={setDir}
-            placeholder="选择或输入子目录"
-            style={{ width: isMobile ? "100%" : 260 }}
-            allowInput={false}
-            api={api}
-          />
-          <Search
-            placeholder="搜索图片名称"
-            allowClear
-            style={{ width: isMobile ? "100%" : 200 }}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            prefix={<SearchOutlined />}
-          />
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => {
-              setCurrentPage(1);
-              setHasMore(true);
-              fetchImages(dir, 1, pageSize, searchText, false);
-            }}
-            loading={loading}
-            style={{ width: isMobile ? "100%" : "auto" }}
-          >
-            {isMobile ? "刷新列表" : "刷新"}
-          </Button>
-        </Space>
-      </div>
-
-      {/* 目录信息展示 */}
-      {dir && (
         <div
           style={{
-            background: colorBgContainer,
-            border: `1px solid ${colorBorder}`,
-            borderRadius: "6px",
-            padding: isMobile ? "8px 12px" : "12px 16px",
-            marginBottom: isMobile ? "12px" : "16px",
+            pointerEvents: "auto", // Re-enable pointer events for the capsule
+            background: capsuleStyle.background,
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            padding: "6px",
+            borderRadius: "100px",
+            boxShadow: capsuleStyle.boxShadow,
+            border: capsuleStyle.border,
             display: "flex",
-            flexDirection: isMobile ? "column" : "row",
-            alignItems: isMobile ? "flex-start" : "center",
-            gap: isMobile ? "4px" : "8px",
+            alignItems: "center",
+            gap: 8,
+            maxWidth: "90vw",
+            width: "auto",
+            transition: "all 0.3s ease",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <FolderOutlined style={{ color: "#586069" }} />
-            <Text
-              type="secondary"
-              style={{ fontSize: isMobile ? "13px" : "14px" }}
-            >
-              当前目录：
-            </Text>
-            <Tag color="blue" style={{ fontSize: isMobile ? "12px" : "13px" }}>
-              {dir}
-            </Tag>
+          <div style={{ width: 180, transition: "width 0.3s ease" }}>
+            <DirectorySelector
+              value={dir}
+              onChange={setDir}
+              placeholder="所有目录"
+              style={{ width: "100%" }}
+              allowInput={false}
+              api={api}
+              bordered={false}
+              size="middle"
+            />
           </div>
-          <Text
-            type="secondary"
+          <div
             style={{
-              fontSize: isMobile ? "11px" : "12px",
-              marginLeft: isMobile ? "0" : "auto",
+              width: 1,
+              height: 20,
+              background: capsuleStyle.dividerColor,
             }}
-          >
-            共 {pagination.total} 张图片
-          </Text>
+          />
+          <div style={{ width: 200, transition: "width 0.3s ease" }}>
+            <Input
+              placeholder="搜索图片..."
+              prefix={<SearchOutlined style={{ color: capsuleStyle.iconColor }} />}
+              bordered={false}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ background: "transparent", color: colorText }}
+            />
+          </div>
         </div>
-      )}
+      </div>
 
       {loading ? (
-        <div
-          style={{ textAlign: "center", padding: isMobile ? "30px" : "50px" }}
-        >
+        <div style={{ textAlign: "center", padding: "100px 0" }}>
           <Spin size="large" />
-          <div style={{ marginTop: 16, fontSize: isMobile ? "14px" : "16px" }}>
-            加载中...
-          </div>
         </div>
       ) : images.length === 0 ? (
-        <Empty
-          description="暂无图片"
-          style={{ marginTop: isMobile ? 30 : 50 }}
-        />
+        <Empty description="暂无图片" style={{ marginTop: 100 }} />
       ) : (
         <>
           {groups.map((group) => (
-            <div key={group.date} style={{ marginBottom: isMobile ? 12 : 16 }}>
+            <div key={group.date} style={{ marginBottom: 24 }}>
               <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: isMobile ? 8 : 12,
+                  marginBottom: 16,
+                  paddingLeft: 8,
+                  opacity: 0.8,
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  letterSpacing: "0.5px",
+                  textTransform: "uppercase",
+                  color: colorTextSecondary, // Applied theme color
                 }}
               >
-                <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>
-                  {group.date}
-                </Title>
+                {group.date}
               </div>
+              
+              {/* Masonry Layout */}
               <Masonry
                 columns={
-                  isMobile ? 1 : screens.lg ? 4 : screens.md ? 3 : screens.sm ? 2 : 1
+                  isMobile ? 2 : screens.xl ? 5 : screens.lg ? 4 : screens.md ? 3 : 2
                 }
-                gutter={isMobile ? 6 : 12}
+                gutter={8}
                 items={group.items.map((image, index) => ({
                   key: image.relPath || `item-${group.date}-${index}`,
                   data: image,
@@ -422,90 +427,184 @@ const ImageGallery = ({ onDelete, onRefresh, api }) => {
                     style={{
                       position: "relative",
                       overflow: "hidden",
+                      borderRadius: "0px", // Sharp corners
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                      transition: "transform 0.3s ease",
+                      background: colorBgContainer,
+                      cursor: "zoom-in",
                     }}
                     onMouseEnter={() =>
                       setHoverKey(image.relPath || image.url || image.filename)
                     }
                     onMouseLeave={() => setHoverKey(null)}
+                    onClick={() => handlePreview(image)}
                   >
-                    <img
-                      alt={image.filename}
-                      src={image.url}
+                    <div
                       style={{
-                        width: "100%",
-                        objectFit: "cover",
-                        cursor: "pointer",
-                        display: "block",
-                        transition: "transform 200ms ease",
-                        transform:
-                          hoverKey ===
-                          (image.relPath || image.url || image.filename)
-                            ? "scale(1.1)"
-                            : "scale(1)",
+                        overflow: "hidden",
+                        position: "relative",
                       }}
-                      onClick={() => handlePreview(image)}
-                    />
+                    >
+                      <img
+                        alt={image.filename}
+                        src={image.url}
+                        style={{
+                          width: "100%",
+                          display: "block",
+                          transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                          transform:
+                            hoverKey ===
+                            (image.relPath || image.url || image.filename)
+                              ? "scale(1.05)"
+                              : "scale(1)",
+                        }}
+                      />
+                    </div>
+
+                    {/* Advanced Hover Overlay */}
                     <div
                       style={{
                         position: "absolute",
-                        top: 8,
-                        right: 8,
-                        display:
-                          hoverKey === (image.relPath || image.url || image.filename)
-                            ? "flex"
-                            : "none",
-                        gap: 4,
-                        background: "rgba(0,0,0,0.35)",
-                        borderRadius: 16,
-                        padding: 4,
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background:
+                          "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0) 100%)",
+                        opacity:
+                          hoverKey === (image.relPath || image.url || image.filename) ||
+                          isMobile
+                            ? 1
+                            : 0,
+                        transition: "opacity 0.3s ease",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "flex-end",
+                        padding: "20px",
+                        pointerEvents: "none", // Let clicks pass through to container
                       }}
                     >
-                      <Tooltip title="下载">
-                        <Button
-                          type="text"
-                          shape="circle"
-                          size="small"
-                          icon={
-                            <DownloadOutlined style={{ color: "rgba(255,255,255,0.9)" }} />
-                          }
-                          onClick={() => handleDownload(image)}
-                        />
-                      </Tooltip>
-                      <Tooltip title="复制链接">
-                        <Button
-                          type="text"
-                          shape="circle"
-                          size="small"
-                          icon={<CopyOutlined style={{ color: "rgba(255,255,255,0.9)" }} />}
-                          onClick={() =>
-                            copyToClipboard(`${window.location.origin}${image.url}`)
-                          }
-                        />
-                      </Tooltip>
-                      <Popconfirm
-                        title="确定要删除这张图片吗？"
-                        onConfirm={() => handleDelete(image.relPath)}
-                        okText="确定"
-                        cancelText="取消"
+                      <div
+                        style={{
+                          transform:
+                            hoverKey === (image.relPath || image.url || image.filename)
+                              ? "translateY(0)"
+                              : "translateY(10px)",
+                          transition: "transform 0.3s ease",
+                          pointerEvents: "auto", // Re-enable for buttons
+                        }}
                       >
-                        <Tooltip title="删除">
+                        {/* Title / Filename */}
+                        <div
+                          style={{
+                            color: "#fff",
+                            fontSize: "18px",
+                            fontWeight: 700,
+                            marginBottom: "4px",
+                            lineHeight: 1.2,
+                            textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {image.filename.replace(/\.[^/.]+$/, "")}
+                        </div>
+
+                        {/* Metadata Row */}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            color: "rgba(255,255,255,0.8)",
+                            fontSize: "12px",
+                            marginBottom: "12px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span>
+                            {dayjs(image.uploadTime).format("YYYY-MM-DD")}
+                          </span>
+                          <span>·</span>
+                          <span>{formatFileSize(image.size)}</span>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div style={{ display: "flex", gap: "8px" }}>
                           <Button
-                            type="text"
-                            shape="circle"
                             size="small"
-                            icon={<DeleteOutlined style={{ color: "rgba(255,77,79,0.9)" }} />}
-                          />
-                        </Tooltip>
-                      </Popconfirm>
+                            type="text"
+                            icon={<DownloadOutlined />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownload(image);
+                            }}
+                            style={{
+                              color: "#fff",
+                              background: "rgba(255,255,255,0.2)",
+                              backdropFilter: "blur(4px)",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                            }}
+                          >
+                            下载
+                          </Button>
+                          <Button
+                            size="small"
+                            type="text"
+                            icon={<CopyOutlined />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(
+                                `${window.location.origin}${image.url}`
+                              );
+                            }}
+                            style={{
+                              color: "#fff",
+                              background: "rgba(255,255,255,0.2)",
+                              backdropFilter: "blur(4px)",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                            }}
+                          >
+                            链接
+                          </Button>
+                          <Popconfirm
+                            title="确定删除?"
+                            onConfirm={(e) => {
+                              e.stopPropagation();
+                              handleDelete(image.relPath);
+                            }}
+                            okText="是"
+                            cancelText="否"
+                          >
+                            <Button
+                              size="small"
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                background: "rgba(0,0,0,0.4)",
+                                backdropFilter: "blur(4px)",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: "4px",
+                                fontSize: "12px",
+                              }}
+                            />
+                          </Popconfirm>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
               />
             </div>
           ))}
-          <div ref={loadMoreRef} style={{ height: 1 }} />
+          <div ref={loadMoreRef} style={{ height: 20 }} />
           {loadingMore && (
-            <div style={{ textAlign: "center", padding: isMobile ? 12 : 16 }}>
+            <div style={{ textAlign: "center", padding: 20 }}>
               <Spin />
             </div>
           )}
