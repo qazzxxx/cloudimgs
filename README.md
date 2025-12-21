@@ -32,17 +32,17 @@
 
 ## 软件预览
 登录页面
-![云图 桌面端预览](client/public/login.jpeg)
+![云图 桌面端预览](client/public/login.jpg)
 
-上传图片页面
-![云图 桌面端预览](client/public/upload.jpeg)
 
 图片管理页面
-![云图 桌面端预览](client/public/cloudimgs.png)
-![云图 桌面端预览-暗色](client/public/piclist.jpeg)
+![云图 桌面端预览](client/public/cloudimgs.jpg)
+
+整页上传
+![云图 桌面端预览](client/public/upload.jpg)
 
 开放接口页面
-![云图 桌面端预览](client/public/api.jpeg)
+![云图 桌面端预览](client/public/api.jpg)
 
 
 
