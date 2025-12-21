@@ -22,7 +22,6 @@ const PasswordOverlay = ({ onLoginSuccess, isMobile }) => {
       });
 
       if (response.ok) {
-        message.success("验证成功");
         onLoginSuccess();
       } else {
         const errorData = await response.json();
@@ -111,7 +110,7 @@ const PasswordOverlay = ({ onLoginSuccess, isMobile }) => {
         </div>
         
         <Title level={3} style={{ color: "#fff", marginBottom: 8, marginTop: 0 }}>
-          私有云图库
+          云图-您专属的私有云图库
         </Title>
         <Text
           style={{

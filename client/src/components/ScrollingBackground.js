@@ -3,7 +3,6 @@ import api from "../utils/api";
 
 const ScrollingBackground = () => {
   const [images, setImages] = useState([]);
-  const containerRef = useRef(null);
 
   useEffect(() => {
     // Fetch some random images to display in the background
@@ -14,22 +13,14 @@ const ScrollingBackground = () => {
         if (res.data && res.data.success && res.data.data.length > 0) {
           setImages(res.data.data);
         } else {
-            // Fallback to placeholder if no images or empty
-             setImages(Array.from({ length: 15 }).map((_, i) => ({
-                 url: `https://picsum.photos/seed/${i}/400/600`,
+             // Fallback to placeholder if no images or empty
+             setImages(Array.from({ length: 24 }).map((_, i) => ({
+                 url: `https://picsum.photos/seed/${i + 200}/300/450`,
                  key: i
              })));
         }
       } catch (e) {
-         // Fallback on error (likely 401, which is expected here)
-         // Since we can't see images without auth, we should use placeholders 
-         // OR just show a nice abstract pattern if we want to be strict.
-         // But the user asked for "Massive Image Background", implying they want to see what's inside vaguely.
-         // However, showing real private images before password might be a security concern?
-         // User asked: "后面是海量的图片背景" -> "Behind is a massive image background".
-         // Usually this means a generic wall or blurred version of content.
-         // Safe bet: Use high quality placeholder nature/architecture images for the "vibe".
-         setImages(Array.from({ length: 24 }).map((_, i) => ({
+         setImages(Array.from({ length: 32 }).map((_, i) => ({
              url: `https://picsum.photos/seed/${i + 100}/300/450`,
              key: i
          })));
@@ -39,25 +30,26 @@ const ScrollingBackground = () => {
   }, []);
 
   // Prepare columns for masonry-like scroll
-  const columns = [[], [], [], []];
+  const columns = [[], [], [], [], []];
   images.forEach((img, i) => {
-    columns[i % 4].push(img);
+    columns[i % 5].push(img);
   });
 
   return (
     <div
       style={{
         position: "absolute",
-        top: "-10%",
-        left: "-10%",
-        width: "120%",
-        height: "120%",
+        top: "-20%", // Extend beyond viewport to cover rotation gaps
+        left: "-20%",
+        width: "140%",
+        height: "140%",
         zIndex: 0,
         overflow: "hidden",
         display: "flex",
-        gap: "20px",
-        transform: "rotate(-5deg)", // Slight tilt for style
-        opacity: 0.6,
+        gap: "24px",
+        transform: "rotate(-8deg)", // Artistic tilt
+        opacity: 0.5,
+        pointerEvents: "none", // Ensure clicks pass through
       }}
     >
       {columns.map((col, i) => (
@@ -65,22 +57,32 @@ const ScrollingBackground = () => {
           key={i}
           style={{
             flex: 1,
+            position: "relative",
+            height: "200%", // Double height for scrolling container
             display: "flex",
             flexDirection: "column",
-            gap: "20px",
-            animation: `scrollColumn ${30 + i * 5}s linear infinite`,
-            animationDirection: i % 2 === 0 ? "normal" : "reverse",
+            gap: "24px",
+            // Use transform3d for hardware acceleration
+            transform: "translate3d(0, 0, 0)",
+            willChange: "transform",
+            animation: `scrollColumn-${i % 2 === 0 ? 'up' : 'down'} ${45 + i * 8}s linear infinite`,
           }}
         >
-          {/* Duplicate for seamless loop */}
-          {[...col, ...col, ...col].map((img, idx) => (
+          {/* 
+             Render duplicated content 3 times to ensure no gaps during the infinite scroll loop.
+             We need enough content to cover the viewport height plus the scroll distance.
+          */}
+          {[...col, ...col, ...col, ...col].map((img, idx) => (
             <div
               key={`${i}-${idx}`}
               style={{
                 width: "100%",
-                borderRadius: "12px",
+                borderRadius: "16px",
                 overflow: "hidden",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
+                // Fixed height to ensure stability during loading
+                minHeight: "200px",
+                background: "rgba(255,255,255,0.05)",
               }}
             >
               <img
@@ -91,7 +93,9 @@ const ScrollingBackground = () => {
                   height: "auto",
                   display: "block",
                   objectFit: "cover",
+                  // Fade in effect could be added here
                 }}
+                loading="lazy"
               />
             </div>
           ))}
@@ -99,9 +103,13 @@ const ScrollingBackground = () => {
       ))}
       <style>
         {`
-          @keyframes scrollColumn {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(-33.33%); }
+          @keyframes scrollColumn-up {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(0, -50%, 0); } /* Move half way (since we have 4x content, 50% is 2x content, enough for loop) */
+          }
+          @keyframes scrollColumn-down {
+            0% { transform: translate3d(0, -50%, 0); }
+            100% { transform: translate3d(0, 0, 0); }
           }
         `}
       </style>
