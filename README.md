@@ -85,6 +85,6 @@ environment:
 - 未设置 `PASSWORD` 时，系统无需密码即可访问
 - 密码验证成功后，登录状态会保存在浏览器本地存储中
 
-## Star History
+## 历史Star
 
 [![Star History Chart](https://api.star-history.com/svg?repos=qazzxxx/cloudimgs&type=date&legend=top-left)](https://www.star-history.com/#qazzxxx/cloudimgs&type=date&legend=top-left)
