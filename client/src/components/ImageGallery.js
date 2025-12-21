@@ -53,6 +53,14 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
   const isDark = theme.useToken().theme?.id === 1 || colorBgContainer === "#141414";
   const isDarkMode = colorBgContainer === "#141414" || colorBgContainer === "#000000" || colorBgContainer === "#1f1f1f";
 
+  // Helper to determine if a color is light or dark (returns true if light)
+  const isLightColor = (r, g, b) => {
+    // Calculate relative luminance using standard formula
+    // Y = 0.2126R + 0.7152G + 0.0722B
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    return luminance > 0.6; // Threshold for considering it "light"
+  };
+
   // Define capsule styles based on theme
   const capsuleStyle = {
     background: isDarkMode ? "rgba(0, 0, 0, 0.65)" : "rgba(255, 255, 255, 0.65)",
@@ -1082,6 +1090,8 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                 style={{
                     maxWidth: "100%",
                     maxHeight: "100%",
+                    width: "auto",
+                    height: "auto",
                     objectFit: "contain",
                     boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
                     zIndex: 2,
@@ -1099,24 +1109,33 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                 background: imageMeta?.dominant 
                     ? `rgb(${imageMeta.dominant.r},${imageMeta.dominant.g},${imageMeta.dominant.b})` 
                     : "#222",
-                color: "#fff",
+                color: imageMeta?.dominant && isLightColor(imageMeta.dominant.r, imageMeta.dominant.g, imageMeta.dominant.b) ? "#000" : "#fff",
                 borderLeft: "none",
                 display: isMobile ? "none" : "flex",
                 flexDirection: "column",
                 zIndex: 20,
-                transition: "background 0.5s ease",
+                transition: "background 0.5s ease, color 0.5s ease",
               }}
             >
+              {(() => {
+                  const isLight = imageMeta?.dominant ? isLightColor(imageMeta.dominant.r, imageMeta.dominant.g, imageMeta.dominant.b) : false;
+                  const textColor = isLight ? "#000" : "#fff";
+                  const secondaryTextColor = isLight ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.6)";
+                  const tertiaryTextColor = isLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)";
+                  const borderColor = isLight ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.2)";
+                  const inputBg = isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.1)";
+
+                  return (
               <div style={{ flex: 1, overflowY: "auto", padding: "32px 24px" }}>
                 {/* Header Section */}
                 <div style={{ marginBottom: 24 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                        <Title level={4} style={{ margin: 0, wordBreak: 'break-all', color: "#fff", fontSize: 18 }}>
+                        <Title level={4} style={{ margin: 0, wordBreak: 'break-all', color: textColor, fontSize: 18 }}>
                             {previewFile.filename}
                         </Title>
                         <Button
                             type="text"
-                            icon={<EditOutlined style={{ color: "rgba(255,255,255,0.8)" }} />}
+                            icon={<EditOutlined style={{ color: secondaryTextColor }} />}
                             onClick={() => setIsEditingName(!isEditingName)}
                         />
                     </div>
@@ -1127,9 +1146,9 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                                 value={renameValue}
                                 onChange={(e) => setRenameValue(e.target.value)}
                                 onPressEnter={() => {/* Trigger save logic */}}
-                                style={{ background: "rgba(255,255,255,0.1)", color: "#fff", border: "none" }}
+                                style={{ background: inputBg, color: textColor, border: "none" }}
                             />
-                            <Button type="primary" ghost onClick={async () => {
+                            <Button type="primary" ghost={!isLight} style={isLight ? {} : {}} onClick={async () => {
                                 // Rename logic (reused)
                                 const oldRel = previewFile.relPath;
                                 const ext = previewFile.filename.includes(".") ? previewFile.filename.substring(previewFile.filename.lastIndexOf(".")) : "";
@@ -1155,11 +1174,11 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                     )}
 
                     <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <FolderOutlined style={{ color: "rgba(255,255,255,0.6)" }} />
-                        <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                        <FolderOutlined style={{ color: secondaryTextColor }} />
+                        <Text style={{ fontSize: 13, color: secondaryTextColor }}>
                             {dirValue || "根目录"}
                         </Text>
-                        <Button type="link" size="small" onClick={() => setIsEditingDir(!isEditingDir)} style={{ padding: 0, height: 'auto', color: "rgba(255,255,255,0.8)" }}>
+                        <Button type="link" size="small" onClick={() => setIsEditingDir(!isEditingDir)} style={{ padding: 0, height: 'auto', color: isLight ? colorPrimary : "rgba(255,255,255,0.8)" }}>
                             修改
                         </Button>
                     </div>
@@ -1171,10 +1190,10 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                                     onChange={setDirValue}
                                     size="small"
                                     api={api}
-                                    style={{ background: "rgba(255,255,255,0.1)", color: "#fff", border: "none" }}
+                                    style={{ background: inputBg, color: textColor, border: "none" }}
                                 />
                              </div>
-                             <Button type="primary" ghost size="small" onClick={async () => {
+                             <Button type="primary" ghost={!isLight} size="small" onClick={async () => {
                                  // Dir change logic
                                  const oldRel = previewFile.relPath;
                                  try {
@@ -1194,7 +1213,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
 
                 {/* Actions Row */}
                 <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
-                    <Button block ghost icon={<DownloadOutlined />} onClick={() => handleDownload(previewFile)} style={{ color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>
+                    <Button block ghost icon={<DownloadOutlined />} onClick={() => handleDownload(previewFile)} variant="outlined" color="primary">
                         下载
                     </Button>
                     <Popconfirm
@@ -1205,7 +1224,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                         }}
                         okText="是" cancelText="否"
                     >
-                        <Button block danger ghost icon={<DeleteOutlined />}>删除</Button>
+                        <Button block ghost danger icon={<DeleteOutlined />} variant="outlined" color="danger">删除</Button>
                     </Popconfirm>
                 </div>
 
@@ -1214,33 +1233,33 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                     
                     {/* Basic Info */}
                     <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: 'uppercase', marginBottom: 12 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: tertiaryTextColor, textTransform: 'uppercase', marginBottom: 12 }}>
                             基本信息
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                             <div>
-                                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginBottom: 2 }}>文件大小</div>
-                                <div style={{ fontSize: 13, color: "#fff" }}>{formatFileSize(previewFile.size)}</div>
+                                <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>文件大小</div>
+                                <div style={{ fontSize: 13, color: textColor }}>{formatFileSize(previewFile.size)}</div>
                             </div>
                             <div>
-                                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginBottom: 2 }}>格式</div>
-                                <div style={{ fontSize: 13, color: "#fff" }}>{previewFile.filename.split('.').pop().toUpperCase()}</div>
+                                <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>格式</div>
+                                <div style={{ fontSize: 13, color: textColor }}>{previewFile.filename.split('.').pop().toUpperCase()}</div>
                             </div>
                             {imageMeta && (
                                 <>
                                     <div>
-                                        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginBottom: 2 }}>分辨率</div>
-                                        <div style={{ fontSize: 13, color: "#fff" }}>{imageMeta.width} × {imageMeta.height}</div>
+                                        <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>分辨率</div>
+                                        <div style={{ fontSize: 13, color: textColor }}>{imageMeta.width} × {imageMeta.height}</div>
                                     </div>
                                     <div>
-                                        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginBottom: 2 }}>色彩空间</div>
-                                        <div style={{ fontSize: 13, color: "#fff" }}>{imageMeta.space || '-'}</div>
+                                        <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>色彩空间</div>
+                                        <div style={{ fontSize: 13, color: textColor }}>{imageMeta.space || '-'}</div>
                                     </div>
                                 </>
                             )}
                             <div>
-                                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginBottom: 2 }}>上传时间</div>
-                                <div style={{ fontSize: 13, color: "#fff" }}>{dayjs(previewFile.uploadTime).format("YYYY-MM-DD")}</div>
+                                <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>上传时间</div>
+                                <div style={{ fontSize: 13, color: textColor }}>{dayjs(previewFile.uploadTime).format("YYYY-MM-DD")}</div>
                             </div>
                         </div>
                     </div>
@@ -1248,53 +1267,53 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                     {/* EXIF Data */}
                     {imageMeta?.exif && (
                         <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: 'uppercase', marginBottom: 12 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: tertiaryTextColor, textTransform: 'uppercase', marginBottom: 12 }}>
                                 拍摄参数
                             </div>
                             <Space direction="vertical" size={12} style={{ width: '100%' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <CameraOutlined style={{ fontSize: 16, color: "rgba(255,255,255,0.5)" }} />
+                                    <CameraOutlined style={{ fontSize: 16, color: tertiaryTextColor }} />
                                     <div>
-                                        <div style={{ fontSize: 13, color: "#fff" }}>{[imageMeta.exif.make, imageMeta.exif.model].filter(Boolean).join(" ")}</div>
-                                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>相机</div>
+                                        <div style={{ fontSize: 13, color: textColor }}>{[imageMeta.exif.make, imageMeta.exif.model].filter(Boolean).join(" ")}</div>
+                                        <div style={{ fontSize: 12, color: tertiaryTextColor }}>相机</div>
                                     </div>
                                 </div>
                                 {imageMeta.exif.lensModel && (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                        <span style={{ fontSize: 16, color: "rgba(255,255,255,0.5)" }}>◎</span>
+                                        <span style={{ fontSize: 16, color: tertiaryTextColor }}>◎</span>
                                         <div>
-                                            <div style={{ fontSize: 13, color: "#fff" }}>{imageMeta.exif.lensModel}</div>
-                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>镜头</div>
+                                            <div style={{ fontSize: 13, color: textColor }}>{imageMeta.exif.lensModel}</div>
+                                            <div style={{ fontSize: 12, color: tertiaryTextColor }}>镜头</div>
                                         </div>
                                     </div>
                                 )}
                                 <div style={{ display: 'flex', gap: 24, marginTop: 4 }}>
                                     {imageMeta.exif.fNumber && (
                                         <div>
-                                            <div style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>f/{imageMeta.exif.fNumber}</div>
-                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>光圈</div>
+                                            <div style={{ fontSize: 13, fontWeight: 500, color: textColor }}>f/{imageMeta.exif.fNumber}</div>
+                                            <div style={{ fontSize: 12, color: tertiaryTextColor }}>光圈</div>
                                         </div>
                                     )}
                                     {imageMeta.exif.exposureTime && (
                                         <div>
-                                            <div style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{imageMeta.exif.exposureTime}s</div>
-                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>快门</div>
+                                            <div style={{ fontSize: 13, fontWeight: 500, color: textColor }}>{imageMeta.exif.exposureTime}s</div>
+                                            <div style={{ fontSize: 12, color: tertiaryTextColor }}>快门</div>
                                         </div>
                                     )}
                                     {imageMeta.exif.iso && (
                                         <div>
-                                            <div style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{imageMeta.exif.iso}</div>
-                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>ISO</div>
+                                            <div style={{ fontSize: 13, fontWeight: 500, color: textColor }}>{imageMeta.exif.iso}</div>
+                                            <div style={{ fontSize: 12, color: tertiaryTextColor }}>ISO</div>
                                         </div>
                                     )}
                                 </div>
                             </Space>
                         </div>
                     )}
-
-                    {/* Colors - Simplified since background is the color */}
                 </Space>
               </div>
+              );
+              })()}
             </div>
           )}
         </div>
