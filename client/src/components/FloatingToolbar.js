@@ -92,32 +92,6 @@ const FloatingToolbar = ({
             className="toolbar-btn"
           />
         </Tooltip>
-
-        <div style={{ width: 1, height: 16, background: isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)" }} />
-
-        <Tooltip title="上传图片" placement="top">
-          <Button
-            shape="circle"
-            type="primary"
-            icon={<CloudUploadOutlined />}
-            onClick={() => setUploadVisible(true)}
-            size="middle" // Reduced size
-            className="upload-btn"
-            style={{
-                width: 32,
-                height: 32,
-                minWidth: 32,
-                fontSize: 16,
-                // background: token.colorPrimary, // moved to CSS for hover control
-                color: '#fff',
-                border: 'none',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-            }}
-          />
-        </Tooltip>
       </div>
 
       <style>{`

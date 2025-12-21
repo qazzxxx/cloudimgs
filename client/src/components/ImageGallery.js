@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Masonry,
   Button,
@@ -26,6 +26,7 @@ import {
   FolderOutlined,
   MenuOutlined,
   ApiOutlined,
+  CloudUploadOutlined,
 } from "@ant-design/icons";
 import DirectorySelector from "./DirectorySelector";
 import dayjs from "dayjs";
@@ -40,10 +41,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
   const isMobile = !screens.md;
-  const isDark = theme.useToken().theme?.id === 1 || colorBgContainer === "#141414"; // Rough check for dark mode, better to pass prop or use context if available. But checking bg color is safer.
-  // Actually antd v5 useToken doesn't directly expose 'isDark'. 
-  // We can infer it from the background color or pass it from App.js.
-  // Let's use a simple heuristic based on standard dark mode bg.
+  const isDark = theme.useToken().theme?.id === 1 || colorBgContainer === "#141414";
   const isDarkMode = colorBgContainer === "#141414" || colorBgContainer === "#000000" || colorBgContainer === "#1f1f1f";
 
   // Define capsule styles based on theme
@@ -74,6 +72,10 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
   const [metaLoading, setMetaLoading] = useState(false);
   const [isEditingDir, setIsEditingDir] = useState(false);
   const [dirValue, setDirValue] = useState("");
+  
+  // Drag and drop states
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const groups = useMemo(() => {
     const map = new Map();
@@ -211,6 +213,143 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
     return () => observer.disconnect();
   }, [hasMore, loading, loadingMore, images.length]);
 
+  // Handle file uploads (Drag & Drop + Paste)
+  const handleUploadFiles = async (files) => {
+    if (!isAuthenticated) {
+        message.warning("请先登录");
+        return;
+    }
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    // Use current directory if set, otherwise root
+    if (dir) {
+        formData.append("dir", dir);
+    }
+    
+    let imageCount = 0;
+    Array.from(files).forEach((file) => {
+        if (file.type.startsWith("image/")) {
+            formData.append("image", file); // API expects "image" field for multiple files too? 
+            // Checking UploadComponent logic, usually it's "image" or "files"
+            // Let's assume the API handles multiple files under same key or we need to check API docs
+            // Based on ApiDocs.js: POST /api/upload uses 'image' field for files
+            imageCount++;
+        }
+    });
+
+    if (imageCount === 0) {
+        message.warning("请选择图片文件");
+        setUploading(false);
+        return;
+    }
+
+    try {
+        const res = await api.post("/upload", formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
+        
+        if (res.data && res.data.success) {
+            message.success(`成功上传 ${res.data.data.length || imageCount} 张图片`);
+            // Refresh list
+            setCurrentPage(1);
+            fetchImages(dir, 1, pageSize, searchText, false);
+            if (onRefresh) onRefresh();
+        } else {
+             message.error(res.data?.error || "上传失败");
+        }
+    } catch (error) {
+        console.error("Upload error:", error);
+        message.error("上传出错");
+    } finally {
+        setUploading(false);
+        setIsDragging(false);
+    }
+  };
+
+  // Global Paste Event Listener
+  useEffect(() => {
+    const handlePaste = (e) => {
+        // Ignore paste if inside input/textarea
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        const files = [];
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) files.push(file);
+            }
+        }
+
+        if (files.length > 0) {
+            e.preventDefault();
+            handleUploadFiles(files);
+        }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [dir, isAuthenticated]); // Re-bind if dir changes so upload goes to correct dir
+
+  // Global Drag & Drop Listeners
+  useEffect(() => {
+      let dragCounter = 0;
+
+      const handleDragEnter = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dragCounter++;
+          if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+              setIsDragging(true);
+          }
+      };
+
+      const handleDragLeave = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dragCounter--;
+          if (dragCounter === 0) {
+              setIsDragging(false);
+          }
+      };
+
+      const handleDragOver = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+      };
+
+      const handleDrop = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragging(false);
+          dragCounter = 0;
+          
+          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+              handleUploadFiles(e.dataTransfer.files);
+          }
+      };
+
+      window.addEventListener('dragenter', handleDragEnter);
+      window.addEventListener('dragleave', handleDragLeave);
+      window.addEventListener('dragover', handleDragOver);
+      window.addEventListener('drop', handleDrop);
+
+      return () => {
+          window.removeEventListener('dragenter', handleDragEnter);
+          window.removeEventListener('dragleave', handleDragLeave);
+          window.removeEventListener('dragover', handleDragOver);
+          window.removeEventListener('drop', handleDrop);
+      };
+  }, [dir, isAuthenticated]);
+
   const handleDelete = async (relPath) => {
     try {
       await api.delete(`/images/${encodeURIComponent(relPath)}`);
@@ -327,6 +466,63 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
 
   return (
     <div style={{ padding: isMobile ? "12px" : "24px", minHeight: "100vh" }}>
+      {/* Drag & Drop Overlay */}
+      {isDragging && (
+          <div
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 9999,
+                background: 'rgba(22, 119, 255, 0.15)',
+                backdropFilter: 'blur(4px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: `4px dashed ${colorPrimary}`,
+                pointerEvents: 'none', // Allow drops to pass through to window listener
+            }}
+          >
+              <div style={{ 
+                  background: colorBgContainer, 
+                  padding: '40px 60px', 
+                  borderRadius: 24, 
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                  textAlign: 'center' 
+              }}>
+                  <CloudUploadOutlined style={{ fontSize: 64, color: colorPrimary, marginBottom: 16 }} />
+                  <Title level={3} style={{ margin: 0 }}>释放以上传图片</Title>
+                  <Text type="secondary">支持多图上传</Text>
+              </div>
+          </div>
+      )}
+      
+      {/* Uploading Spinner Overlay */}
+      {uploading && (
+          <div
+             style={{
+                 position: 'fixed',
+                 top: 0,
+                 left: 0,
+                 right: 0,
+                 bottom: 0,
+                 zIndex: 10000,
+                 background: 'rgba(0,0,0,0.5)',
+                 display: 'flex',
+                 alignItems: 'center',
+                 justifyContent: 'center',
+                 flexDirection: 'column',
+                 gap: 16,
+                 color: '#fff'
+             }}
+          >
+              <Spin size="large" />
+              <Text style={{ color: '#fff', fontSize: 16 }}>正在上传图片...</Text>
+          </div>
+      )}
+
       {/* Floating Capsule Header */}
       <div
         style={{
@@ -399,7 +595,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
           />
           <div style={{ width: 200, transition: "width 0.3s ease" }}>
             <Input
-              placeholder="搜索图片..."
+              placeholder="拖拽图片到页面即可上传..."
               prefix={<SearchOutlined style={{ color: capsuleStyle.iconColor }} />}
               bordered={false}
               value={searchText}
