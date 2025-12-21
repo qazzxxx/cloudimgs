@@ -43,7 +43,7 @@ import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Search } = Input;
 
-const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
+const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigger }) => {
   const {
     token: { colorBgContainer, colorBorder, colorPrimary, colorTextSecondary, colorText },
   } = theme.useToken();
@@ -244,7 +244,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
         clearTimeout(searchTimerRef.current);
       }
     };
-  }, [dir, pageSize, searchText, isAuthenticated]); // Add isAuthenticated dependency
+  }, [dir, pageSize, searchText, isAuthenticated, refreshTrigger]);
 
   // 当搜索文本变化时重置到第一页
   useEffect(() => {
@@ -381,7 +381,6 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
             // Refresh list
             setCurrentPage(1);
             fetchImages(dir, 1, pageSize, searchText, false);
-            if (onRefresh) onRefresh();
         } else {
              message.error(res.data?.error || "上传失败");
         }

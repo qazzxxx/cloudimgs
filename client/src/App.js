@@ -143,7 +143,7 @@ function App() {
              <ImageGallery 
                 api={api} 
                 onRefresh={handleRefresh}
-                key={refreshTrigger} // Force re-render/fetch on refresh
+                refreshTrigger={refreshTrigger}
                 isAuthenticated={!passwordRequired || isAuthenticated}
              />
 
