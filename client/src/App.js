@@ -5,6 +5,7 @@ import ImageGallery from "./components/ImageGallery";
 import PasswordOverlay from "./components/PasswordOverlay";
 import LogoWithText from "./components/LogoWithText";
 import api from "./utils/api";
+import ApiDocs from "./components/ApiDocs";
 import { getPassword, clearPassword } from "./utils/secureStorage";
 
 function App() {
@@ -13,6 +14,9 @@ function App() {
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Simple router check
+  const isApiDocs = window.location.pathname === "/api/docs";
   
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
@@ -116,7 +120,9 @@ function App() {
 
       {/* Main Content */}
       <div style={{ position: "relative", minHeight: "100vh" }}>
-        {authLoading ? (
+        {isApiDocs ? (
+            <ApiDocs />
+        ) : authLoading ? (
            <div style={{ 
                display: "flex", 
                justifyContent: "center", 

@@ -14,6 +14,7 @@ import {
   Spin,
   Grid,
   theme,
+  Popover,
 } from "antd";
 import {
   DeleteOutlined,
@@ -23,6 +24,8 @@ import {
   SearchOutlined,
   ReloadOutlined,
   FolderOutlined,
+  MenuOutlined,
+  ApiOutlined,
 } from "@ant-design/icons";
 import DirectorySelector from "./DirectorySelector";
 import dayjs from "dayjs";
@@ -355,6 +358,26 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
             transition: "all 0.3s ease",
           }}
         >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              paddingRight: 2,
+              paddingLeft: 4,
+            }}
+          >
+             <img 
+                src="/favicon.svg" 
+                alt="云图" 
+                style={{ 
+                    width: 24, 
+                    height: 24, 
+                    objectFit: "contain",
+                    filter: isDarkMode ? "brightness(1.2)" : "none" // Slight adjust for dark mode if needed
+                }} 
+             />
+          </div>
           <div style={{ width: 180, transition: "width 0.3s ease" }}>
             <DirectorySelector
               value={dir}
@@ -384,6 +407,54 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
               style={{ background: "transparent", color: colorText }}
             />
           </div>
+          <div
+            style={{
+              width: 1,
+              height: 20,
+              background: capsuleStyle.dividerColor,
+            }}
+          />
+          <Popover
+            content={
+              <div style={{ width: 160, padding: 4 }}>
+                  <Button
+                    type="text"
+                    icon={<ApiOutlined />}
+                    onClick={() => window.open("/api/docs", "_blank")}
+                    style={{ 
+                        width: "100%", 
+                        textAlign: "left", 
+                        display: "flex", 
+                        alignItems: "center",
+                        height: 40,
+                        fontSize: 14
+                    }}
+                  >
+                    开放接口
+                  </Button>
+                  {/* Future menu items can be added here */}
+              </div>
+            }
+            trigger="hover"
+            placement="bottomLeft"
+            arrow={false}
+            overlayInnerStyle={{ padding: 0, borderRadius: 12, overflow: "hidden" }}
+          >
+            <div
+              style={{
+                padding: "0 12px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                height: "100%",
+                transition: "opacity 0.2s",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = 0.7}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
+            >
+              <MenuOutlined style={{ color: capsuleStyle.iconColor, fontSize: 18 }} />
+            </div>
+          </Popover>
         </div>
       </div>
 
@@ -575,6 +646,9 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                             onConfirm={(e) => {
                               e.stopPropagation();
                               handleDelete(image.relPath);
+                            }}
+                            onCancel={(e) => {
+                                e?.stopPropagation();
                             }}
                             okText="是"
                             cancelText="否"
