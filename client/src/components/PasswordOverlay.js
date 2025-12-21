@@ -110,7 +110,7 @@ const PasswordOverlay = ({ onLoginSuccess, isMobile }) => {
         </div>
         
         <Title level={3} style={{ color: "#fff", marginBottom: 8, marginTop: 0 }}>
-          云图-您专属的私有云图库
+          云图-极简风格的云图库
         </Title>
         <Text
           style={{

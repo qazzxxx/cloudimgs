@@ -1,10 +1,10 @@
-## 云图 - 简单、方便的无数据库图床项目，支持 NAS 部署，支持各种灵活的API开放接口，PicGo插件直接安装使用
+## 云图 - 极简风格的云图库，支持 NAS 部署，支持各种灵活的API开放接口，PicGo插件直接安装使用
 
 [![云图 GitHub's stars](https://img.shields.io/github/stars/qazzxxx/cloudimgs?style=social)](https://github.com/qazzxxx/cloudimgs/stargazers)
 [![云图 GitHub's forks](https://img.shields.io/github/forks/qazzxxx/cloudimgs?style=social)](https://github.com/qazzxxx/cloudimgs/network/members)
 [![Release](https://img.shields.io/github/v/release/qazzxxx/cloudimgs)](https://github.com/qazzxxx/cloudimgs/releases)
 
-> 项目的开始是用 **N8N处理相关流程** 时有很多图片处理的需求，找了很多开源项目有的比较老无人维护，有的需要购买PRO版本才能有更多的功能。以上种种原因吧，再加上自己也有NAS，所以写了一个比较自由开放的图床项目。Ta是一个简单、方便的无数据库图床项目，一键 NAS 部署，支持设置密钥，支持各种灵活的API开放接口
+> 项目的开始是用 **N8N处理相关流程** 时有很多图片处理的需求，找了很多开源项目有的比较老无人维护，有的需要购买PRO版本才能有更多的功能。以上种种原因吧，再加上自己也有NAS，所以写了一个比较自由开放的图床项目。
 
 ## 🚀 功能特点
 
@@ -19,7 +19,7 @@
 - [x] 支持压缩图片大小
 - [x] 支持URL参数实时处理图片 （如：image.jpg?w=500&h=300&q=80&fmt=webp 自动将原图转换为WebP 、宽500px，高300px，图片质量压缩到80% 返回）
 - [x] 支持PicGo插件直接安装使用[PicGo插件](https://github.com/qazzxxx/picgo-plugin-cloudimgs-uploader)
-- [x] 支持上传其他文件格式
+- [x] 支持上传其他文件格式，全局上传
 - [x] 在线管理图片，瀑布流展示
 - [x] 支持设置密钥，保护图片安全
 - [x] 支持多级子目录管理
