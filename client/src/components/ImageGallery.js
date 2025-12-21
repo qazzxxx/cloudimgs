@@ -632,7 +632,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
               onChange={setDir}
               placeholder="所有目录"
               style={{ width: "100%" }}
-              allowInput={false}
+              allowInput={true}
               api={api}
               bordered={false}
               size="middle"

@@ -55,9 +55,6 @@ const DirectorySelector = ({
   const handleInputChange = (e) => {
     const inputVal = e.target.value;
     setInputValue(inputVal);
-    if (onChange) {
-      onChange(inputVal);
-    }
   };
 
   const handleInputKeyPress = (e) => {
