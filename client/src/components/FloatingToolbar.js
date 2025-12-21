@@ -92,6 +92,35 @@ const FloatingToolbar = ({
             className="toolbar-btn"
           />
         </Tooltip>
+
+        {isMobile && (
+          <>
+            <div style={{ width: 1, height: 16, background: isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)" }} />
+
+            <Tooltip title="上传图片" placement="top">
+              <Button
+                shape="circle"
+                type="primary"
+                icon={<CloudUploadOutlined />}
+                onClick={() => setUploadVisible(true)}
+                size="middle"
+                className="upload-btn"
+                style={{
+                    width: 32,
+                    height: 32,
+                    minWidth: 32,
+                    fontSize: 16,
+                    color: '#fff',
+                    border: 'none',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                }}
+              />
+            </Tooltip>
+          </>
+        )}
       </div>
 
       <style>{`
@@ -117,16 +146,53 @@ const FloatingToolbar = ({
         title={null}
         footer={null}
         onCancel={() => setUploadVisible(false)}
-        width={800}
-        style={{ top: 40 }}
+        width={isMobile ? "90%" : 600}
+        centered
+        modalRender={(modal) => (
+            <div style={{ 
+                background: isDarkMode ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.7)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                borderRadius: 24,
+                boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+                border: `1px solid ${isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.4)"}`,
+                padding: 0,
+                overflow: 'hidden'
+            }}>
+                {modal}
+            </div>
+        )}
         styles={{
+            content: {
+                background: 'transparent',
+                boxShadow: 'none',
+                padding: 0,
+            },
             body: {
-                padding: '24px',
+                padding: 0,
             }
         }}
         destroyOnClose
+        closeIcon={null}
       >
-        <UploadComponent onUploadSuccess={handleUploadSuccess} api={api} />
+        <div style={{ position: 'relative' }}>
+             {/* Custom close button since we removed the default one */}
+             <Button 
+                type="text" 
+                shape="circle" 
+                onClick={() => setUploadVisible(false)}
+                style={{ 
+                    position: 'absolute', 
+                    right: 12, 
+                    top: 12, 
+                    zIndex: 10,
+                    color: isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' 
+                }}
+             >
+                 ✕
+             </Button>
+            <UploadComponent onUploadSuccess={handleUploadSuccess} api={api} isModal={true} />
+        </div>
       </Modal>
     </>
   );

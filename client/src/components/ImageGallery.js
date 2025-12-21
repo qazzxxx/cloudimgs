@@ -729,144 +729,145 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                     </div>
 
                     {/* Advanced Hover Overlay */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background:
-                          "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0) 100%)",
-                        opacity:
-                          hoverKey === (image.relPath || image.url || image.filename) ||
-                          isMobile
-                            ? 1
-                            : 0,
-                        transition: "opacity 0.3s ease",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "flex-end",
-                        padding: "20px",
-                        pointerEvents: "none", // Let clicks pass through to container
-                      }}
-                    >
+                    {!isMobile && (
                       <div
                         style={{
-                          transform:
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background:
+                            "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0) 100%)",
+                          opacity:
                             hoverKey === (image.relPath || image.url || image.filename)
-                              ? "translateY(0)"
-                              : "translateY(10px)",
-                          transition: "transform 0.3s ease",
-                          pointerEvents: "auto", // Re-enable for buttons
+                              ? 1
+                              : 0,
+                          transition: "opacity 0.3s ease",
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "flex-end",
+                          padding: "20px",
+                          pointerEvents: "none", // Let clicks pass through to container
                         }}
                       >
-                        {/* Title / Filename */}
                         <div
                           style={{
-                            color: "#fff",
-                            fontSize: "18px",
-                            fontWeight: 700,
-                            marginBottom: "4px",
-                            lineHeight: 1.2,
-                            textShadow: "0 2px 4px rgba(0,0,0,0.3)",
-                            wordBreak: "break-all",
+                            transform:
+                              hoverKey === (image.relPath || image.url || image.filename)
+                                ? "translateY(0)"
+                                : "translateY(10px)",
+                            transition: "transform 0.3s ease",
+                            pointerEvents: "auto", // Re-enable for buttons
                           }}
                         >
-                          {image.filename.replace(/\.[^/.]+$/, "")}
-                        </div>
-
-                        {/* Metadata Row */}
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            color: "rgba(255,255,255,0.8)",
-                            fontSize: "12px",
-                            marginBottom: "12px",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <span>
-                            {dayjs(image.uploadTime).format("YYYY-MM-DD")}
-                          </span>
-                          <span>·</span>
-                          <span>{formatFileSize(image.size)}</span>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div style={{ display: "flex", gap: "8px" }}>
-                          <Button
-                            size="small"
-                            type="text"
-                            icon={<DownloadOutlined />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownload(image);
-                            }}
+                          {/* Title / Filename */}
+                          <div
                             style={{
                               color: "#fff",
-                              background: "rgba(255,255,255,0.2)",
-                              backdropFilter: "blur(4px)",
-                              border: "1px solid rgba(255,255,255,0.1)",
-                              borderRadius: "4px",
-                              fontSize: "12px",
+                              fontSize: "18px",
+                              fontWeight: 700,
+                              marginBottom: "4px",
+                              lineHeight: 1.2,
+                              textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                              wordBreak: "break-all",
                             }}
                           >
-                            下载
-                          </Button>
-                          <Button
-                            size="small"
-                            type="text"
-                            icon={<CopyOutlined />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(
-                                `${window.location.origin}${image.url}`
-                              );
-                            }}
+                            {image.filename.replace(/\.[^/.]+$/, "")}
+                          </div>
+
+                          {/* Metadata Row */}
+                          <div
                             style={{
-                              color: "#fff",
-                              background: "rgba(255,255,255,0.2)",
-                              backdropFilter: "blur(4px)",
-                              border: "1px solid rgba(255,255,255,0.1)",
-                              borderRadius: "4px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              color: "rgba(255,255,255,0.8)",
                               fontSize: "12px",
+                              marginBottom: "12px",
+                              flexWrap: "wrap",
                             }}
                           >
-                            链接
-                          </Button>
-                          <Popconfirm
-                            title="确定删除?"
-                            onConfirm={(e) => {
-                              e.stopPropagation();
-                              handleDelete(image.relPath);
-                            }}
-                            onCancel={(e) => {
-                                e?.stopPropagation();
-                            }}
-                            okText="是"
-                            cancelText="否"
-                          >
+                            <span>
+                              {dayjs(image.uploadTime).format("YYYY-MM-DD")}
+                            </span>
+                            <span>·</span>
+                            <span>{formatFileSize(image.size)}</span>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div style={{ display: "flex", gap: "8px" }}>
                             <Button
                               size="small"
                               type="text"
-                              danger
-                              icon={<DeleteOutlined />}
-                              onClick={(e) => e.stopPropagation()}
+                              icon={<DownloadOutlined />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload(image);
+                              }}
                               style={{
-                                background: "rgba(0,0,0,0.4)",
+                                color: "#fff",
+                                background: "rgba(255,255,255,0.2)",
                                 backdropFilter: "blur(4px)",
                                 border: "1px solid rgba(255,255,255,0.1)",
                                 borderRadius: "4px",
                                 fontSize: "12px",
                               }}
-                            />
-                          </Popconfirm>
+                            >
+                              下载
+                            </Button>
+                            <Button
+                              size="small"
+                              type="text"
+                              icon={<CopyOutlined />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(
+                                  `${window.location.origin}${image.url}`
+                                );
+                              }}
+                              style={{
+                                color: "#fff",
+                                background: "rgba(255,255,255,0.2)",
+                                backdropFilter: "blur(4px)",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: "4px",
+                                fontSize: "12px",
+                              }}
+                            >
+                              链接
+                            </Button>
+                            <Popconfirm
+                              title="确定删除?"
+                              onConfirm={(e) => {
+                                e.stopPropagation();
+                                handleDelete(image.relPath);
+                              }}
+                              onCancel={(e) => {
+                                  e?.stopPropagation();
+                              }}
+                              okText="是"
+                              cancelText="否"
+                            >
+                              <Button
+                                size="small"
+                                type="text"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  background: "rgba(0,0,0,0.4)",
+                                  backdropFilter: "blur(4px)",
+                                  border: "1px solid rgba(255,255,255,0.1)",
+                                  borderRadius: "4px",
+                                  fontSize: "12px",
+                                }}
+                              />
+                            </Popconfirm>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               />

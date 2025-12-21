@@ -27,13 +27,14 @@ function sanitizeDir(input) {
   return dir;
 }
 
-const UploadComponent = ({ onUploadSuccess, api }) => {
+const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
   const {
     token: { colorBgContainer, colorBorder },
   } = theme.useToken();
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+  const isDarkMode = theme.useToken().theme?.id === 1 || colorBgContainer === "#141414" || colorBgContainer === "#000000" || colorBgContainer === "#1f1f1f";
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -256,8 +257,18 @@ const UploadComponent = ({ onUploadSuccess, api }) => {
   };
 
   return (
-    <div>
-      <Title level={isMobile ? 3 : 2}>上传图片</Title>
+    <div style={{ padding: isModal ? '24px' : 0 }}>
+      <Title 
+        level={isMobile ? 4 : 3} 
+        style={{ 
+            marginTop: 0, 
+            marginBottom: 16, 
+            textAlign: isModal ? 'center' : 'left',
+            color: isModal && !isDarkMode ? 'rgba(0,0,0,0.85)' : isModal ? '#fff' : undefined 
+        }}
+      >
+          上传图片
+      </Title>
 
       <Space
         direction="vertical"
@@ -267,43 +278,47 @@ const UploadComponent = ({ onUploadSuccess, api }) => {
         <DirectorySelector
           value={dir}
           onChange={setDir}
-          placeholder="选择或输入子目录（如 2024/06/10 或 相册/家庭，可留空）"
+          placeholder="选择或输入子目录（可选）"
           api={api}
+          style={{ 
+              background: isModal ? (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : undefined,
+              color: isModal && !isDarkMode ? 'rgba(0,0,0,0.85)' : undefined
+          }}
         />
       </Space>
 
-      <Card style={{ marginBottom: isMobile ? 16 : 24 }}>
-        <Dragger {...uploadProps} disabled={uploading}>
+      <Card 
+        style={{ 
+            marginBottom: isMobile ? 16 : 24, 
+            background: isModal ? (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.4)') : undefined,
+            border: isModal ? (isDarkMode ? '1px dashed rgba(255,255,255,0.2)' : '1px dashed rgba(0,0,0,0.2)') : undefined
+        }}
+        bordered={!isModal}
+        styles={{ body: { padding: isModal ? '16px' : '24px' } }}
+      >
+        <Dragger {...uploadProps} disabled={uploading} style={{ background: 'transparent', border: 'none' }}>
           <p className="ant-upload-drag-icon">
-            <InboxOutlined />
+            <InboxOutlined style={{ color: isModal ? (isDarkMode ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)') : undefined }} />
           </p>
-          <p className="ant-upload-text">点击或拖拽图片到此区域上传</p>
-          <p className="ant-upload-hint">
-            支持单个或批量上传，严禁上传非图片文件
-          </p>
-          <p
-            className="ant-upload-hint"
-            style={{ color: "#1890ff", fontSize: "12px" }}
-          >
-            支持 Ctrl+V 粘贴图片上传
+          <p className="ant-upload-text" style={{ color: isModal ? (isDarkMode ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.85)') : undefined, fontSize: 14 }}>
+              点击或拖拽图片到此区域
           </p>
           <p
             style={{
               fontSize: isMobile ? "11px" : "12px",
-              color: "#999",
+              color: isModal ? (isDarkMode ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)") : "#999",
               marginTop: "8px",
               marginBottom: "0",
             }}
           >
-            支持 {config.allowedFormats} 格式，单个文件最大{" "}
-            {config.maxFileSizeMB}MB
+            支持 {config.allowedFormats} 格式，最大 {config.maxFileSizeMB}MB
           </p>
         </Dragger>
 
         {uploading && (
           <div style={{ marginTop: 16 }}>
-            <Progress percent={uploadProgress} status="active" />
-            <Text type="secondary">正在上传...</Text>
+            <Progress percent={uploadProgress} status="active" strokeColor={isModal ? (isDarkMode ? '#fff' : '#1677ff') : undefined} />
+            <Text type="secondary" style={{ color: isModal ? (isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)') : undefined }}>正在上传...</Text>
           </div>
         )}
       </Card>
