@@ -369,8 +369,10 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
       if (onDelete) {
         onDelete(relPath);
       }
+      return true; // Indicate success for callers
     } catch (error) {
       message.error("删除失败");
+      return false;
     }
   };
 
@@ -1276,7 +1278,13 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated }) => {
                   </Button>
                   <Popconfirm
                     title="确定要删除这张图片吗？"
-                    onConfirm={() => handleDelete(previewFile.relPath)}
+                    onConfirm={async () => {
+                        const success = await handleDelete(previewFile.relPath);
+                        if (success) {
+                            setPreviewVisible(false);
+                            setIsEditingName(false);
+                        }
+                    }}
                     okText="确定"
                     cancelText="取消"
                   >
