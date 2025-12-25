@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Modal, Tooltip, theme, Button } from "antd";
+import { Modal, Tooltip, theme, Button, FloatButton } from "antd";
 import {
   CloudUploadOutlined,
   ReloadOutlined,
   SunOutlined,
   MoonOutlined,
+  ArrowUpOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./UploadComponent";
 
@@ -139,7 +140,30 @@ const FloatingToolbar = ({
           filter: brightness(1.1);
           transform: scale(1.05);
         }
+
+        /* Custom style for BackTop to match glassmorphism */
+        .ant-float-btn-default {
+           background-color: ${isDarkMode ? "rgba(0, 0, 0, 0.6)" : "rgba(255, 255, 255, 0.6)"} !important;
+           backdrop-filter: blur(20px);
+           -webkit-backdrop-filter: blur(20px);
+           border: 1px solid ${isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.4)"};
+           box-shadow: ${isDarkMode ? "0 8px 32px rgba(0, 0, 0, 0.4)" : "0 8px 32px rgba(0, 0, 0, 0.1)"} !important;
+        }
+        .ant-float-btn-default .ant-float-btn-icon {
+           color: ${isDarkMode ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.85)"} !important;
+        }
+        .ant-float-btn-default:hover {
+           background-color: ${isDarkMode ? "rgba(0, 0, 0, 0.7)" : "rgba(255, 255, 255, 0.8)"} !important;
+        }
       `}</style>
+
+      <FloatButton.BackTop 
+        style={{ 
+            right: 24, 
+            bottom: 80, // Positioned above the toolbar (approx 24 + 44 + 12 gap)
+            zIndex: 999 
+        }}
+      />
 
       <Modal
         open={uploadVisible}
