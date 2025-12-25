@@ -11,7 +11,7 @@ const sharp = require("sharp");
 const mime = require("mime-types");
 const mm = require("music-metadata");
 const exifr = require("exifr");
-const { rgbaToThumbHash } = require("thumbhash");
+// const { rgbaToThumbHash } = require("thumbhash"); // Replaced with dynamic import
 
 const app = express();
 const PORT = config.server.port;
@@ -240,6 +240,7 @@ async function getThumbHash(filePath) {
 
   // 2. 生成新的 ThumbHash
   try {
+    const { rgbaToThumbHash } = await import("thumbhash");
     const image = sharp(filePath).resize(100, 100, { fit: 'inside' });
     const { data, info } = await image
       .ensureAlpha()
