@@ -146,6 +146,7 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, formatFileSize
                                 ? 1
                                 : 0,
                         transition: "opacity 0.3s ease",
+                        zIndex: 10,
                         display: "flex",
                         flexDirection: "column",
                         justifyContent: "flex-end",
@@ -195,6 +196,14 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, formatFileSize
                             </span>
                             <span>·</span>
                             <span>{formatFileSize(image.size)}</span>
+                            {hoverLocation && (
+                                <>
+                                    <span>·</span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <EnvironmentOutlined /> {hoverLocation}
+                                    </span>
+                                </>
+                            )}
                         </div>
 
                         {/* Action Buttons */}
