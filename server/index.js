@@ -1140,16 +1140,16 @@ app.post(
       .png()
       .toBuffer();
 
-      // 生成处理后的文件名
-      const ext = path.extname(req.file.originalname);
-      const nameWithoutExt = path.basename(req.file.originalname, ext);
-      let processedFilename = `${nameWithoutExt}_processed_${width}x${height}.png`;
-      
       // 处理中文文件名
       let originalName = req.file.originalname;
       try {
         originalName = Buffer.from(originalName, "latin1").toString("utf8");
       } catch (e) {}
+
+      // 生成处理后的文件名
+      const ext = path.extname(originalName);
+      const nameWithoutExt = path.basename(originalName, ext);
+      let processedFilename = `${nameWithoutExt}_processed_${width}x${height}.png`;
       
       processedFilename = sanitizeFilename(processedFilename);
       
