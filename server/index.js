@@ -11,7 +11,6 @@ const sharp = require("sharp");
 const mime = require("mime-types");
 const mm = require("music-metadata");
 const exifr = require("exifr");
-// const { rgbaToThumbHash } = require("thumbhash"); // Replaced with dynamic import
 
 const app = express();
 const PORT = config.server.port;
@@ -224,91 +223,32 @@ const uploadAny = multer({
   },
 });
 
-// 获取或生成 ThumbHash
-async function getThumbHash(filePath) {
-  const hashPath = `${filePath}.th`;
-  
-  // 1. 尝试读取缓存
-  if (await fs.pathExists(hashPath)) {
-    try {
-      const hash = await fs.readFile(hashPath, 'utf8');
-      if (hash) return hash;
-    } catch (e) {
-      // ignore error, regenerate
-    }
-  }
-
-  // 2. 生成新的 ThumbHash
-  try {
-    const { rgbaToThumbHash } = await import("thumbhash");
-    const image = sharp(filePath).resize(100, 100, { fit: 'inside' });
-    const { data, info } = await image
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-
-    const binaryHash = rgbaToThumbHash(info.width, info.height, data);
-    const base64Hash = Buffer.from(binaryHash).toString('base64');
-
-    // 3. 写入缓存
-    await fs.writeFile(hashPath, base64Hash);
-    
-    return base64Hash;
-  } catch (e) {
-    console.warn(`Failed to generate thumbhash for ${filePath}:`, e);
-    return null;
-  }
-}
-
 // 递归获取图片文件
 async function getAllImages(dir = "") {
   const absDir = safeJoin(STORAGE_PATH, dir);
   let results = [];
-  try {
-    const files = await fs.readdir(absDir);
-    
-    // 并行处理当前目录下的文件
-    const filePromises = files.map(async (file) => {
-      const filePath = path.join(absDir, file);
-      const relPath = path.join(dir, file);
-      try {
-        const stats = await fs.stat(filePath);
-        if (stats.isDirectory()) {
-          // 递归处理子目录
-          const subResults = await getAllImages(relPath);
-          return subResults;
-        } else {
-          const ext = path.extname(file).toLowerCase();
-          if (config.upload.allowedExtensions.includes(ext)) {
-            // 确保文件名编码正确
-            const safeFilename = sanitizeFilename(file);
-            
-            // 获取 ThumbHash
-            const thumbhash = await getThumbHash(filePath);
-
-            return [{
-              filename: safeFilename,
-              relPath: relPath.replace(/\\/g, "/"),
-              size: stats.size,
-              uploadTime: stats.mtime.toISOString(),
-              url: `/api/images/${relPath.replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/")}`,
-              thumbhash,
-            }];
-          }
-        }
-      } catch (e) {
-        console.warn(`Error processing file ${file}:`, e);
+  const files = await fs.readdir(absDir);
+  for (const file of files) {
+    const filePath = path.join(absDir, file);
+    const relPath = path.join(dir, file);
+    const stats = await fs.stat(filePath);
+    if (stats.isDirectory()) {
+      results = results.concat(await getAllImages(relPath));
+    } else {
+      const ext = path.extname(file).toLowerCase();
+      if (config.upload.allowedExtensions.includes(ext)) {
+        // 确保文件名编码正确
+        const safeFilename = sanitizeFilename(file);
+        results.push({
+          filename: safeFilename,
+          relPath: relPath.replace(/\\/g, "/"),
+          size: stats.size,
+          uploadTime: stats.mtime.toISOString(),
+          url: `/api/images/${relPath.replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/")}`,
+        });
       }
-      return [];
-    });
-
-    const nestedResults = await Promise.all(filePromises);
-    results = nestedResults.flat();
-    
-  } catch (e) {
-    console.warn(`Error reading directory ${absDir}:`, e);
+    }
   }
-  
   return results;
 }
 
