@@ -162,10 +162,13 @@ const storage = multer.diskStorage({
     let originalName = file.originalname;
 
     // 关键：latin1转utf8，彻底解决中文乱码
-    try {
-      originalName = Buffer.from(originalName, "latin1").toString("utf8");
-    } catch (e) {
-      // ignore
+    // 修复：如果包含非 Latin1 字符 (> 255)，说明已经是 UTF-8，不需要转换
+    if (!/[^\u0000-\u00ff]/.test(originalName)) {
+      try {
+        originalName = Buffer.from(originalName, "latin1").toString("utf8");
+      } catch (e) {
+        // ignore
+      }
     }
 
     const sanitizedName = sanitizeFilename(originalName);
@@ -467,9 +470,12 @@ app.post(
 
       // 这里要对 originalName 做转码
       let originalName = req.file.originalname;
-      try {
-        originalName = Buffer.from(originalName, "latin1").toString("utf8");
-      } catch (e) {}
+      // 修复：如果包含非 Latin1 字符 (> 255)，说明已经是 UTF-8，不需要转换
+      if (!/[^\u0000-\u00ff]/.test(originalName)) {
+        try {
+          originalName = Buffer.from(originalName, "latin1").toString("utf8");
+        } catch (e) {}
+      }
 
       const safeFilename = sanitizeFilename(req.file.filename);
 
@@ -599,9 +605,12 @@ app.post(
         
         // 这里要对 originalName 做转码
         let originalName = req.file.originalname;
-        try {
-          originalName = Buffer.from(originalName, "latin1").toString("utf8");
-        } catch (e) {}
+        // 修复：如果包含非 Latin1 字符 (> 255)，说明已经是 UTF-8，不需要转换
+        if (!/[^\u0000-\u00ff]/.test(originalName)) {
+          try {
+            originalName = Buffer.from(originalName, "latin1").toString("utf8");
+          } catch (e) {}
+        }
         displayName = originalName;
         
         // 如果指定了目录，则移动文件到该目录
@@ -1250,9 +1259,12 @@ app.post(
 
       // 处理中文文件名
       let originalName = req.file.originalname;
-      try {
-        originalName = Buffer.from(originalName, "latin1").toString("utf8");
-      } catch (e) {}
+      // 修复：如果包含非 Latin1 字符 (> 255)，说明已经是 UTF-8，不需要转换
+      if (!/[^\u0000-\u00ff]/.test(originalName)) {
+        try {
+          originalName = Buffer.from(originalName, "latin1").toString("utf8");
+        } catch (e) {}
+      }
 
       // 生成处理后的文件名
       const ext = path.extname(originalName);
