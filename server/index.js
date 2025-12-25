@@ -1057,6 +1057,7 @@ async function getDirectories(dir = "") {
   try {
     const files = await fs.readdir(absDir);
     for (const file of files) {
+      if (file === CACHE_DIR_NAME) continue;
       const filePath = path.join(absDir, file);
       const stats = await fs.stat(filePath);
       if (stats.isDirectory()) {
@@ -1100,6 +1101,7 @@ async function getStats(dir = "") {
   let storagePath = absDir;
   const files = await fs.readdir(absDir);
   for (const file of files) {
+    if (file === CACHE_DIR_NAME) continue;
     const filePath = path.join(absDir, file);
     const stats = await fs.stat(filePath);
     if (stats.isDirectory()) {
