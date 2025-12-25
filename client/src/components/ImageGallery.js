@@ -83,13 +83,32 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, formatFileSize
                 style={{
                     overflow: "hidden",
                     position: "relative",
-                    ...(image.thumbhash ? {
-                        backgroundImage: `url(${getThumbHashUrl(image.thumbhash)})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    } : {}),
+                    // Use a simple div for background placeholder
+                    background: "#f0f0f0", 
                 }}
             >
+                {/* ThumbHash Placeholder Layer */}
+                {image.thumbhash && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${getThumbHashUrl(image.thumbhash)})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            filter: 'blur(5px)', // Optional: slight blur to smooth out artifacts
+                            transform: 'scale(1.1)', // Prevent blur edges
+                            opacity: loaded ? 0 : 1,
+                            transition: "opacity 0.5s ease-out",
+                            zIndex: 1,
+                        }}
+                    />
+                )}
+
+                {/* Real Image Layer */}
                 <img
                     alt={image.filename}
                     src={image.url}
@@ -98,13 +117,15 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, formatFileSize
                     style={{
                         width: "100%",
                         display: "block",
-                        transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease",
+                        transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease-in",
                         transform:
                             hoverKey ===
                             (image.relPath || image.url || image.filename)
                                 ? "scale(1.05)"
                                 : "scale(1)",
-                        opacity: image.thumbhash && !loaded ? 0 : 1,
+                        opacity: loaded ? 1 : 0, // Fade in when loaded
+                        position: "relative",
+                        zIndex: 2,
                     }}
                 />
             </div>
