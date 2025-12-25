@@ -39,9 +39,82 @@ import {
 } from "@ant-design/icons";
 import DirectorySelector from "./DirectorySelector";
 import dayjs from "dayjs";
+import { thumbHashToDataURL } from "thumbhash";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
+
+// Helper to decode base64
+function base64ToUint8Array(base64) {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+const ImageWithPlaceholder = ({ image, hoverKey, style }) => {
+  const [loaded, setLoaded] = useState(false);
+  
+  const placeholder = useMemo(() => {
+    if (!image.thumbhash) return null;
+    try {
+      return thumbHashToDataURL(base64ToUint8Array(image.thumbhash));
+    } catch (e) {
+      return null;
+    }
+  }, [image.thumbhash]);
+
+  const imgStyle = {
+    width: "100%",
+    display: "block",
+    transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease",
+    transform:
+      hoverKey === (image.relPath || image.url || image.filename)
+        ? "scale(1.05)"
+        : "scale(1)",
+    ...style
+  };
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {placeholder && (
+        <img
+          alt=""
+          src={placeholder}
+          style={{
+            ...imgStyle,
+            // When not loaded, relative to set height. When loaded, absolute to fade out.
+            position: loaded ? "absolute" : "relative",
+            top: 0,
+            left: 0,
+            filter: "blur(20px)",
+            transform: "scale(1.1)", 
+            opacity: loaded ? 0 : 1,
+            zIndex: 1,
+            transition: "opacity 0.5s ease"
+          }}
+        />
+      )}
+      <img
+        alt={image.filename}
+        src={image.url}
+        onLoad={() => setLoaded(true)}
+        style={{
+          ...imgStyle,
+          // When loaded, relative to set height. When not loaded, absolute (hidden or overlaying)
+          position: loaded ? "relative" : "absolute",
+          top: 0,
+          left: 0,
+          opacity: loaded ? 1 : 0,
+          zIndex: 2,
+        }}
+      />
+    </div>
+  );
+};
 
 const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigger }) => {
   const {
@@ -870,19 +943,9 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                         position: "relative",
                       }}
                     >
-                      <img
-                        alt={image.filename}
-                        src={image.url}
-                        style={{
-                          width: "100%",
-                          display: "block",
-                          transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-                          transform:
-                            hoverKey ===
-                            (image.relPath || image.url || image.filename)
-                              ? "scale(1.05)"
-                              : "scale(1)",
-                        }}
+                      <ImageWithPlaceholder 
+                        image={image} 
+                        hoverKey={hoverKey}
                       />
                     </div>
 
