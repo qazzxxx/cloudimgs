@@ -12,6 +12,8 @@ const mime = require("mime-types");
 const mm = require("music-metadata");
 const exifr = require("exifr");
 
+const CACHE_DIR_NAME = ".cache";
+
 const app = express();
 const PORT = config.server.port;
 
@@ -223,12 +225,90 @@ const uploadAny = multer({
   },
 });
 
+// ThumbHash Helpers
+async function generateThumbHash(filePath) {
+  try {
+    const dir = path.dirname(filePath);
+    const filename = path.basename(filePath);
+    const cacheDir = path.join(dir, CACHE_DIR_NAME);
+    const cacheFile = path.join(cacheDir, `${filename}.th`);
+
+    // Ensure cache dir exists
+    await fs.ensureDir(cacheDir);
+
+    // Resize to 100x100 max, get raw RGBA
+    const image = sharp(filePath).resize(100, 100, { fit: 'inside' });
+    const { data, info } = await image
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    
+    // Dynamic import for ESM module
+    const { rgbaToThumbHash } = await import("thumbhash");
+    const binaryHash = rgbaToThumbHash(info.width, info.height, data);
+    await fs.writeFile(cacheFile, Buffer.from(binaryHash));
+    return Buffer.from(binaryHash).toString('base64');
+  } catch (err) {
+    console.error(`Failed to generate thumbhash for ${filePath}:`, err);
+    return null;
+  }
+}
+
+async function getThumbHash(filePath) {
+   try {
+    const dir = path.dirname(filePath);
+    const filename = path.basename(filePath);
+    const cacheFile = path.join(dir, CACHE_DIR_NAME, `${filename}.th`);
+    
+    if (await fs.pathExists(cacheFile)) {
+      const buffer = await fs.readFile(cacheFile);
+      return buffer.toString('base64');
+    }
+    return null;
+   } catch (err) {
+     return null;
+   }
+}
+
+async function deleteThumbHash(filePath) {
+    try {
+        const dir = path.dirname(filePath);
+        const filename = path.basename(filePath);
+        const cacheFile = path.join(dir, CACHE_DIR_NAME, `${filename}.th`);
+        if (await fs.pathExists(cacheFile)) {
+            await fs.remove(cacheFile);
+        }
+    } catch (e) {
+        // ignore
+    }
+}
+
+async function moveThumbHash(oldPath, newPath) {
+    try {
+        const oldDir = path.dirname(oldPath);
+        const oldName = path.basename(oldPath);
+        const oldCache = path.join(oldDir, CACHE_DIR_NAME, `${oldName}.th`);
+        
+        if (await fs.pathExists(oldCache)) {
+             const newDir = path.dirname(newPath);
+             const newName = path.basename(newPath);
+             const newCacheDir = path.join(newDir, CACHE_DIR_NAME);
+             await fs.ensureDir(newCacheDir);
+             const newCache = path.join(newCacheDir, `${newName}.th`);
+             await fs.rename(oldCache, newCache);
+        }
+    } catch (e) {
+        // ignore
+    }
+}
+
 // 递归获取图片文件
 async function getAllImages(dir = "") {
   const absDir = safeJoin(STORAGE_PATH, dir);
   let results = [];
   const files = await fs.readdir(absDir);
   for (const file of files) {
+    if (file === CACHE_DIR_NAME) continue;
     const filePath = path.join(absDir, file);
     const relPath = path.join(dir, file);
     const stats = await fs.stat(filePath);
@@ -298,6 +378,9 @@ const handleBase64Image = async (base64Data, dir, originalName) => {
   const filePath = path.join(targetDir, filename);
   await fs.promises.writeFile(filePath, buffer);
   
+  // Generate ThumbHash
+  const thumbhash = await generateThumbHash(filePath);
+  
   // 返回文件信息
   const relPath = path.join(dir, filename).replace(/\\/g, "/");
   const safeFilename = sanitizeFilename(filename);
@@ -310,6 +393,7 @@ const handleBase64Image = async (base64Data, dir, originalName) => {
     uploadTime: new Date().toISOString(),
     url: `/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
     relPath,
+    thumbhash,
   };
 };
 
@@ -389,6 +473,10 @@ app.post(
 
       const safeFilename = sanitizeFilename(req.file.filename);
 
+      // Generate ThumbHash
+      const finalFilePath = safeJoin(STORAGE_PATH, relPath);
+      const thumbhash = await generateThumbHash(finalFilePath);
+
       const fileInfo = {
         filename: safeFilename,
         originalName: originalName, // 用转码后的
@@ -398,6 +486,7 @@ app.post(
         url: `/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
         relPath,
         fullUrl: `${getBaseUrl(req)}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
+        thumbhash,
       };
       res.json({
         success: true,
@@ -613,6 +702,17 @@ app.get("/api/images", requirePassword, async (req, res) => {
     const endIndex = startIndex + pageSize;
     const paginatedImages = images.slice(startIndex, endIndex);
 
+    // Attach ThumbHash
+    for (const img of paginatedImages) {
+        const filePath = safeJoin(STORAGE_PATH, img.relPath);
+        img.thumbhash = await getThumbHash(filePath);
+    }
+
+    // 禁止缓存 API 响应
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+
     res.json({
       success: true,
       data: paginatedImages,
@@ -746,6 +846,12 @@ app.get("/api/images/*", async (req, res) => {
     if (!(await fs.pathExists(filePath))) {
       return res.status(404).json({ error: "图片不存在" });
     }
+
+    // Trigger ThumbHash generation if missing (async, non-blocking)
+    getThumbHash(filePath).then(hash => {
+        if (!hash) generateThumbHash(filePath);
+    });
+
     const w = req.query.w ? parseInt(req.query.w) : undefined;
     const h = req.query.h ? parseInt(req.query.h) : undefined;
     const qRaw = req.query.q ? parseInt(req.query.q) : undefined;
@@ -833,6 +939,7 @@ app.delete("/api/images/*", requirePassword, async (req, res) => {
     const filePath = safeJoin(STORAGE_PATH, relPath);
     if (await fs.pathExists(filePath)) {
       await fs.remove(filePath);
+      await deleteThumbHash(filePath);
       res.json({ success: true });
     } else {
       res.status(404).json({ error: "图片不存在" });
@@ -917,6 +1024,7 @@ app.put("/api/images/*", requirePassword, async (req, res) => {
     }
     // 执行重命名
     await fs.rename(oldFilePath, newFilePath);
+    await moveThumbHash(oldFilePath, newFilePath);
     const stats = await fs.stat(newFilePath);
     const updated = {
       filename: path.basename(newRelPath),
