@@ -6,18 +6,18 @@ const isMock = process.env.REACT_APP_MOCK === "true";
 // Mock Data Generator
 const generateMockImages = () => {
   const images = [];
-  const dates = [0, 1, 2, 3, 4]; // Days offset from today
+  const dates = [0, 1, 2]; // Days offset from today (3 days)
 
   let idCounter = 1;
 
   dates.forEach((dayOffset) => {
-    // Generate 8-12 images per day
-    const count = Math.floor(Math.random() * 5) + 8;
+    // Generate 18-22 images per day (around 20)
+    const count = Math.floor(Math.random() * 5) + 18;
     const baseTime = Date.now() - dayOffset * 24 * 60 * 60 * 1000;
 
     for (let i = 0; i < count; i++) {
-      const width = Math.floor(Math.random() * (2500 - 1600) + 1600);
-      const height = Math.floor(Math.random() * (2000 - 1200) + 1200);
+      const width = Math.floor(Math.random() * (1600 - 1000) + 1000);
+      const height = Math.floor(Math.random() * (1200 - 800) + 800);
       images.push({
         relPath: `mock-image-${idCounter}.jpg`,
         filename: `Mock Image ${idCounter}.jpg`,
