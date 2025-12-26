@@ -36,9 +36,11 @@ import {
   FileImageOutlined,
   ExpandOutlined,
   CompressOutlined,
+  CodeOutlined,
 } from "@ant-design/icons";
 import { thumbHashToDataURL } from "thumbhash";
 import DirectorySelector from "./DirectorySelector";
+import SvgToolModal from "./SvgToolModal";
 import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
@@ -320,6 +322,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [loading, setLoading] = useState(false);
   const [hoverKey, setHoverKey] = useState(null);
   const [hoverLocation, setHoverLocation] = useState("");
+  const [svgToolVisible, setSvgToolVisible] = useState(false);
 
   useEffect(() => {
     if (!hoverKey) {
@@ -1013,6 +1016,21 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
               <div style={{ width: 160, padding: 4 }}>
                   <Button
                     type="text"
+                    icon={<CodeOutlined />}
+                    onClick={() => setSvgToolVisible(true)}
+                    style={{ 
+                        width: "100%", 
+                        textAlign: "left", 
+                        display: "flex", 
+                        alignItems: "center",
+                        height: 40,
+                        fontSize: 14
+                    }}
+                  >
+                    SVG 工具
+                  </Button>
+                  <Button
+                    type="text"
                     icon={<ApiOutlined />}
                     onClick={() => window.open("/api/docs", "_blank")}
                     style={{ 
@@ -1505,6 +1523,8 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           )}
         </div>
       </Modal>
+      <SvgToolModal visible={svgToolVisible} onClose={() => setSvgToolVisible(false)} api={api} />
+
     </div>
   );
 };
