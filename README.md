@@ -20,7 +20,8 @@
 - [x] 支持URL参数实时处理图片 （如：image.jpg?w=500&h=300&q=80&fmt=webp 自动将原图转换为WebP 、宽500px，高300px，图片质量压缩到80% 返回）
 - [x] 支持PicGo插件直接安装使用[PicGo插件](https://github.com/qazzxxx/picgo-plugin-cloudimgs-uploader)
 - [x] 支持上传其他文件格式，全局上传
-- [x] 在线管理图片，瀑布流展示
+- [x] 在线管理图片，瀑布流展示，批量圈选删除
+- [x] 集成thumbhash无感生成缩略图加载图片列表优化
 - [x] 支持设置密钥，保护图片安全
 - [x] 支持多级子目录管理
 - [x] 支持 SVG 图片转换为 PNG 格式
