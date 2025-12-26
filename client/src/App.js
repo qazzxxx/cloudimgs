@@ -15,6 +15,10 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
+  // Batch Mode State
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState(new Set());
+
   // Simple router check
   const isApiDocs = window.location.pathname === "/api/docs";
   
@@ -77,6 +81,40 @@ function App() {
 
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  const toggleBatchMode = () => {
+    setIsBatchMode(prev => !prev);
+    setSelectedItems(new Set());
+  };
+
+  const handleSelectionChange = (newSelection) => {
+    setSelectedItems(newSelection);
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedItems.size === 0) return;
+    
+    try {
+      const hide = message.loading("正在删除...", 0);
+      // Execute deletions in parallel
+      const promises = Array.from(selectedItems).map(relPath => 
+        api.delete(`/images/${encodeURIComponent(relPath)}`)
+      );
+      
+      await Promise.all(promises);
+      hide();
+      message.success(`成功删除 ${selectedItems.size} 张图片`);
+      
+      // Reset state
+      setSelectedItems(new Set());
+      setIsBatchMode(false);
+      handleRefresh();
+    } catch (error) {
+      console.error("Batch delete error:", error);
+      message.error("部分图片删除失败，请重试");
+      handleRefresh(); // Refresh anyway to show what's left
+    }
   };
 
   // Global styles for glassmorphism and background
@@ -145,6 +183,9 @@ function App() {
                 onRefresh={handleRefresh}
                 refreshTrigger={refreshTrigger}
                 isAuthenticated={!passwordRequired || isAuthenticated}
+                isBatchMode={isBatchMode}
+                selectedItems={selectedItems}
+                onSelectionChange={handleSelectionChange}
              />
 
             {/* Password Overlay */}
@@ -163,6 +204,10 @@ function App() {
                 onRefresh={handleRefresh}
                 api={api}
                 isMobile={isMobile}
+                isBatchMode={isBatchMode}
+                toggleBatchMode={toggleBatchMode}
+                selectedCount={selectedItems.size}
+                onBatchDelete={handleBatchDelete}
               />
             )}
           </>

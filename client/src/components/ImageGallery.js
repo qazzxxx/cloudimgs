@@ -37,6 +37,7 @@ import {
   ExpandOutlined,
   CompressOutlined,
   CodeOutlined,
+  CheckOutlined,
 } from "@ant-design/icons";
 import { thumbHashToDataURL } from "thumbhash";
 import DirectorySelector from "./DirectorySelector";
@@ -58,14 +59,30 @@ const getThumbHashUrl = (hash) => {
   }
 };
 
-const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, formatFileSize, isMobile, handleDownload, copyToClipboard, handleDelete, hoverLocation }) => {
+const ImageItem = ({ 
+    image, 
+    hoverKey, 
+    setHoverKey, 
+    handlePreview, 
+    formatFileSize, 
+    isMobile, 
+    handleDownload, 
+    copyToClipboard, 
+    handleDelete, 
+    hoverLocation,
+    isBatchMode,
+    isSelected,
+    onToggleSelect,
+    registerRef
+}) => {
     const [loaded, setLoaded] = useState(false);
     const {
-        token: { colorBgContainer },
+        token: { colorBgContainer, colorPrimary },
     } = theme.useToken();
 
     return (
         <div
+            ref={(node) => registerRef && registerRef(image.relPath, node)}
             style={{
                 position: "relative",
                 overflow: "hidden",
@@ -73,14 +90,62 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, formatFileSize
                 boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
                 transition: "transform 0.3s ease",
                 background: colorBgContainer,
-                cursor: "zoom-in",
+                cursor: isBatchMode ? "default" : "zoom-in",
+                transform: isBatchMode && isSelected ? "scale(0.95)" : "scale(1)",
             }}
             onMouseEnter={() =>
-                setHoverKey(image.relPath || image.url || image.filename)
+                !isBatchMode && setHoverKey(image.relPath || image.url || image.filename)
             }
-            onMouseLeave={() => setHoverKey(null)}
-            onClick={() => handlePreview(image)}
+            onMouseLeave={() => !isBatchMode && setHoverKey(null)}
+            onClick={(e) => {
+                if (isBatchMode) {
+                    e.stopPropagation();
+                    onToggleSelect && onToggleSelect(image.relPath);
+                } else {
+                    handlePreview(image);
+                }
+            }}
         >
+            {/* Batch Selection Overlay */}
+            {isBatchMode && (
+                <>
+                    <div style={{
+                        position: 'absolute',
+                        top: 8,
+                        left: 8,
+                        zIndex: 20,
+                        pointerEvents: 'none', 
+                    }}>
+                        <div style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            border: '2px solid #fff',
+                            background: isSelected ? colorPrimary : 'rgba(0,0,0,0.3)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                            transition: 'background 0.2s'
+                        }}>
+                            {isSelected && <CheckOutlined style={{ color: '#fff', fontSize: 14 }} />}
+                        </div>
+                    </div>
+                    {isSelected && (
+                        <div style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            border: `4px solid ${colorPrimary}`,
+                            zIndex: 15,
+                            pointerEvents: "none",
+                        }} />
+                    )}
+                </>
+            )}
+
             <div
                 style={{
                     overflow: "hidden",
@@ -114,6 +179,7 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, formatFileSize
                 <img
                     alt={image.filename}
                     src={image.url}
+                    draggable={false}
                     loading="lazy"
                     onLoad={() => setLoaded(true)}
                     style={{
@@ -133,7 +199,7 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, formatFileSize
             </div>
 
             {/* Advanced Hover Overlay */}
-            {!isMobile && (
+            {!isMobile && !isBatchMode && (
                 <div
                     style={{
                         position: "absolute",
@@ -285,7 +351,7 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, formatFileSize
     );
 };
 
-const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigger }) => {
+const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigger, isBatchMode = false, selectedItems = new Set(), onSelectionChange = () => {} }) => {
   const {
     token: { colorBgContainer, colorBorder, colorPrimary, colorTextSecondary, colorText },
   } = theme.useToken();
@@ -388,6 +454,101 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   // Drag and drop states
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Drag Selection Logic
+  const imageRefs = useRef(new Map());
+  const [selectionBox, setSelectionBox] = useState(null);
+
+  const registerRef = useCallback((id, node) => {
+    if (node) {
+      imageRefs.current.set(id, node);
+    } else {
+      imageRefs.current.delete(id);
+    }
+  }, []);
+
+  const handleMouseDown = (e) => {
+    if (!isBatchMode) return;
+    if (e.button !== 0) return; // Only left click
+    
+    // Prevent text selection
+    // document.body.style.userSelect = 'none'; // Done in effect
+    
+    setSelectionBox({
+        startX: e.pageX,
+        startY: e.pageY,
+        currentX: e.pageX,
+        currentY: e.pageY,
+        isSelecting: true,
+        initialSelection: new Set(selectedItems)
+    });
+  };
+
+  useEffect(() => {
+    if (!selectionBox?.isSelecting) return;
+
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (e) => {
+        setSelectionBox(prev => ({
+            ...prev,
+            currentX: e.pageX,
+            currentY: e.pageY
+        }));
+    };
+
+    const handleMouseUp = (e) => {
+        document.body.style.userSelect = '';
+        setSelectionBox(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.userSelect = '';
+    };
+  }, [selectionBox?.isSelecting]);
+
+  // Real-time selection update
+  useEffect(() => {
+    if (!selectionBox?.isSelecting) return;
+
+    const { startX, startY, currentX, currentY, initialSelection } = selectionBox;
+    const left = Math.min(startX, currentX);
+    const top = Math.min(startY, currentY);
+    const width = Math.abs(currentX - startX);
+    const height = Math.abs(currentY - startY);
+
+    if (width < 5 && height < 5) return;
+
+    const animationFrame = requestAnimationFrame(() => {
+        const newSelected = new Set(initialSelection);
+        imageRefs.current.forEach((node, relPath) => {
+            if (!node) return;
+            const rect = node.getBoundingClientRect();
+            const nodeLeft = rect.left + window.scrollX;
+            const nodeTop = rect.top + window.scrollY;
+
+            if (
+                left < nodeLeft + rect.width &&
+                left + width > nodeLeft &&
+                top < nodeTop + rect.height &&
+                top + height > nodeTop
+            ) {
+                newSelected.add(relPath);
+            }
+        });
+        
+        // Simple check to avoid unnecessary updates if size hasn't changed?
+        // But Set content might change.
+        onSelectionChange(newSelected);
+    });
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [selectionBox?.currentX, selectionBox?.currentY]);
 
   const groups = useMemo(() => {
     const map = new Map();
@@ -866,7 +1027,27 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   };
 
   return (
-    <div style={{ padding: isMobile ? "12px" : "24px", minHeight: "100vh" }}>
+    <div 
+        style={{ padding: isMobile ? "12px" : "24px", minHeight: "100vh" }}
+        onMouseDown={handleMouseDown}
+    >
+      {/* Drag Selection Box */}
+      {selectionBox?.isSelecting && (
+          <div
+            style={{
+                position: 'absolute',
+                left: Math.min(selectionBox.startX, selectionBox.currentX),
+                top: Math.min(selectionBox.startY, selectionBox.currentY),
+                width: Math.abs(selectionBox.currentX - selectionBox.startX),
+                height: Math.abs(selectionBox.currentY - selectionBox.startY),
+                border: `1px solid ${colorPrimary}`,
+                background: `${colorPrimary}33`, // 20% opacity
+                zIndex: 9999,
+                pointerEvents: 'none'
+            }}
+          />
+      )}
+
       {/* Drag & Drop Overlay */}
       {isDragging && (
           <div
@@ -1095,19 +1276,19 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                 {group.date}
               </div>
               
-              {/* Masonry Layout */}
+              {/* Masonry Layout - with batch selection support */}
               <Masonry
                 columns={
                   isMobile ? 2 : screens.xl ? 5 : screens.lg ? 4 : screens.md ? 3 : 2
                 }
                 gutter={8}
-                items={group.items.map((image, index) => ({
-                  key: image.relPath || `item-${group.date}-${index}`,
-                  data: image,
+                items={group.items.map((imgItem, index) => ({
+                  key: imgItem.relPath || `item-${group.date}-${index}`,
+                  data: imgItem,
                 }))}
-                itemRender={({ data: image }) => (
+                itemRender={({ data: imgItem }) => (
                   <ImageItem
-                    image={image}
+                    image={imgItem}
                     hoverKey={hoverKey}
                     setHoverKey={setHoverKey}
                     handlePreview={handlePreview}
@@ -1117,6 +1298,15 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                     copyToClipboard={copyToClipboard}
                     handleDelete={handleDelete}
                     hoverLocation={hoverLocation}
+                    isBatchMode={isBatchMode}
+                    isSelected={selectedItems.has(imgItem.relPath)}
+                    onToggleSelect={(id) => {
+                        const newSet = new Set(selectedItems);
+                        if (newSet.has(id)) newSet.delete(id);
+                        else newSet.add(id);
+                        onSelectionChange(newSet);
+                    }}
+                    registerRef={registerRef}
                   />
                 )}
               />

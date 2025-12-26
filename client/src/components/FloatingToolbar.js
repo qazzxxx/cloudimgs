@@ -1,11 +1,21 @@
 import React, { useState } from "react";
-import { Modal, Tooltip, theme, Button, FloatButton } from "antd";
+import { 
+  Modal, 
+  Tooltip, 
+  theme, 
+  Button, 
+  FloatButton, 
+  Popconfirm 
+} from "antd";
 import {
   CloudUploadOutlined,
   ReloadOutlined,
   SunOutlined,
   MoonOutlined,
   ArrowUpOutlined,
+  CheckSquareOutlined,
+  CloseOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./UploadComponent";
 
@@ -15,6 +25,10 @@ const FloatingToolbar = ({
   onRefresh,
   api,
   isMobile,
+  isBatchMode,
+  toggleBatchMode,
+  selectedCount,
+  onBatchDelete,
 }) => {
   const [uploadVisible, setUploadVisible] = useState(false);
   const { token } = theme.useToken();
@@ -66,6 +80,57 @@ const FloatingToolbar = ({
           transition: "all 0.3s ease",
         }}
       >
+        {/* Batch Delete Action */}
+        {isBatchMode && selectedCount > 0 && (
+           <>
+            <Popconfirm
+                title={`确定删除选中的 ${selectedCount} 张图片?`}
+                onConfirm={onBatchDelete}
+                okText="是"
+                cancelText="否"
+                placement="topRight"
+            >
+                <Tooltip title="批量删除" placement="top">
+                <Button
+                    shape="circle"
+                    icon={<DeleteOutlined />}
+                    danger
+                    type="primary"
+                    size="middle"
+                    style={{
+                        ...buttonStyle,
+                        color: '#fff', 
+                        background: '#ff4d4f',
+                        boxShadow: '0 2px 8px rgba(255, 77, 79, 0.35)'
+                    }}
+                    className="toolbar-btn"
+                />
+                </Tooltip>
+            </Popconfirm>
+            <div style={{ width: 1, height: 16, background: isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)" }} />
+           </>
+        )}
+
+        {/* Batch Mode Toggle */}
+        <Tooltip title={isBatchMode ? "退出批量操作" : "批量操作"} placement="top">
+            <Button
+                shape="circle"
+                icon={isBatchMode ? <CloseOutlined /> : <CheckSquareOutlined />}
+                onClick={toggleBatchMode}
+                size="middle"
+                type={isBatchMode ? "primary" : "text"}
+                style={isBatchMode ? { 
+                    ...buttonStyle, 
+                    color: '#fff', 
+                    background: token.colorPrimary,
+                    boxShadow: `0 2px 8px ${token.colorPrimary}50`
+                } : buttonStyle}
+                className="toolbar-btn"
+            />
+        </Tooltip>
+
+        <div style={{ width: 1, height: 16, background: isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)" }} />
+
         <Tooltip title="刷新列表" placement="top">
           <Button 
             shape="circle" 
