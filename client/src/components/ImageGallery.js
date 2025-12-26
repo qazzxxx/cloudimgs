@@ -1299,30 +1299,32 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           </div>
 
           {/* Right: Info Sidebar */}
-          {previewFile && (
+          {previewFile && (() => {
+            const thumbUrl = getThumbHashUrl(previewFile.thumbhash);
+            const hasThumb = !!thumbUrl;
+            const isDarkBg = hasThumb || isDarkMode;
+            const isLight = !isDarkBg; 
+
+            const textColor = hasThumb ? "#fff" : colorText;
+            const secondaryTextColor = hasThumb ? "rgba(255,255,255,0.75)" : colorTextSecondary;
+            const tertiaryTextColor = hasThumb ? "rgba(255,255,255,0.5)" : (isDarkMode ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)");
+            const inputBg = hasThumb ? "rgba(255,255,255,0.15)" : (isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)");
+
+            return (
             <div
               style={{
-                width: isMobile ? "100%" : 360, // Slightly narrower
-                background: imageMeta?.dominant 
-                    ? `rgb(${imageMeta.dominant.r},${imageMeta.dominant.g},${imageMeta.dominant.b})` 
-                    : "#222",
-                color: imageMeta?.dominant && isLightColor(imageMeta.dominant.r, imageMeta.dominant.g, imageMeta.dominant.b) ? "#000" : "#fff",
-                borderLeft: "none",
+                width: isMobile ? "100%" : 360,
+                background: hasThumb 
+                    ? `linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url(${thumbUrl}) center/cover no-repeat`
+                    : colorBgContainer,
+                color: textColor,
+                borderLeft: isDarkMode ? "1px solid rgba(255,255,255,0.1)" : "none",
                 display: isMobile ? "none" : "flex",
                 flexDirection: "column",
                 zIndex: 20,
-                transition: "background 0.5s ease, color 0.5s ease",
+                transition: "background 0.3s ease, color 0.3s ease",
               }}
             >
-              {(() => {
-                  const isLight = imageMeta?.dominant ? isLightColor(imageMeta.dominant.r, imageMeta.dominant.g, imageMeta.dominant.b) : false;
-                  const textColor = isLight ? "#000" : "#fff";
-                  const secondaryTextColor = isLight ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.6)";
-                  const tertiaryTextColor = isLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)";
-                  const borderColor = isLight ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.2)";
-                  const inputBg = isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.1)";
-
-                  return (
               <div style={{ flex: 1, overflowY: "auto", padding: "32px 24px" }}>
                 {/* Header Section */}
                 <div style={{ marginBottom: 24 }}>
@@ -1517,10 +1519,9 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                     )}
                 </Space>
               </div>
-              );
-              })()}
             </div>
-          )}
+            );
+          })()}
         </div>
       </Modal>
       <SvgToolModal visible={svgToolVisible} onClose={() => setSvgToolVisible(false)} api={api} />
