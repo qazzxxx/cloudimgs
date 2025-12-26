@@ -38,6 +38,10 @@
 图片管理页面
 ![云图 桌面端预览](client/public/cloudimgs.jpg)
 
+
+批量圈选操作
+![云图 桌面端预览](client/public/batch.jpg)
+
 整页上传
 ![云图 桌面端预览](client/public/upload.jpg)
 
