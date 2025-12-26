@@ -1,10 +1,230 @@
 import axios from "axios";
 import { getPassword, clearPassword } from "./secureStorage";
 
+const isMock = process.env.REACT_APP_MOCK === "true";
+
+// Mock Data Generator
+const generateMockImages = () => {
+  const images = [];
+  const dates = [0, 1, 2, 3, 4]; // Days offset from today
+
+  let idCounter = 1;
+
+  dates.forEach((dayOffset) => {
+    // Generate 8-12 images per day
+    const count = Math.floor(Math.random() * 5) + 8;
+    const baseTime = Date.now() - dayOffset * 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < count; i++) {
+      const width = Math.floor(Math.random() * (2500 - 1600) + 1600);
+      const height = Math.floor(Math.random() * (2000 - 1200) + 1200);
+      images.push({
+        relPath: `mock-image-${idCounter}.jpg`,
+        filename: `Mock Image ${idCounter}.jpg`,
+        url: `https://picsum.photos/${width}/${height}?random=${idCounter}`,
+        size: Math.floor(Math.random() * 5000000),
+        uploadTime: baseTime - Math.floor(Math.random() * 1000000), // Slightly vary time within day
+        thumbhash: null, // Optional
+      });
+      idCounter++;
+    }
+  });
+
+  return images.sort((a, b) => b.uploadTime - a.uploadTime);
+};
+
+const mockImages = generateMockImages();
+
+const mockAdapter = async (config) => {
+  return new Promise((resolve, reject) => {
+    const { url, method, params, data } = config;
+    const cleanUrl = url.replace(/^\/api/, "");
+
+    console.log(`[Mock API] ${method.toUpperCase()} ${url}`, params || data);
+
+    setTimeout(() => {
+      // Auth Status
+      if (cleanUrl === "/auth/status" && method === "get") {
+        resolve({
+          data: { requiresPassword: true },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // Auth Verify
+      if (cleanUrl === "/auth/verify" && method === "post") {
+        const body = JSON.parse(data);
+        if (body.password === "123456") {
+          resolve({
+            data: { success: true },
+            status: 200,
+            statusText: "OK",
+            headers: {},
+            config,
+          });
+        } else {
+          reject({
+            response: {
+              status: 401,
+              data: { success: false, error: "Password incorrect" },
+            },
+          });
+        }
+        return;
+      }
+
+      // Image List
+      if (cleanUrl === "/images" && method === "get") {
+        const page = params?.page || 1;
+        const pageSize = params?.pageSize || 10;
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize;
+        const pageData = mockImages.slice(start, end);
+        
+        resolve({
+          data: {
+            success: true,
+            data: pageData,
+            pagination: {
+              current: parseInt(page),
+              pageSize: parseInt(pageSize),
+              total: mockImages.length,
+              totalPages: Math.ceil(mockImages.length / pageSize),
+            },
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // Image Meta
+      if (cleanUrl.startsWith("/images/meta/") && method === "get") {
+        resolve({
+          data: {
+            success: true,
+            data: {
+              width: 800,
+              height: 600,
+              space: "sRGB",
+              exif: {
+                make: "Mock Camera",
+                model: "M-1",
+                fNumber: 1.8,
+                exposureTime: "1/1000",
+                iso: 100,
+              },
+            },
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // Directories
+      if (cleanUrl === "/directories" && method === "get") {
+        resolve({
+          data: {
+            success: true,
+            data: [
+              { name: "mock-dir-1", path: "mock-dir-1", fullPath: "mock-dir-1" },
+              { name: "mock-dir-2", path: "mock-dir-2", fullPath: "mock-dir-2" },
+            ],
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // Delete Image
+      if (cleanUrl.startsWith("/images/") && method === "delete") {
+        resolve({
+          data: { success: true },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // Update Image (Rename/Move)
+      if (cleanUrl.startsWith("/images/") && method === "put") {
+        const body = JSON.parse(data);
+        const originalRelPath = decodeURIComponent(cleanUrl.split("/images/")[1]);
+        const newName = body.newName;
+        const newDir = body.newDir;
+        
+        let updatedRelPath = originalRelPath;
+        let updatedFilename = originalRelPath.split("/").pop();
+
+        if (newName) {
+            updatedFilename = newName;
+            const dir = originalRelPath.includes("/") ? originalRelPath.substring(0, originalRelPath.lastIndexOf("/")) : "";
+            updatedRelPath = dir ? `${dir}/${newName}` : newName;
+        }
+        
+        resolve({
+          data: { 
+              success: true,
+              data: {
+                  relPath: updatedRelPath,
+                  filename: updatedFilename,
+                  url: `https://picsum.photos/800/600?random=${Math.random()}`, // Just return a valid obj
+                  size: 1024,
+                  uploadTime: Date.now(),
+                  thumbhash: null
+              }
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+       // Upload
+      if (cleanUrl === "/upload" && method === "post") {
+         resolve({
+            data: { success: true, data: [] }, // Return empty or fake
+            status: 200,
+            statusText: "OK",
+            headers: {},
+            config,
+         });
+         return;
+      }
+
+      // Default Success for others
+      resolve({
+        data: { success: true },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+      });
+    }, 300); // Simulate latency
+  });
+};
+
 // 创建axios实例
 const api = axios.create({
   baseURL: "/api",
   timeout: 30000,
+  adapter: isMock ? mockAdapter : undefined,
 });
 
 // 请求拦截器 - 添加密码到请求头

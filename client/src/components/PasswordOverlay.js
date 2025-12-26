@@ -3,6 +3,7 @@ import { Form, Input, Button, message, Typography } from "antd";
 import { LockOutlined, ArrowRightOutlined } from "@ant-design/icons";
 import { setPassword, clearPassword } from "../utils/secureStorage";
 import ScrollingBackground from "./ScrollingBackground";
+import api from "../utils/api";
 
 const { Text, Title } = Typography;
 
@@ -13,24 +14,12 @@ const PasswordOverlay = ({ onLoginSuccess, isMobile }) => {
     setLoading(true);
     try {
       setPassword(values.password);
-      const response = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ password: values.password }),
-      });
-
-      if (response.ok) {
-        onLoginSuccess();
-      } else {
-        const errorData = await response.json();
-        message.error(errorData.error || "密码错误");
-        clearPassword();
-      }
+      await api.post("/auth/verify", { password: values.password });
+      onLoginSuccess();
     } catch (error) {
       console.error("验证失败:", error);
-      message.error("验证失败，请检查网络连接");
+      const errorMsg = error.response?.data?.error || "验证失败";
+      message.error(errorMsg);
       clearPassword();
     } finally {
       setLoading(false);

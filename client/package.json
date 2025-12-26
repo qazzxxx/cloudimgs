@@ -21,7 +21,9 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "start:mock": "REACT_APP_MOCK=true react-scripts start",
     "build": "react-scripts build",
+    "build:mock": "REACT_APP_MOCK=true react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

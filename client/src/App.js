@@ -42,22 +42,17 @@ function App() {
     const checkAuthStatus = async () => {
       try {
         setAuthLoading(true);
-        const response = await fetch("/api/auth/status");
-        const data = await response.json();
+        const response = await api.get("/auth/status");
+        const data = response.data;
 
         if (data.requiresPassword) {
           setPasswordRequired(true);
           const savedPassword = getPassword();
           if (savedPassword) {
-            const verifyResponse = await fetch("/api/auth/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ password: savedPassword }),
-            });
-
-            if (verifyResponse.ok) {
+            try {
+              await api.post("/auth/verify", { password: savedPassword });
               setIsAuthenticated(true);
-            } else {
+            } catch (e) {
               clearPassword();
             }
           }
