@@ -13,6 +13,7 @@ const mm = require("music-metadata");
 const exifr = require("exifr");
 
 const CACHE_DIR_NAME = ".cache";
+const TRASH_DIR_NAME = ".trash";
 
 const app = express();
 const PORT = config.server.port;
@@ -941,13 +942,74 @@ app.get("/api/files/*", (req, res) => {
 
  
 
+// 辅助函数：移动到回收站
+async function moveToTrash(filePath) {
+  try {
+    const fileName = path.basename(filePath);
+    // 使用时间戳避免重名冲突: filename_timestamp.ext
+    const ext = path.extname(fileName);
+    const nameWithoutExt = path.basename(fileName, ext);
+    const timestamp = Date.now();
+    const trashName = `${nameWithoutExt}_${timestamp}${ext}`;
+    const trashPath = path.join(STORAGE_PATH, TRASH_DIR_NAME, trashName);
+
+    // 确保回收站目录存在
+    await fs.ensureDir(path.dirname(trashPath));
+    // 移动文件
+    await fs.move(filePath, trashPath, { overwrite: true });
+    console.log(`[Trash] Moved to trash: ${trashName}`);
+  } catch (error) {
+    console.error("[Trash] Move failed:", error);
+    // 如果移动失败，为了保证API行为一致性，可能需要回退或报错
+    // 这里选择抛出错误，让上层处理
+    throw error;
+  }
+}
+
+// 辅助函数：清理回收站（保留30天）
+async function cleanTrash() {
+  const trashDir = path.join(STORAGE_PATH, TRASH_DIR_NAME);
+  if (!(await fs.pathExists(trashDir))) return;
+
+  try {
+    const files = await fs.readdir(trashDir);
+    const now = Date.now();
+    const EXPIRE_TIME = 30 * 24 * 60 * 60 * 1000; // 30天
+
+    for (const file of files) {
+      const filePath = path.join(trashDir, file);
+      try {
+        const stats = await fs.stat(filePath);
+        if (now - stats.mtimeMs > EXPIRE_TIME) {
+          await fs.remove(filePath);
+          console.log(`[Trash] Cleaned expired file: ${file}`);
+        }
+      } catch (e) {
+        console.error(`[Trash] Failed to check/delete file: ${file}`, e);
+      }
+    }
+  } catch (e) {
+    console.error("[Trash] Cleanup failed:", e);
+  }
+}
+
+// 初始化回收站清理任务
+function initTrashCleanup() {
+  console.log("[Trash] Initializing cleanup task...");
+  // 立即执行一次
+  cleanTrash();
+  // 每24小时执行一次
+  setInterval(cleanTrash, 24 * 60 * 60 * 1000);
+}
+
 // 5. 删除图片（支持多层目录）
 app.delete("/api/images/*", requirePassword, async (req, res) => {
   const relPath = decodeURIComponent(req.params[0]);
   try {
     const filePath = safeJoin(STORAGE_PATH, relPath);
     if (await fs.pathExists(filePath)) {
-      await fs.remove(filePath);
+      // await fs.remove(filePath); // 改为软删除
+      await moveToTrash(filePath);
       await deleteThumbHash(filePath);
       res.json({ success: true });
     } else {
@@ -964,8 +1026,9 @@ app.delete("/api/files/*", requirePassword, async (req, res) => {
   try {
     const filePath = safeJoin(STORAGE_PATH, relPath);
     if (await fs.pathExists(filePath)) {
-      await fs.remove(filePath);
-      res.json({ success: true, message: "文件删除成功" });
+      // await fs.remove(filePath); // 改为软删除
+      await moveToTrash(filePath);
+      res.json({ success: true, message: "文件已移至回收站" });
     } else {
       res.status(404).json({ error: "文件不存在" });
     }
@@ -1242,7 +1305,7 @@ async function getDirectories(dir = "") {
   try {
     const files = await fs.readdir(absDir);
     for (const file of files) {
-      if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME) continue;
+      if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME) continue;
       const filePath = path.join(absDir, file);
       const stats = await fs.stat(filePath);
       if (stats.isDirectory()) {
@@ -1566,6 +1629,9 @@ app.get("/api/stats", requirePassword, async (req, res) => {
 });
 
 // 启动服务
+// 启动回收站清理任务
+initTrashCleanup();
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
