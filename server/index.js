@@ -1050,7 +1050,48 @@ app.put("/api/images/*", requirePassword, async (req, res) => {
 });
 
 const crypto = require("crypto");
-const SHARE_SECRET = process.env.SHARE_SECRET || uuidv4();
+
+const CONFIG_DIR_NAME = "config";
+
+// Get or create persistent share secret
+const getShareSecret = () => {
+    if (process.env.SHARE_SECRET) {
+        return process.env.SHARE_SECRET;
+    }
+    
+    // Store secret in config dir to persist across restarts
+    const configDir = path.join(STORAGE_PATH, CONFIG_DIR_NAME);
+    const secretPath = path.join(configDir, ".share_secret");
+    
+    try {
+        fs.ensureDirSync(configDir);
+        
+        // Migration: check if old secret exists in root and move it
+        const oldSecretPath = path.join(STORAGE_PATH, ".share_secret");
+        if (fs.existsSync(oldSecretPath) && !fs.existsSync(secretPath)) {
+            try {
+                fs.renameSync(oldSecretPath, secretPath);
+                return fs.readFileSync(secretPath, 'utf8').trim();
+            } catch (e) {
+                console.error("Migration of share secret failed:", e);
+                // Continue to create new or read existing
+            }
+        }
+
+        if (fs.existsSync(secretPath)) {
+            return fs.readFileSync(secretPath, 'utf8').trim();
+        } else {
+            const newSecret = uuidv4();
+            fs.writeFileSync(secretPath, newSecret);
+            return newSecret;
+        }
+    } catch (e) {
+        console.error("Failed to manage share secret:", e);
+        return uuidv4(); // Fallback to memory-only if FS fails
+    }
+};
+
+const SHARE_SECRET = getShareSecret();
 const SHARES_FILE_NAME = "burned_tokens.json"; // Keep filename as requested by user, but content will be shares
 
 // Helper to get share config path
@@ -1111,8 +1152,6 @@ async function getPreviewImages(dir, limit = 3) {
   } catch (e) {}
   return previews;
 }
-
-const CONFIG_DIR_NAME = "config";
 
 // 6. 获取目录列表 (Modified to include previews)
 async function getDirectories(dir = "") {
@@ -1263,6 +1302,27 @@ app.get("/api/share/list", requirePassword, async (req, res) => {
     }
 });
 
+// Delete share
+app.delete("/api/share/delete", requirePassword, async (req, res) => {
+    try {
+        const { path: sharePath, signature } = req.body;
+        if (sharePath === undefined || !signature) return res.status(400).json({ error: "Missing params" });
+
+        const shares = await readShares(sharePath);
+        const newShares = shares.filter(s => s.signature !== signature);
+        
+        if (shares.length === newShares.length) {
+            return res.status(404).json({ error: "Share not found" });
+        }
+        
+        await writeShares(sharePath, newShares);
+        res.json({ success: true });
+    } catch (e) {
+        console.error("Delete share failed:", e);
+        res.status(500).json({ error: "Delete share failed" });
+    }
+});
+
 // Revoke share
 app.post("/api/share/revoke", requirePassword, async (req, res) => {
     try {
@@ -1346,21 +1406,35 @@ app.get("/api/share/access", async (req, res) => {
         }
 
         // Token valid, return content
-        const images = await getAllImages(dir);
+        let images = await getAllImages(dir);
         
         // Sort
         images.sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
+
+        // Pagination
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 20;
+        const total = images.length;
+        const startIndex = (page - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedImages = images.slice(startIndex, endIndex);
         
         // ThumbHash
-        for (const img of images) {
+        for (const img of paginatedImages) {
              const filePath = safeJoin(STORAGE_PATH, img.relPath);
              img.thumbhash = await getThumbHash(filePath);
         }
 
         res.json({
             success: true,
-            data: images,
-            dirName: path.basename(dir)
+            data: paginatedImages,
+            dirName: path.basename(dir),
+            pagination: {
+                current: page,
+                pageSize: pageSize,
+                total: total,
+                totalPages: Math.ceil(total / pageSize),
+            }
         });
 
     } catch (e) {

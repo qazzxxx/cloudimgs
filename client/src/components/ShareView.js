@@ -114,10 +114,17 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, isMobile, hand
 
 const ShareView = ({ currentTheme, onThemeChange }) => {
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [images, setImages] = useState([]);
   const [dirName, setDirName] = useState("");
   const [error, setError] = useState(null);
   const [hoverKey, setHoverKey] = useState(null);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [hasMore, setHasMore] = useState(true);
+  const loadMoreRef = useRef(null);
   
   // Modal State
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -131,7 +138,7 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
   const isMobile = !screens.md;
   const isDarkMode = themeToken.theme?.id === 1 || colorBgContainer === "#141414";
 
-  useEffect(() => {
+  const fetchShare = async (page = 1, append = false) => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
     
@@ -141,39 +148,82 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
         return;
     }
 
-    if (window.hasFetchedShare) return;
-    window.hasFetchedShare = true;
+    if (append) {
+        setLoadingMore(true);
+    } else {
+        setLoading(true);
+    }
 
-    const fetchShare = async () => {
-        try {
-            const res = await api.get(`/share/access?token=${encodeURIComponent(token)}`);
-            if (res.data.success) {
-                setImages(res.data.data);
-                setDirName(res.data.dirName);
+    try {
+        const res = await api.get(`/share/access?token=${encodeURIComponent(token)}&page=${page}&pageSize=${pageSize}`);
+        if (res.data.success) {
+            setImages(prev => append ? prev.concat(res.data.data) : res.data.data);
+            setDirName(res.data.dirName);
+            
+            const p = res.data.pagination;
+            if (p) {
+                setHasMore(p.current < p.totalPages);
             } else {
-                let errorMsg = res.data.error || "获取分享内容失败";
-                if (errorMsg.includes("Link already used") || errorMsg.includes("Burned")) {
-                    errorMsg = "链接已失效 (阅后即焚)";
-                } else if (errorMsg.includes("expired")) {
-                    errorMsg = "链接已过期";
-                }
-                setError(errorMsg);
+                setHasMore(false);
             }
-        } catch (e) {
-            let errorMsg = e.response?.data?.error || "链接已失效或验证失败";
+        } else {
+            let errorMsg = res.data.error || "获取分享内容失败";
             if (errorMsg.includes("Link already used") || errorMsg.includes("Burned")) {
                 errorMsg = "链接已失效 (阅后即焚)";
             } else if (errorMsg.includes("expired")) {
                 errorMsg = "链接已过期";
             }
-            setError(errorMsg);
-        } finally {
+            if (!append) setError(errorMsg);
+            else message.error(errorMsg);
+        }
+    } catch (e) {
+        let errorMsg = e.response?.data?.error || "链接已失效或验证失败";
+        if (errorMsg.includes("Link already used") || errorMsg.includes("Burned")) {
+            errorMsg = "链接已失效 (阅后即焚)";
+        } else if (errorMsg.includes("expired")) {
+            errorMsg = "链接已过期";
+        }
+        if (!append) setError(errorMsg);
+    } finally {
+        if (append) {
+            setLoadingMore(false);
+        } else {
             setLoading(false);
         }
-    };
+    }
+  };
 
-    fetchShare();
+  useEffect(() => {
+    fetchShare(1, false);
   }, []);
+
+  useEffect(() => {
+    if (currentPage > 1) {
+        fetchShare(currentPage, true);
+    }
+  }, [currentPage]);
+
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (
+          entry.isIntersecting &&
+          hasMore &&
+          !loading &&
+          !loadingMore &&
+          images.length > 0
+        ) {
+          setCurrentPage((p) => p + 1);
+        }
+      },
+      { root: null, rootMargin: "200px", threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, images.length]);
 
   const groups = useMemo(() => {
     const map = new Map();
@@ -380,6 +430,13 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
                   />
                 </div>
               ))}
+              
+              <div ref={loadMoreRef} style={{ height: 20 }} />
+              {loadingMore && (
+                <div style={{ textAlign: "center", padding: 20 }}>
+                  <Spin />
+                </div>
+              )}
           </div>
 
           {/* Full Screen Modal */}

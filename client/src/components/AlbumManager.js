@@ -33,6 +33,48 @@ import dayjs from "dayjs";
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
+const CountdownTimer = ({ expireSeconds, createdAt }) => {
+    const [timeLeft, setTimeLeft] = useState("");
+    
+    useEffect(() => {
+        if (!expireSeconds) return;
+        
+        const calculateTimeLeft = () => {
+            const expireTime = dayjs(createdAt).add(expireSeconds, 'second');
+            const now = dayjs();
+            const diff = expireTime.diff(now, 'second');
+            
+            if (diff <= 0) {
+                return "已过期";
+            }
+            
+            const days = Math.floor(diff / (3600 * 24));
+            const hours = Math.floor((diff % (3600 * 24)) / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            
+            let str = "";
+            if (days > 0) str += `${days}天 `;
+            if (hours > 0) str += `${hours}小时 `;
+            if (minutes > 0 || (days === 0 && hours === 0)) str += `${minutes}分`;
+            
+            return str;
+        };
+        
+        setTimeLeft(calculateTimeLeft());
+        
+        const timer = setInterval(() => {
+            const str = calculateTimeLeft();
+            setTimeLeft(str);
+            if (str === "已过期") clearInterval(timer);
+        }, 60000); // Update every minute
+        
+        return () => clearInterval(timer);
+    }, [expireSeconds, createdAt]);
+    
+    if (!expireSeconds) return "永久有效";
+    return `剩余: ${timeLeft}`;
+};
+
 const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,17 +141,21 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
   const fetchShareList = async (path) => {
     setLoadingShares(true);
     try {
-        // Handle root path: if path is empty string, we want to ensure it's sent as query param
-        // /share/list?path=  (empty value)
-        // If encodeURIComponent(path) is "", the url is ...?path=
         const url = `/share/list?path=${encodeURIComponent(path)}`;
         const res = await api.get(url);
         if (res.data.success) {
-            setShareList(res.data.data);
+            // Sort: Active first, then by createdAt desc
+            const list = res.data.data || [];
+            list.sort((a, b) => {
+                const aActive = a.status === 'active';
+                const bActive = b.status === 'active';
+                if (aActive && !bActive) return -1;
+                if (!aActive && bActive) return 1;
+                return b.createdAt - a.createdAt;
+            });
+            setShareList(list);
         }
     } catch (e) {
-        // If path is root, we might want to suppress error or handle differently?
-        // But server should handle it now.
         message.error("获取分享列表失败");
     } finally {
         setLoadingShares(false);
@@ -128,7 +174,8 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
       if (res.data.success) {
         const url = `${window.location.origin}/share?token=${encodeURIComponent(res.data.token)}`;
         setShareLink(url);
-        fetchShareList(currentAlbum.path);
+        // Refresh list
+        await fetchShareList(currentAlbum.path);
       }
     } catch (e) {
       message.error("生成分享链接失败");
@@ -149,6 +196,23 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
           }
       } catch (e) {
           message.error("作废失败");
+      }
+  };
+
+  const handleDeleteShare = async (signature) => {
+      try {
+          const res = await api.delete("/share/delete", {
+              data: {
+                path: currentAlbum.path,
+                signature
+              }
+          });
+          if (res.data.success) {
+              message.success("删除成功");
+              fetchShareList(currentAlbum.path);
+          }
+      } catch (e) {
+          message.error("删除失败");
       }
   };
 
@@ -300,8 +364,7 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
                     cursor: "pointer",
                     background: token.colorFillAlter,
                     transition: "all 0.3s",
-                    // margin: 24 // Remove margin to fit grid better
-                    height: 240
+                    margin: 24
                 }}
                 onClick={() => setCreateModalVisible(true)}
                 onMouseEnter={e => {
@@ -357,64 +420,7 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
         <div style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: 4 }}>
         <Space direction="vertical" style={{ width: "100%", marginTop: 12 }} size="middle">
            
-           {/* Active Shares List */}
            <div>
-               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>有效分享链接</div>
-               {loadingShares ? (
-                   <div style={{ textAlign: "center", padding: 20 }}><Spin /></div>
-               ) : shareList.filter(s => s.status === 'active').length === 0 ? (
-                   <div style={{ padding: "20px 0", textAlign: "center", color: token.colorTextSecondary, background: token.colorFillAlter, borderRadius: 8 }}>
-                       暂无有效分享
-                   </div>
-               ) : (
-                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                       {shareList.filter(s => s.status === 'active').map((share, idx) => (
-                           <div key={idx} style={{ 
-                               border: `1px solid ${token.colorBorderSecondary}`, 
-                               borderRadius: 8, 
-                               padding: 12,
-                               display: "flex",
-                               justifyContent: "space-between",
-                               alignItems: "center",
-                               background: token.colorBgContainer
-                           }}>
-                               <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
-                                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                       {share.burnAfterReading ? (
-                                            <div style={{ color: "#ff4d4f", fontSize: 12, border: "1px solid #ff4d4f", padding: "0 4px", borderRadius: 4 }}>阅后即焚</div>
-                                       ) : (
-                                            <div style={{ color: "#52c41a", fontSize: 12, border: "1px solid #52c41a", padding: "0 4px", borderRadius: 4 }}>有效期: {share.expireSeconds ? (share.expireSeconds / 3600 < 24 ? `${share.expireSeconds / 3600}小时` : `${share.expireSeconds / 86400}天`) : "永久"}</div>
-                                       )}
-                                       <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
-                                           {dayjs(share.createdAt).format("MM-DD HH:mm")}
-                                       </div>
-                                   </div>
-                                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                       <Input 
-                                           size="small" 
-                                           value={`${window.location.origin}/share?token=${encodeURIComponent(share.token)}`} 
-                                           readOnly 
-                                           style={{ fontSize: 12, background: token.colorFillAlter }}
-                                       />
-                                       <Button size="small" icon={<CopyOutlined />} onClick={() => copyToClipboard(`${window.location.origin}/share?token=${encodeURIComponent(share.token)}`)} />
-                                   </div>
-                               </div>
-                               <Button 
-                                   danger 
-                                   size="small" 
-                                   type="text" 
-                                   icon={<StopOutlined />} 
-                                   onClick={() => handleRevoke(share.signature)}
-                               >
-                                   作废
-                               </Button>
-                           </div>
-                       ))}
-                   </div>
-               )}
-           </div>
-
-           <div style={{ borderTop: `1px solid ${token.colorBorderSecondary}`, paddingTop: 16, marginTop: 8 }}>
                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>生成新链接</div>
                
                <div style={{ background: token.colorFillAlter, padding: 16, borderRadius: 8 }}>
@@ -453,6 +459,83 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
                    <CheckCircleIcon /> 新链接已生成并添加到列表
                </div>
            )}
+
+           {/* Active Shares List */}
+           <div style={{ borderTop: `1px solid ${token.colorBorderSecondary}`, paddingTop: 16, marginTop: 8 }}>
+               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>分享列表</div>
+               {loadingShares ? (
+                   <div style={{ textAlign: "center", padding: 20 }}><Spin /></div>
+               ) : shareList.length === 0 ? (
+                   <div style={{ padding: "20px 0", textAlign: "center", color: token.colorTextSecondary, background: token.colorFillAlter, borderRadius: 8 }}>
+                       暂无分享记录
+                   </div>
+               ) : (
+                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                       {shareList.map((share, idx) => (
+                           <div key={idx} style={{ 
+                               border: `1px solid ${token.colorBorderSecondary}`, 
+                               borderRadius: 8, 
+                               padding: 12,
+                               display: "flex",
+                               justifyContent: "space-between",
+                               alignItems: "center",
+                               background: token.colorBgContainer
+                           }}>
+                               <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+                                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                       {share.status === "revoked" ? (
+                                           <div style={{ color: "#ff4d4f", fontSize: 12, border: "1px solid #ff4d4f", padding: "0 4px", borderRadius: 4 }}>已作废</div>
+                                       ) : share.status === "expired" ? (
+                                           <div style={{ color: "#d9d9d9", fontSize: 12, border: "1px solid #d9d9d9", padding: "0 4px", borderRadius: 4 }}>已过期</div>
+                                       ) : share.status === "burned" ? (
+                                           <div style={{ color: "#d9d9d9", fontSize: 12, border: "1px solid #d9d9d9", padding: "0 4px", borderRadius: 4 }}>已焚毁</div>
+                                       ) : share.burnAfterReading ? (
+                                            <div style={{ color: "#faad14", fontSize: 12, border: "1px solid #faad14", padding: "0 4px", borderRadius: 4 }}>阅后即焚</div>
+                                       ) : (
+                                            <div style={{ color: "#52c41a", fontSize: 12, border: "1px solid #52c41a", padding: "0 4px", borderRadius: 4 }}>
+                                                <CountdownTimer expireSeconds={share.expireSeconds} createdAt={share.createdAt} />
+                                            </div>
+                                       )}
+                                       <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
+                                           {dayjs(share.createdAt).format("MM-DD HH:mm")}
+                                       </div>
+                                   </div>
+                                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                       <Input 
+                                           size="small" 
+                                           value={`${window.location.origin}/share?token=${encodeURIComponent(share.token)}`} 
+                                           readOnly 
+                                           style={{ fontSize: 12, background: token.colorFillAlter, textDecoration: share.status !== 'active' ? 'line-through' : 'none', color: share.status !== 'active' ? token.colorTextDisabled : undefined }}
+                                       />
+                                       <Button size="small" icon={<CopyOutlined />} onClick={() => copyToClipboard(`${window.location.origin}/share?token=${encodeURIComponent(share.token)}`)} disabled={share.status !== 'active'} />
+                                   </div>
+                               </div>
+                               <Space size="small">
+                                   {share.status === 'active' && (
+                                       <Button 
+                                           danger 
+                                           size="small" 
+                                           type="text" 
+                                           icon={<StopOutlined />} 
+                                           onClick={() => handleRevoke(share.signature)}
+                                       >
+                                           作废
+                                       </Button>
+                                   )}
+                                   <Button 
+                                       size="small" 
+                                       type="text" 
+                                       icon={<DeleteOutlined />} 
+                                       onClick={() => handleDeleteShare(share.signature)}
+                                   >
+                                       删除
+                                   </Button>
+                               </Space>
+                           </div>
+                       ))}
+                   </div>
+               )}
+           </div>
 
         </Space>
         </div>
