@@ -974,6 +974,87 @@ app.delete("/api/files/*", requirePassword, async (req, res) => {
   }
 });
 
+// 批量移动图片
+app.post("/api/batch/move", requirePassword, async (req, res) => {
+    try {
+        const { files, targetDir } = req.body;
+        if (!Array.isArray(files) || files.length === 0) {
+            return res.status(400).json({ error: "未选择文件" });
+        }
+        
+        let newDir = targetDir || "";
+        newDir = newDir.replace(/\\/g, "/").trim();
+        const absTargetDir = safeJoin(STORAGE_PATH, newDir);
+        await fs.ensureDir(absTargetDir);
+        
+        let successCount = 0;
+        let failCount = 0;
+        
+        for (const relPath of files) {
+            try {
+                const oldRelPath = decodeURIComponent(relPath).replace(/\\/g, "/");
+                const oldFilePath = safeJoin(STORAGE_PATH, oldRelPath);
+                
+                if (await fs.pathExists(oldFilePath)) {
+                    const filename = path.basename(oldFilePath);
+                    let newRelPath = path.join(newDir, filename).replace(/\\/g, "/");
+                    let newFilePath = safeJoin(STORAGE_PATH, newRelPath);
+                    
+                    // Handle duplicates
+                    if (oldFilePath !== newFilePath) {
+                         if (!config.upload.allowDuplicateNames && await fs.pathExists(newFilePath)) {
+                            const ext = path.extname(filename);
+                            const nameWithoutExt = path.basename(filename, ext);
+                            let counter = 1;
+                            let finalName = filename;
+                            
+                            while (await fs.pathExists(newFilePath)) {
+                                if (config.upload.duplicateStrategy === "overwrite") break;
+                                
+                                if (config.upload.duplicateStrategy === "timestamp") {
+                                    finalName = `${nameWithoutExt}_${Date.now()}_${counter}${ext}`;
+                                } else {
+                                    // counter
+                                    finalName = `${nameWithoutExt}_${counter}${ext}`;
+                                }
+                                newRelPath = path.join(newDir, finalName).replace(/\\/g, "/");
+                                newFilePath = safeJoin(STORAGE_PATH, newRelPath);
+                                counter++;
+                            }
+                        }
+                        
+                        if (oldFilePath !== newFilePath) {
+                            await fs.rename(oldFilePath, newFilePath);
+                            await moveThumbHash(oldFilePath, newFilePath);
+                            successCount++;
+                        } else {
+                            // Same file, technically success
+                            successCount++;
+                        }
+                    } else {
+                        successCount++;
+                    }
+                } else {
+                    failCount++;
+                }
+            } catch (e) {
+                console.error(`Move failed for ${relPath}:`, e);
+                failCount++;
+            }
+        }
+        
+        res.json({ 
+            success: true, 
+            message: `成功移动 ${successCount} 个文件` + (failCount > 0 ? `，失败 ${failCount} 个` : ""),
+            data: { successCount, failCount }
+        });
+        
+    } catch (e) {
+        console.error("Batch move error:", e);
+        res.status(500).json({ error: "批量移动失败" });
+    }
+});
+
 // 图片重命名（支持多层目录）
 app.put("/api/images/*", requirePassword, async (req, res) => {
   const relPath = decodeURIComponent(req.params[0]);

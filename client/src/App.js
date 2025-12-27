@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ConfigProvider, theme, message, Spin, Grid } from "antd";
+import { ConfigProvider, theme, message, Spin, Grid, Modal } from "antd";
 import FloatingToolbar from "./components/FloatingToolbar";
 import ImageGallery from "./components/ImageGallery";
 import PasswordOverlay from "./components/PasswordOverlay";
@@ -7,6 +7,7 @@ import LogoWithText from "./components/LogoWithText";
 import api from "./utils/api";
 import ApiDocs from "./components/ApiDocs";
 import ShareView from "./components/ShareView";
+import DirectorySelector from "./components/DirectorySelector";
 import { getPassword, clearPassword } from "./utils/secureStorage";
 
 function App() {
@@ -19,6 +20,11 @@ function App() {
   // Batch Mode State
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
+
+  // Batch Move State
+  const [moveModalVisible, setMoveModalVisible] = useState(false);
+  const [targetMoveDir, setTargetMoveDir] = useState("");
+  const [moving, setMoving] = useState(false);
 
   // Simple router check
   const isApiDocs = window.location.pathname === "/api/docs";
@@ -111,6 +117,38 @@ function App() {
       console.error("Batch delete error:", error);
       message.error("部分图片删除失败，请重试");
       handleRefresh(); // Refresh anyway to show what's left
+    }
+  };
+
+  const handleBatchMove = () => {
+    if (selectedItems.size === 0) return;
+    setTargetMoveDir(""); // Reset
+    setMoveModalVisible(true);
+  };
+
+  const confirmBatchMove = async () => {
+    if (selectedItems.size === 0) return;
+    
+    setMoving(true);
+    try {
+        const res = await api.post("/batch/move", {
+            files: Array.from(selectedItems),
+            targetDir: targetMoveDir
+        });
+        
+        if (res.data.success) {
+            message.success(res.data.message);
+            setMoveModalVisible(false);
+            setSelectedItems(new Set());
+            setIsBatchMode(false);
+            handleRefresh();
+        } else {
+            message.error(res.data.error || "移动失败");
+        }
+    } catch (e) {
+        message.error("移动失败，请重试");
+    } finally {
+        setMoving(false);
     }
   };
 
@@ -207,8 +245,32 @@ function App() {
                 toggleBatchMode={toggleBatchMode}
                 selectedCount={selectedItems.size}
                 onBatchDelete={handleBatchDelete}
+                onBatchMove={handleBatchMove}
               />
             )}
+
+            {/* Batch Move Modal */}
+            <Modal
+                open={moveModalVisible}
+                title="移动到..."
+                onCancel={() => setMoveModalVisible(false)}
+                onOk={confirmBatchMove}
+                confirmLoading={moving}
+                okText="确认移动"
+                cancelText="取消"
+                destroyOnClose
+            >
+                <div style={{ padding: "20px 0" }}>
+                    <p style={{ marginBottom: 12 }}>将选中的 {selectedItems.size} 张图片移动到：</p>
+                    <DirectorySelector 
+                        value={targetMoveDir}
+                        onChange={setTargetMoveDir}
+                        api={api}
+                        allowInput={true}
+                        placeholder="选择或输入目标相册"
+                    />
+                </div>
+            </Modal>
           </>
         )}
       </div>

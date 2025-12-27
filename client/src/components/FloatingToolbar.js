@@ -16,6 +16,7 @@ import {
   CheckSquareOutlined,
   CloseOutlined,
   DeleteOutlined,
+  ExportOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./UploadComponent";
 
@@ -29,6 +30,7 @@ const FloatingToolbar = ({
   toggleBatchMode,
   selectedCount,
   onBatchDelete,
+  onBatchMove,
 }) => {
   const [uploadVisible, setUploadVisible] = useState(false);
   const { token } = theme.useToken();
@@ -80,9 +82,28 @@ const FloatingToolbar = ({
           transition: "all 0.3s ease",
         }}
       >
-        {/* Batch Delete Action */}
+        {/* Batch Actions */}
         {isBatchMode && selectedCount > 0 && (
            <>
+            {/* Move Button */}
+            <Tooltip title="移动到相册" placement="top">
+                <Button
+                    shape="circle"
+                    icon={<ExportOutlined />}
+                    type="primary"
+                    size="middle"
+                    onClick={onBatchMove}
+                    style={{
+                        ...buttonStyle,
+                        color: '#fff', 
+                        background: token.colorPrimary,
+                        boxShadow: `0 2px 8px ${token.colorPrimary}50`
+                    }}
+                    className="toolbar-btn"
+                />
+            </Tooltip>
+            <div style={{ width: 1, height: 16, background: isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)" }} />
+
             <Popconfirm
                 title={`确定删除选中的 ${selectedCount} 张图片?`}
                 onConfirm={onBatchDelete}
