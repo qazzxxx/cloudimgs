@@ -1,12 +1,20 @@
 import React, { useEffect, useRef, useState } from "react";
 import api from "../utils/api";
 
-const ScrollingBackground = () => {
+const ScrollingBackground = ({ usePicsum = false }) => {
   const [images, setImages] = useState([]);
 
   useEffect(() => {
     // Fetch some random images to display in the background
     const fetchBackgroundImages = async () => {
+      if (usePicsum) {
+          setImages(Array.from({ length: 32 }).map((_, i) => ({
+             url: `https://picsum.photos/seed/${i + 500}/300/450`,
+             key: i
+         })));
+         return;
+      }
+
       try {
         // Try to fetch from our own API first to show actual content
         const res = await api.get("/images", { params: { page: 1, pageSize: 20 } });

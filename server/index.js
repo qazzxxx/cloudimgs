@@ -311,7 +311,7 @@ async function getAllImages(dir = "") {
   let results = [];
   const files = await fs.readdir(absDir);
   for (const file of files) {
-    if (file === CACHE_DIR_NAME) continue;
+    if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME) continue;
     const filePath = path.join(absDir, file);
     const relPath = path.join(dir, file);
     const stats = await fs.stat(filePath);
@@ -1049,7 +1049,72 @@ app.put("/api/images/*", requirePassword, async (req, res) => {
   }
 });
 
-// 6. 获取目录列表
+const crypto = require("crypto");
+const SHARE_SECRET = process.env.SHARE_SECRET || uuidv4();
+const SHARES_FILE_NAME = "burned_tokens.json"; // Keep filename as requested by user, but content will be shares
+
+// Helper to get share config path
+const getShareConfigPath = (dirPath) => {
+    const absDir = safeJoin(STORAGE_PATH, dirPath);
+    return path.join(absDir, CONFIG_DIR_NAME, SHARES_FILE_NAME);
+};
+
+// Helper to read shares
+const readShares = async (dirPath) => {
+    try {
+        const filePath = getShareConfigPath(dirPath);
+        if (await fs.pathExists(filePath)) {
+            return await fs.readJSON(filePath);
+        }
+    } catch (e) {}
+    return [];
+};
+
+// Helper to write shares
+const writeShares = async (dirPath, shares) => {
+    try {
+        const filePath = getShareConfigPath(dirPath);
+        await fs.ensureDir(path.dirname(filePath));
+        await fs.writeJSON(filePath, shares, { spaces: 2 });
+    } catch (e) {
+        console.error("Write shares failed:", e);
+    }
+};
+
+// Helper to get previews
+async function getPreviewImages(dir, limit = 3) {
+  const absDir = safeJoin(STORAGE_PATH, dir);
+  const previews = [];
+  try {
+    const files = await fs.readdir(absDir);
+    // Sort by recent? Or just random? Let's try to get recent ones if possible, but stats are slow.
+    // Let's just take first 3 images for performance, maybe sort by name.
+    // To do it right: stat all, sort by mtime, take 3.
+    // Optimization: limit the stat calls if directory is huge?
+    // For now, let's just grab the first few images we find.
+    for (const file of files) {
+        if (previews.length >= limit) break;
+        if (file === CACHE_DIR_NAME) continue;
+        const filePath = path.join(absDir, file);
+        const ext = path.extname(file).toLowerCase();
+        if (config.upload.allowedExtensions.includes(ext)) {
+            // Check if it's a file
+            try {
+                const stats = await fs.stat(filePath);
+                if (stats.isFile()) {
+                    const relPath = path.join(dir, file).replace(/\\/g, "/");
+                    previews.push(`/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`);
+                }
+            } catch (e) {}
+        }
+    }
+  } catch (e) {}
+  return previews;
+}
+
+const CONFIG_DIR_NAME = "config";
+
+// 6. 获取目录列表 (Modified to include previews)
 async function getDirectories(dir = "") {
   const absDir = safeJoin(STORAGE_PATH, dir);
   let directories = [];
@@ -1057,15 +1122,19 @@ async function getDirectories(dir = "") {
   try {
     const files = await fs.readdir(absDir);
     for (const file of files) {
-      if (file === CACHE_DIR_NAME) continue;
+      if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME) continue;
       const filePath = path.join(absDir, file);
       const stats = await fs.stat(filePath);
       if (stats.isDirectory()) {
         const relPath = path.join(dir, file).replace(/\\/g, "/");
+        const previews = await getPreviewImages(relPath, 3);
         directories.push({
           name: file,
           path: relPath,
           fullPath: filePath,
+          previews: previews,
+          imageCount: previews.length, // Rough indicator
+          mtime: stats.mtime
         });
       }
     }
@@ -1077,6 +1146,47 @@ async function getDirectories(dir = "") {
 
   return directories;
 }
+
+// Create Directory
+app.post("/api/directories", requirePassword, async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ error: "Missing name" });
+
+        // Allow multi-level directory creation
+        // Split by / or \ to handle path separators
+        const parts = name.split(/[/\\]/);
+        // Sanitize each part to ensure valid folder names
+        const safeParts = parts.map(p => sanitizeFilename(p)).filter(p => p.length > 0);
+        
+        if (safeParts.length === 0) {
+             return res.status(400).json({ error: "Invalid directory name" });
+        }
+
+        const relativePath = safeParts.join("/");
+        const dirPath = safeJoin(STORAGE_PATH, relativePath);
+
+        if (await fs.pathExists(dirPath)) {
+            return res.status(400).json({ error: "目录已存在" });
+        }
+
+        await fs.ensureDir(dirPath);
+        
+        // Return the created directory info
+        res.json({ 
+            success: true, 
+            message: "创建成功",
+            data: {
+                name: safeParts[safeParts.length - 1],
+                path: relativePath,
+                fullPath: dirPath
+            }
+        });
+    } catch (e) {
+        console.error("Create dir error:", e);
+        res.status(500).json({ error: "创建目录失败" });
+    }
+});
 
 app.get("/api/directories", requirePassword, async (req, res) => {
   try {
@@ -1093,6 +1203,172 @@ app.get("/api/directories", requirePassword, async (req, res) => {
   }
 });
 
+// Share API
+app.post("/api/share/generate", requirePassword, async (req, res) => {
+    try {
+        const { path: sharePath, expireSeconds, burnAfterReading } = req.body;
+        if (sharePath === undefined) return res.status(400).json({ error: "Missing path" });
+
+        const payload = {
+            p: sharePath,
+            e: expireSeconds ? Date.now() + expireSeconds * 1000 : null,
+            b: !!burnAfterReading,
+            n: uuidv4() // Nonce
+        };
+        
+        const dataStr = JSON.stringify(payload);
+        const signature = crypto.createHmac("sha256", SHARE_SECRET).update(dataStr).digest("hex");
+        const token = Buffer.from(JSON.stringify({ d: payload, s: signature })).toString("base64");
+        
+        // Save to local config
+        const shares = await readShares(sharePath);
+        shares.push({
+            token,
+            signature, // Used for quick lookup
+            createdAt: Date.now(),
+            expireSeconds,
+            burnAfterReading: !!burnAfterReading,
+            status: "active"
+        });
+        await writeShares(sharePath, shares);
+
+        res.json({ success: true, token });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Generate share link failed" });
+    }
+});
+
+// List shares
+app.get("/api/share/list", requirePassword, async (req, res) => {
+    try {
+        const { path: sharePath } = req.query;
+        if (sharePath === undefined) return res.status(400).json({ error: "Missing path" });
+        
+        const shares = await readShares(sharePath);
+        // Filter out expired or revoked? Maybe show all but indicate status
+        // Check expiry dynamically
+        const now = Date.now();
+        const result = shares.map(s => {
+            let status = s.status;
+            if (status === "active" && s.expireSeconds && (s.createdAt + s.expireSeconds * 1000 < now)) {
+                status = "expired";
+            }
+            return { ...s, status };
+        });
+        
+        res.json({ success: true, data: result });
+    } catch (e) {
+        res.status(500).json({ error: "List shares failed" });
+    }
+});
+
+// Revoke share
+app.post("/api/share/revoke", requirePassword, async (req, res) => {
+    try {
+        const { path: sharePath, signature } = req.body;
+        // Allow empty string for root path
+        if (sharePath === undefined || !signature) return res.status(400).json({ error: "Missing params" });
+
+        const shares = await readShares(sharePath);
+        const index = shares.findIndex(s => s.signature === signature);
+        if (index !== -1) {
+            shares[index].status = "revoked";
+            await writeShares(sharePath, shares);
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ error: "Share not found" });
+        }
+    } catch (e) {
+        res.status(500).json({ error: "Revoke failed" });
+    }
+});
+
+app.get("/api/share/access", async (req, res) => {
+    try {
+        const { token } = req.query;
+        if (!token) return res.status(400).json({ error: "Missing token" });
+
+        let decoded;
+        try {
+            const jsonStr = Buffer.from(token, "base64").toString("utf8");
+            decoded = JSON.parse(jsonStr);
+        } catch (e) {
+            return res.status(400).json({ error: "Invalid token format" });
+        }
+
+        const { d: payload, s: signature } = decoded;
+        const expectedSig = crypto.createHmac("sha256", SHARE_SECRET).update(JSON.stringify(payload)).digest("hex");
+
+        if (signature !== expectedSig) {
+            return res.status(403).json({ error: "Invalid signature" });
+        }
+
+        // Check local config
+        const dir = payload.p;
+        const shares = await readShares(dir);
+        const shareRecord = shares.find(s => s.signature === signature);
+        
+        if (!shareRecord) {
+             // If not found in local config (maybe old token or deleted), fallback to payload validation only?
+             // But user wants "manual revoke", so we MUST check record.
+             // If record missing, treat as invalid or revoked.
+             return res.status(403).json({ error: "分享记录不存在或已失效" });
+        }
+
+        if (shareRecord.status === "revoked") {
+            return res.status(410).json({ error: "链接已失效" });
+        }
+        
+        if (shareRecord.status === "burned") {
+             return res.status(410).json({ error: "链接已失效（阅后即焚）" });
+        }
+
+        // Check expiry
+        // Priority: Record > Payload (though they should match)
+        if (payload.e && Date.now() > payload.e) {
+            return res.status(410).json({ error: "链接已过期" });
+        }
+        
+        // Also check creation time based expiry from record just in case
+        if (shareRecord.expireSeconds && (shareRecord.createdAt + shareRecord.expireSeconds * 1000 < Date.now())) {
+             return res.status(410).json({ error: "链接已过期" });
+        }
+
+        if (payload.b) {
+            // Burn after reading
+            // Update status to burned
+            shareRecord.status = "burned";
+            // Update in array
+            const index = shares.findIndex(s => s.signature === signature);
+            if (index !== -1) shares[index] = shareRecord;
+            await writeShares(dir, shares);
+        }
+
+        // Token valid, return content
+        const images = await getAllImages(dir);
+        
+        // Sort
+        images.sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
+        
+        // ThumbHash
+        for (const img of images) {
+             const filePath = safeJoin(STORAGE_PATH, img.relPath);
+             img.thumbhash = await getThumbHash(filePath);
+        }
+
+        res.json({
+            success: true,
+            data: images,
+            dirName: path.basename(dir)
+        });
+
+    } catch (e) {
+        console.error("Share access error:", e);
+        res.status(500).json({ error: "Share access failed" });
+    }
+});
+
 // 7. 统计信息（递归统计所有目录）
 async function getStats(dir = "") {
   const absDir = safeJoin(STORAGE_PATH, dir);
@@ -1101,7 +1377,7 @@ async function getStats(dir = "") {
   let storagePath = absDir;
   const files = await fs.readdir(absDir);
   for (const file of files) {
-    if (file === CACHE_DIR_NAME) continue;
+    if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME) continue;
     const filePath = path.join(absDir, file);
     const stats = await fs.stat(filePath);
     if (stats.isDirectory()) {

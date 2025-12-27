@@ -42,6 +42,7 @@ import {
 import { thumbHashToDataURL } from "thumbhash";
 import DirectorySelector from "./DirectorySelector";
 import SvgToolModal from "./SvgToolModal";
+import AlbumManager from "./AlbumManager";
 import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
@@ -389,6 +390,8 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [hoverKey, setHoverKey] = useState(null);
   const [hoverLocation, setHoverLocation] = useState("");
   const [svgToolVisible, setSvgToolVisible] = useState(false);
+  const [albumManagerVisible, setAlbumManagerVisible] = useState(false);
+  const [directoryRefreshKey, setDirectoryRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!hoverKey) {
@@ -1166,6 +1169,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
               api={api}
               bordered={false}
               size="middle"
+              refreshKey={directoryRefreshKey}
             />
           </div>
           <div
@@ -1195,6 +1199,21 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           <Popover
             content={
               <div style={{ width: 160, padding: 4 }}>
+                  <Button
+                    type="text"
+                    icon={<FolderOutlined />}
+                    onClick={() => setAlbumManagerVisible(true)}
+                    style={{ 
+                        width: "100%", 
+                        textAlign: "left", 
+                        display: "flex", 
+                        alignItems: "center",
+                        height: 40,
+                        fontSize: 14
+                    }}
+                  >
+                    相册管理
+                  </Button>
                   <Button
                     type="text"
                     icon={<CodeOutlined />}
@@ -1715,6 +1734,15 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         </div>
       </Modal>
       <SvgToolModal visible={svgToolVisible} onClose={() => setSvgToolVisible(false)} api={api} />
+      <AlbumManager 
+        visible={albumManagerVisible} 
+        onClose={() => {
+            setAlbumManagerVisible(false);
+            setDirectoryRefreshKey(prev => prev + 1);
+        }} 
+        api={api}
+        onSelectAlbum={(path) => setDir(path)}
+      />
 
     </div>
   );

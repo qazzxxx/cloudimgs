@@ -6,6 +6,7 @@ import PasswordOverlay from "./components/PasswordOverlay";
 import LogoWithText from "./components/LogoWithText";
 import api from "./utils/api";
 import ApiDocs from "./components/ApiDocs";
+import ShareView from "./components/ShareView";
 import { getPassword, clearPassword } from "./utils/secureStorage";
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
 
   // Simple router check
   const isApiDocs = window.location.pathname === "/api/docs";
+  const isShareView = window.location.pathname.startsWith("/share");
   
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
@@ -155,6 +157,8 @@ function App() {
       <div style={{ position: "relative", minHeight: "100vh" }}>
         {isApiDocs ? (
             <ApiDocs />
+        ) : isShareView ? (
+            <ShareView currentTheme={currentTheme} onThemeChange={handleThemeChange} />
         ) : authLoading ? (
            <div style={{ 
                display: "flex", 

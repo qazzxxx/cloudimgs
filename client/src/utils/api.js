@@ -132,12 +132,13 @@ const mockAdapter = async (config) => {
 
       // Directories
       if (cleanUrl === "/directories" && method === "get") {
+        const previews = mockImages.slice(0, 3).map(img => img.url);
         resolve({
           data: {
             success: true,
             data: [
-              { name: "mock-dir-1", path: "mock-dir-1", fullPath: "mock-dir-1" },
-              { name: "mock-dir-2", path: "mock-dir-2", fullPath: "mock-dir-2" },
+              { name: "mock-dir-1", path: "mock-dir-1", fullPath: "mock-dir-1", previews, imageCount: 10, mtime: new Date() },
+              { name: "mock-dir-2", path: "mock-dir-2", fullPath: "mock-dir-2", previews, imageCount: 5, mtime: new Date() },
             ],
           },
           status: 200,
@@ -146,6 +147,34 @@ const mockAdapter = async (config) => {
           config,
         });
         return;
+      }
+
+      // Share Generate
+      if (cleanUrl === "/share/generate" && method === "post") {
+          resolve({
+              data: { success: true, token: "mock-token-" + Date.now() },
+              status: 200,
+              statusText: "OK",
+              headers: {},
+              config,
+          });
+          return;
+      }
+
+      // Share Access
+      if (cleanUrl.startsWith("/share/access") && method === "get") {
+          resolve({
+              data: { 
+                  success: true, 
+                  data: mockImages.slice(0, 10), 
+                  dirName: "Mock Share Album" 
+              },
+              status: 200,
+              statusText: "OK",
+              headers: {},
+              config,
+          });
+          return;
       }
 
       // Delete Image

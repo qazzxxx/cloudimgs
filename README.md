@@ -29,6 +29,7 @@
 - [x] 支持PicGo插件直接安装使用[PicGo插件](https://github.com/qazzxxx/picgo-plugin-cloudimgs-uploader)
 - [x] 支持上传其他文件格式，全局上传
 - [x] 在线管理图片，瀑布流展示，批量圈选删除
+- [x] 相册分享
 - [x] 集成thumbhash无感生成缩略图加载图片列表优化
 - [x] 支持设置密钥，保护图片安全
 - [x] 支持多级子目录管理
@@ -47,9 +48,11 @@
 图片管理页面
 ![云图 桌面端预览](client/public/cloudimgs.jpg)
 
-
 批量圈选操作
 ![云图 桌面端预览](client/public/batch.jpg)
+
+相册分享
+![云图 桌面端预览](client/public/share.jpg)
 
 整页上传
 ![云图 桌面端预览](client/public/upload.jpg)

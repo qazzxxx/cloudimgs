@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Select, Input, Space, Typography, Divider, Button } from "antd";
+import { Select, Input, Space, Typography, Divider, Button, message } from "antd";
 import { FolderOutlined, PlusOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
@@ -8,20 +8,21 @@ const { Text } = Typography;
 const DirectorySelector = ({
   value,
   onChange,
-  placeholder = "选择或输入子目录",
+  placeholder = "选择或输入相册",
   style = {},
   allowClear = true,
   showSearch = true,
   size = "middle",
   allowInput = true,
   api,
+  refreshKey = 0,
 }) => {
   const [directories, setDirectories] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [inputValue, setInputValue] = useState("");
+  const [createName, setCreateName] = useState("");
   const inputRef = useRef(null);
 
-  // 获取目录列表
+  // 获取相册列表
   const fetchDirectories = async () => {
     setLoading(true);
     try {
@@ -30,7 +31,7 @@ const DirectorySelector = ({
         setDirectories(response.data.data);
       }
     } catch (error) {
-      console.error("获取目录列表失败:", error);
+      console.error("获取相册列表失败:", error);
     } finally {
       setLoading(false);
     }
@@ -38,23 +39,16 @@ const DirectorySelector = ({
 
   useEffect(() => {
     fetchDirectories();
-  }, []);
-
-  // 当value改变时，同步inputValue
-  useEffect(() => {
-    setInputValue(value || "");
-  }, [value]);
+  }, [refreshKey]);
 
   const handleSelectChange = (selectedValue) => {
-    setInputValue(selectedValue || "");
     if (onChange) {
       onChange(selectedValue);
     }
   };
 
   const handleInputChange = (e) => {
-    const inputVal = e.target.value;
-    setInputValue(inputVal);
+    setCreateName(e.target.value);
   };
 
   const handleInputKeyPress = (e) => {
@@ -67,25 +61,27 @@ const DirectorySelector = ({
     // 搜索功能已通过filterOption实现
   };
 
-  const addNewDirectory = (e) => {
+  const addNewDirectory = async (e) => {
     if (e) e.preventDefault?.();
-    const val = (inputValue || "").trim();
+    const val = (createName || "").trim();
     if (!val) return;
-    const name =
-      val
-        .split("/")
-        .filter(Boolean)
-        .pop() || val;
-    setDirectories((prev) => {
-      if (!prev.find((d) => d.path === val)) {
-        return [...prev, { name, path: val, fullPath: "" }];
-      }
-      return prev;
-    });
-    if (onChange) {
-      onChange(val);
+
+    try {
+        const res = await api.post("/directories", { name: val });
+        if (res.data.success) {
+             message.success("相册创建成功");
+             await fetchDirectories();
+             if (onChange) {
+                // Use returned path if available, or input value
+                const newPath = res.data.data?.path || val;
+                onChange(newPath);
+             }
+             setCreateName("");
+        }
+    } catch (e) {
+        message.error(e.response?.data?.error || "创建失败");
     }
-    setInputValue("");
+
     setTimeout(() => {
       inputRef.current?.focus();
     }, 0);
@@ -109,7 +105,7 @@ const DirectorySelector = ({
             option?.children?.props?.children?.[1]?.props?.children || "";
           return optionText.toLowerCase().indexOf(input.toLowerCase()) >= 0;
         }}
-        notFoundContent={loading ? "加载中..." : "暂无目录"}
+        notFoundContent={loading ? "加载中..." : "暂无相册"}
         dropdownRender={(menu) => (
           <div>
             {menu}
@@ -118,9 +114,9 @@ const DirectorySelector = ({
                 <Divider style={{ margin: "8px 0" }} />
                 <Space style={{ padding: "0 8px 8px", width: "100%" }}>
                   <Input
-                    placeholder="输入新目录路径（如：2025/12/13）"
+                    placeholder="输入新相册名称 (支持多级如 A/B)"
                     ref={inputRef}
-                    value={inputValue}
+                    value={createName}
                     onChange={handleInputChange}
                     onKeyDown={(e) => e.stopPropagation()}
                     onKeyPress={handleInputKeyPress}
@@ -138,7 +134,7 @@ const DirectorySelector = ({
         <Option value="">
           <Space>
             <FolderOutlined />
-            <Text>根目录</Text>
+            <Text>全部图片</Text>
           </Space>
         </Option>
         {directories.map((dir) => (
