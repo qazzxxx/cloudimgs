@@ -79,6 +79,9 @@ services:
     # 使用 root 用户运行以解决权限问题
     user: "root"
     environment:
+      - PUID=1000  # 替换为您 NAS 用户的实际 ID (id -u)
+      - PGID=1000   # 替换为您 NAS 用户组的实际 ID (id -g)
+      - UMASK=002
       - NODE_ENV=production
       - PORT=3001
       - STORAGE_PATH=/app/uploads

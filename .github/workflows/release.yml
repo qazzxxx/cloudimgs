@@ -43,6 +43,12 @@ jobs:
                   "labels": []
                 }
               ],
+              "label_extractor": [
+                {
+                  "pattern": "^(feat|fix|chore|bug|perf|refactor|test)(?:\\([^\\)]+\\))?: .+$",
+                  "target": "$1"
+                }
+              ],
               "template": "#{{CHANGELOG}}",
               "pr_template": "- #{{TITLE}} by @#{{AUTHOR}} in ##{{NUMBER}}",
               "ignore_before": "v1.0.0"
