@@ -1198,7 +1198,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           />
           <Popover
             content={
-              <div style={{ width: 160, padding: 4 }}>
+              <div style={{ padding: 4 }}>
                   <Button
                     type="text"
                     icon={<FolderOutlined />}

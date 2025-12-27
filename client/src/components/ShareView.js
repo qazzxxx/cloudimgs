@@ -103,7 +103,6 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, isMobile, hand
                         </div>
                         <div style={{ display: "flex", gap: "8px" }}>
                             <Button size="small" type="text" icon={<DownloadOutlined />} onClick={(e) => { e.stopPropagation(); handleDownload(image); }} style={{ color: "#fff", background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "4px", fontSize: "12px" }}>下载</Button>
-                            <Button size="small" type="text" icon={<CopyOutlined />} onClick={(e) => { e.stopPropagation(); copyToClipboard(window.location.origin + image.url); }} style={{ color: "#fff", background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "4px", fontSize: "12px" }}>链接</Button>
                         </div>
                     </div>
                 </div>
@@ -302,21 +301,6 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
     link.click();
     document.body.removeChild(link);
     message.success("开始下载");
-  };
-
-  const copyToClipboard = (text) => {
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(() => message.success("链接已复制到剪贴板"));
-    } else {
-        // Fallback
-        const input = document.createElement("input");
-        input.value = text;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand("copy");
-        document.body.removeChild(input);
-        message.success("链接已复制到剪贴板");
-    }
   };
 
   if (loading) {
