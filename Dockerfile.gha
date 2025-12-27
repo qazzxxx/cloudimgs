@@ -52,26 +52,27 @@ RUN echo "=== Build verification ===" && \
 # 生产阶段
 FROM node:18-alpine AS production
 
-# 创建非root用户
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S cloudimgs -u 1001
-
 # 设置工作目录
 WORKDIR /app
 
-# 从构建阶段复制文件
-COPY --from=builder --chown=cloudimgs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=cloudimgs:nodejs /app/package*.json ./
-COPY --from=builder --chown=cloudimgs:nodejs /app/server ./server
-COPY --from=builder --chown=cloudimgs:nodejs /app/config.js ./
-COPY --from=builder --chown=cloudimgs:nodejs /app/client/build ./client/build
+# 安装 gosu 和基础依赖
+RUN apk add --no-cache gosu su-exec
 
-# 创建必要的目录
-RUN mkdir -p uploads logs && \
-    chown -R cloudimgs:nodejs uploads logs
+# 从构建阶段复制node_modules和应用文件
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/config.js ./
+COPY --from=builder /app/client/build ./client/build
 
-# 切换到非root用户
-USER cloudimgs
+# 创建上传目录
+RUN mkdir -p uploads logs
+
+# 验证文件复制
+RUN echo "=== Production Image Verification ===" && \
+    ls -la client/build/ && \
+    echo "=== Node modules verification ===" && \
+    ls -la node_modules/ | head -10
 
 # 暴露端口
 EXPOSE 3001
@@ -80,6 +81,18 @@ EXPOSE 3001
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV STORAGE_PATH=/app/uploads
+ENV PUID=1000
+ENV PGID=1000
+ENV UMASK=002
 
-# 启动应用
+# 复制入口脚本
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/api/stats', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# 使用入口脚本启动
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["npm", "start"] 
