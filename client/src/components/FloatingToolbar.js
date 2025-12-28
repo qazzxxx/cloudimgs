@@ -16,7 +16,7 @@ import {
   CheckSquareOutlined,
   CloseOutlined,
   DeleteOutlined,
-  ExportOutlined,
+  DeliveredProcedureOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./UploadComponent";
 
@@ -89,7 +89,7 @@ const FloatingToolbar = ({
             <Tooltip title="移动到相册" placement="top">
                 <Button
                     shape="circle"
-                    icon={<ExportOutlined />}
+                    icon={<DeliveredProcedureOutlined />}
                     type="primary"
                     size="middle"
                     onClick={onBatchMove}

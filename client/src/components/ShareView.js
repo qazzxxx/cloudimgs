@@ -169,7 +169,7 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
             let errorMsg = res.data.error || "获取分享内容失败";
             if (errorMsg.includes("Link already used") || errorMsg.includes("Burned")) {
                 errorMsg = "链接已失效 (阅后即焚)";
-            } else if (errorMsg.includes("expired")) {
+            } else if (errorMsg.includes("expired") || errorMsg.includes("Invalid")) {
                 errorMsg = "链接已过期";
             }
             if (!append) setError(errorMsg);

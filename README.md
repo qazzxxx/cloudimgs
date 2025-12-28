@@ -1,4 +1,4 @@
-## 云图 - 极简风格的云图库，支持 NAS 部署，支持各种灵活的API开放接口，PicGo插件直接安装使用
+## 云图 - 极简至上，私有珍藏
 
 [![云图 GitHub's stars](https://img.shields.io/github/stars/qazzxxx/cloudimgs?style=social)](https://github.com/qazzxxx/cloudimgs/stargazers)
 [![云图 GitHub's forks](https://img.shields.io/github/forks/qazzxxx/cloudimgs?style=social)](https://github.com/qazzxxx/cloudimgs/network/members)

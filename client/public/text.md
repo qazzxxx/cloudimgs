@@ -139,7 +139,7 @@ docker-compose up -d
 
 开源不易，如果你觉得「云图」还不错，或者帮到了你的忙，希望能去 GitHub 点个 **Star ⭐️** 支持一下！这也是我持续维护的动力。
 
-* **GitHub 项目地址**: [https://github.com/qazzxxx/cloudimgs](https://www.google.com/search?q=https://github.com/qazzxxx/cloudimgs)
+* **GitHub 项目地址**: [https://github.com/qazzxxx/cloudimgs](https://github.com/qazzxxx/cloudimgs)
 * **PicGo 插件**: [https://github.com/qazzxxx/picgo-plugin-cloudimgs-uploader](https://github.com/qazzxxx/picgo-plugin-cloudimgs-uploader)
 
 如果你在使用过程中遇到任何问题，欢迎在 GitHub 提 Issue 或在评论区留言，我会尽快回复大家！
