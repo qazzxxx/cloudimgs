@@ -27,7 +27,7 @@ function App() {
   const [moving, setMoving] = useState(false);
 
   // Simple router check
-  const isApiDocs = window.location.pathname === "/api/docs";
+  const isApiDocs = window.location.pathname === "/opendocs";
   const isShareView = window.location.pathname.startsWith("/share");
   
   const { useBreakpoint } = Grid;

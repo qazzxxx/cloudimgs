@@ -1232,7 +1232,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                   <Button
                     type="text"
                     icon={<ApiOutlined />}
-                    onClick={() => window.open("/api/docs", "_blank")}
+                    onClick={() => window.open("/opendocs", "_blank")}
                     style={{ 
                         width: "100%", 
                         textAlign: "left", 
