@@ -99,7 +99,7 @@ const PasswordOverlay = ({ onLoginSuccess, isMobile }) => {
         </div>
         
         <Title level={3} style={{ color: "#fff", marginBottom: 8, marginTop: 0 }}>
-          云图 - 云端一隅，时光深藏
+          云图 - 云端一隅，拾光深藏
         </Title>
         <Text
           style={{

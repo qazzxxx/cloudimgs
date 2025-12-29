@@ -1,4 +1,4 @@
-## 云图 - 云端一隅，时光深藏
+## 云图 - 云端一隅，拾光深藏
 
 [![云图 GitHub's stars](https://img.shields.io/github/stars/qazzxxx/cloudimgs?style=social)](https://github.com/qazzxxx/cloudimgs/stargazers)
 [![云图 GitHub's forks](https://img.shields.io/github/forks/qazzxxx/cloudimgs?style=social)](https://github.com/qazzxxx/cloudimgs/network/members)
