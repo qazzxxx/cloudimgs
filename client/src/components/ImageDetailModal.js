@@ -588,7 +588,7 @@ const ImageDetailModal = ({
             <div style={{ display: "flex", gap: 12, marginBottom: 32 }}>
               <Button
                 block
-                ghost
+                ghost={!isLight}
                 icon={<DownloadOutlined />}
                 onClick={handleDownload}
               >
@@ -600,7 +600,7 @@ const ImageDetailModal = ({
                 okText="是"
                 cancelText="否"
               >
-                <Button block ghost danger icon={<DeleteOutlined />}>
+                <Button block ghost={!isLight} danger icon={<DeleteOutlined />}>
                   删除
                 </Button>
               </Popconfirm>

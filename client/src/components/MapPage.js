@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
-import { Spin, message, Button } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Spin, message, Button, Tooltip } from 'antd';
+import { ArrowLeftOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import coordtransform from 'coordtransform';
 import api from '../utils/api';
 import ImageDetailModal from './ImageDetailModal';
 
@@ -20,35 +20,40 @@ L.Icon.Default.mergeOptions({
 
 const createPhotoIcon = (thumbUrl) => {
   return L.divIcon({
-    className: 'custom-photo-marker',
+    className: 'custom-photo-marker-container', // Use container class for positioning
     html: `
-      <div style="
-        width: 44px;
-        height: 44px;
-        background-image: url('${thumbUrl}');
-        background-size: cover;
-        background-position: center;
-        border-radius: 6px;
-        border: 2px solid white;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.4);
-        position: relative;
-      ">
-        <div style="
-          position: absolute;
-          bottom: -6px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 0; 
-          height: 0; 
-          border-left: 6px solid transparent;
-          border-right: 6px solid transparent;
-          border-top: 6px solid white;
-        "></div>
+      <div class="glass-marker">
+        <div class="marker-image" style="background-image: url('${thumbUrl}')"></div>
+        <div class="marker-arrow"></div>
       </div>
     `,
-    iconSize: [44, 50],
-    iconAnchor: [22, 50],
-    popupAnchor: [0, -50],
+    iconSize: [48, 56], // Slightly larger for better touch targets
+    iconAnchor: [24, 56],
+    popupAnchor: [0, -56],
+  });
+};
+
+// Custom Cluster Icon
+const createClusterCustomIcon = function (cluster) {
+  const count = cluster.getChildCount();
+  let size = 'small';
+  if (count > 10) size = 'medium';
+  if (count > 50) size = 'large';
+  
+  // Get first child's image to use as background (optional, but cool)
+  // const children = cluster.getAllChildMarkers();
+  // const firstChildHtml = children[0].options.icon.options.html;
+  // const bgMatch = firstChildHtml.match(/url\('([^']+)'\)/);
+  // const bgUrl = bgMatch ? bgMatch[1] : '';
+
+  return L.divIcon({
+    html: `
+      <div class="glass-cluster glass-cluster-${size}">
+        <span>${count}</span>
+      </div>
+    `,
+    className: 'custom-cluster-icon',
+    iconSize: L.point(40, 40, true),
   });
 };
 
@@ -139,6 +144,100 @@ function MapPage() {
     size: 0 // Size might be unknown here
   } : null;
 
+  // CSS Styles for Glassmorphism
+  const styles = `
+    .glass-marker {
+        width: 48px;
+        height: 48px;
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        padding: 3px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        position: relative;
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .custom-photo-marker-container:hover .glass-marker {
+        transform: scale(1.15) translateY(-4px);
+        z-index: 1000;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+        border-color: rgba(0, 0, 0, 0.15);
+        background: rgba(255, 255, 255, 0.85);
+    }
+
+    .marker-image {
+        width: 100%;
+        height: 100%;
+        border-radius: 5px;
+        background-size: cover;
+        background-position: center;
+        background-color: #f0f0f0;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+    }
+
+    .marker-arrow {
+        position: absolute;
+        bottom: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0; 
+        height: 0; 
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 6px solid rgba(255, 255, 255, 0.6);
+        filter: drop-shadow(0 2px 2px rgba(0,0,0,0.05));
+    }
+
+    /* Cluster Styles */
+    .glass-cluster {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.65);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: 600;
+        color: #333;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        animation: pulse-light 3s infinite;
+    }
+    
+    .glass-cluster span {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        font-size: 14px;
+    }
+
+    @keyframes pulse-light {
+        0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.1); }
+        70% { box-shadow: 0 0 0 8px rgba(0, 0, 0, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+    }
+    
+    /* Controls Styling */
+    .map-control-btn {
+        background: rgba(255, 255, 255, 0.85) !important;
+        backdrop-filter: blur(8px) !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    }
+    .leaflet-control-zoom a {
+        background: rgba(255, 255, 255, 0.85) !important;
+        backdrop-filter: blur(4px) !important;
+        color: #333 !important;
+        border-color: rgba(0,0,0,0.1) !important;
+    }
+  `;
+
   if (state.loading) {
     return <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}><Spin size="large" tip="正在加载地图数据..." /></div>;
   }
@@ -152,26 +251,68 @@ function MapPage() {
     );
   }
 
+  const tileLayerProps = {
+    url: "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+    attribution: '&copy; 高德地图',
+    subdomains: ['1', '2', '3', '4']
+  };
+
+  const getDisplayCoordinates = (lat, lng) => {
+    // Always convert WGS-84 to GCJ-02 for AutoNavi
+    const [lngGcj, latGcj] = coordtransform.wgs84togcj02(lng, lat);
+    return [latGcj, lngGcj];
+  };
+
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
-      <Button 
-        icon={<ArrowLeftOutlined />} 
-        style={{ position: 'absolute', top: 20, left: 20, zIndex: 1000 }} 
-        onClick={handleBack}
-      >
-        返回列表
-      </Button>
+      <style>{styles}</style>
       
-      <MapContainer center={[35, 105]} zoom={4} style={{ height: '100%', width: '100%' }}>
+      {/* Top Left Controls */}
+      <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 1000, display: 'flex', gap: 12 }}>
+        <Tooltip title="返回列表" placement="right">
+            <Button 
+              icon={<ArrowLeftOutlined />} 
+              className="map-control-btn"
+              onClick={handleBack}
+              size="large"
+              shape="circle"
+            />
+        </Tooltip>
+        <div style={{ 
+            background: 'rgba(255,255,255,0.8)', 
+            backdropFilter: 'blur(8px)',
+            padding: '0 16px',
+            borderRadius: 20,
+            display: 'flex', 
+            alignItems: 'center',
+            border: '1px solid rgba(0,0,0,0.05)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            color: '#333'
+        }}>
+           <EnvironmentOutlined style={{ marginRight: 8 }} />
+           <span style={{ fontWeight: 500 }}>{state.markers.length} 张照片</span>
+        </div>
+      </div>
+      
+      <MapContainer 
+        center={[35, 105]} 
+        zoom={4} 
+        style={{ height: '100%', width: '100%' }} 
+        zoomControl={false}
+      >
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          {...tileLayerProps}
         />
-        <MarkerClusterGroup chunkedLoading>
+        <MarkerClusterGroup 
+            chunkedLoading
+            iconCreateFunction={createClusterCustomIcon}
+            maxClusterRadius={60}
+            spiderfyOnMaxZoom={true}
+        >
           {state.markers.map((marker, idx) => (
             <Marker 
               key={`${marker.filename}-${idx}`} 
-              position={[marker.lat, marker.lng]}
+              position={getDisplayCoordinates(marker.lat, marker.lng)}
               icon={createPhotoIcon(marker.thumbUrl)}
               eventHandlers={{
                 click: () => handleMarkerClick(idx)

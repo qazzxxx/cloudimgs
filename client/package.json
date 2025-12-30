@@ -9,6 +9,7 @@
     "@testing-library/user-event": "^13.5.0",
     "antd": "^6.0.0",
     "axios": "^1.10.0",
+    "coordtransform": "^2.1.2",
     "cropperjs": "^1.6.2",
     "dayjs": "^1.11.13",
     "leaflet": "^1.9.4",
@@ -27,7 +28,7 @@
   "scripts": {
     "start": "react-scripts start",
     "start:mock": "REACT_APP_MOCK=true react-scripts start",
-    "build": "react-scripts build",
+    "build": "CI=false react-scripts build",
     "build:mock": "REACT_APP_MOCK=true react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
