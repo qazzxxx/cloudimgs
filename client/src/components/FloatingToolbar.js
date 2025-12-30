@@ -17,6 +17,7 @@ import {
   CloseOutlined,
   DeleteOutlined,
   DeliveredProcedureOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import UploadComponent from "./UploadComponent";
 
@@ -148,6 +149,20 @@ const FloatingToolbar = ({
                 } : buttonStyle}
                 className="toolbar-btn"
             />
+        </Tooltip>
+
+        <div style={{ width: 1, height: 16, background: isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)" }} />
+
+        <Tooltip title="轨迹地图" placement="top">
+          <Button
+            shape="circle"
+            icon={<GlobalOutlined />}
+            onClick={() => window.location.href = '/map'}
+            size="middle"
+            type="text"
+            style={buttonStyle}
+            className="toolbar-btn"
+          />
         </Tooltip>
 
         <div style={{ width: 1, height: 16, background: isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)" }} />

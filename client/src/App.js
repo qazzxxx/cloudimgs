@@ -6,6 +6,7 @@ import PasswordOverlay from "./components/PasswordOverlay";
 import LogoWithText from "./components/LogoWithText";
 import api from "./utils/api";
 import ApiDocs from "./components/ApiDocs";
+import MapPage from "./components/MapPage";
 import ShareView from "./components/ShareView";
 import DirectorySelector from "./components/DirectorySelector";
 import { getPassword, clearPassword } from "./utils/secureStorage";
@@ -28,6 +29,7 @@ function App() {
 
   // Simple router check
   const isApiDocs = window.location.pathname === "/opendocs";
+  const isMapPage = window.location.pathname === "/map";
   const isShareView = window.location.pathname.startsWith("/share");
   
   const { useBreakpoint } = Grid;
@@ -195,6 +197,8 @@ function App() {
       <div style={{ position: "relative", minHeight: "100vh" }}>
         {isApiDocs ? (
             <ApiDocs />
+        ) : isMapPage ? (
+            <MapPage />
         ) : isShareView ? (
             <ShareView currentTheme={currentTheme} onThemeChange={handleThemeChange} />
         ) : authLoading ? (

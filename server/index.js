@@ -336,6 +336,79 @@ async function getAllImages(dir = "") {
   return results;
 }
 
+// Map Cache Configuration
+const MAP_CACHE_PATH = path.join(STORAGE_PATH, CACHE_DIR_NAME, "img_metadata.json");
+
+async function updateMapCache() {
+  await fs.ensureDir(path.dirname(MAP_CACHE_PATH));
+  let cache = {};
+  try {
+    if (await fs.pathExists(MAP_CACHE_PATH)) {
+      cache = await fs.readJSON(MAP_CACHE_PATH);
+    }
+  } catch (e) {
+    console.warn("Failed to read map cache:", e);
+  }
+
+  const allImages = await getAllImages("");
+  const newCache = {};
+  const tasks = [];
+
+  for (const img of allImages) {
+    const filePath = safeJoin(STORAGE_PATH, img.relPath);
+    // We parse the ISO string from getAllImages to get timestamp
+    const lastModified = new Date(img.uploadTime).getTime();
+    const key = img.relPath;
+
+    if (cache[key] && cache[key].lastModified === lastModified) {
+      newCache[key] = cache[key];
+    } else {
+      tasks.push(async () => {
+        try {
+          // Parse all metadata to ensure we get calculated GPS coordinates
+          // Using 'pick' sometimes fails to return calculated latitude/longitude
+          const meta = await exifr.parse(filePath, {
+            gps: true,
+          });
+
+          if (meta && meta.latitude && meta.longitude) {
+            const date =
+              meta.DateTimeOriginal || meta.CreateDate || img.uploadTime;
+            
+            // Re-check thumbhash as it might have been missing
+            const thumbUrl = `${img.url}?w=200`;
+
+            newCache[key] = {
+              filename: img.filename,
+              relPath: img.relPath,
+              lat: meta.latitude,
+              lng: meta.longitude,
+              date:
+                date instanceof Date
+                  ? date.toISOString()
+                  : new Date(date).toISOString(),
+              thumbUrl: thumbUrl, 
+              lastModified: lastModified,
+              orientation: meta.Orientation // Store orientation to help frontend if needed
+            };
+          }
+        } catch (err) {
+          // Ignore errors or no GPS
+        }
+      });
+    }
+  }
+
+  // Run tasks in chunks to avoid resource exhaustion
+  const CHUNK_SIZE = 50;
+  for (let i = 0; i < tasks.length; i += CHUNK_SIZE) {
+    await Promise.all(tasks.slice(i, i + CHUNK_SIZE).map((t) => t()));
+  }
+
+  await fs.writeJSON(MAP_CACHE_PATH, newCache);
+  return Object.values(newCache);
+}
+
 // 处理 multer 错误的中间件
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -682,6 +755,16 @@ app.post(
   }
 );
 
+// 1.2 Map Data Endpoint
+app.get("/api/map-data", requirePassword, async (req, res) => {
+  try {
+    const data = await updateMapCache();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 2. 获取图片列表（支持dir参数、分页、搜索）
 app.get("/api/images", requirePassword, async (req, res) => {
   try {
@@ -874,7 +957,7 @@ app.get("/api/images/*", async (req, res) => {
       res.setHeader("Content-Type", mimeType);
       return res.sendFile(filePath);
     }
-    let img = sharp(filePath);
+    let img = sharp(filePath).rotate();
     if (w || h) {
       img = img.resize({
         width: w,
