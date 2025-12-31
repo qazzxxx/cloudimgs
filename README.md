@@ -24,6 +24,7 @@
   - [x] 图片列表接口
   - [x] 图片删除接口
 - [x] 图片上传，多图拖拽一键上传
+- [x] 照片轨迹地图
 - [x] 支持压缩图片大小
 - [x] 支持URL参数实时处理图片 （如：image.jpg?w=500&h=300&q=80&fmt=webp 自动将原图转换为WebP 、宽500px，高300px，图片质量压缩到80% 返回）
 - [x] 支持PicGo插件直接安装使用[PicGo插件](https://github.com/qazzxxx/picgo-plugin-cloudimgs-uploader)
@@ -57,8 +58,14 @@
 整页上传
 ![云图 桌面端预览](client/public/upload.jpg)
 
+照片轨迹地图
+![云图 桌面端预览](client/public/map.jpg)
+
 开放接口页面
 ![云图 桌面端预览](client/public/api.jpg)
+
+移动端页面
+![云图 移动端预览](client/public/mobile.jpg)
 
 
 
