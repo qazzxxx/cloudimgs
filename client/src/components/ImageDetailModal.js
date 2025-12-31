@@ -94,9 +94,17 @@ const ImageDetailModal = ({
   const [dirValue, setDirValue] = useState("");
   const [renaming, setRenaming] = useState(false);
 
+  const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
   // Reset state when file changes
   useEffect(() => {
     if (file) {
+      setZoom(1);
+      setPosition({ x: 0, y: 0 });
+      // ... existing reset logic
       setImageMeta(null);
       setPreviewLocation("");
       setIsEditingName(false);
@@ -125,6 +133,46 @@ const ImageDetailModal = ({
         .catch(() => {});
     }
   }, [file, api]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleWheel = (e) => {
+    e.stopPropagation();
+    // 阻止默认滚动行为，避免页面滚动
+    // e.preventDefault(); // React synthetic event might not support this in all cases, better handle in container
+
+    const scaleAmount = -e.deltaY * 0.001;
+    setZoom((prevZoom) => {
+      const newZoom = prevZoom + scaleAmount;
+      return Math.max(1, Math.min(newZoom, 5)); // Limit zoom between 1x and 5x
+    });
+  };
+
+  const handleMouseDown = (e) => {
+    if (zoom > 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+      e.preventDefault(); // Prevent default drag behavior
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging && zoom > 1) {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Reset position if zoomed out to 1
+  useEffect(() => {
+    if (zoom === 1) {
+      setPosition({ x: 0, y: 0 });
+    }
+  }, [zoom]);
 
   // Fetch Location
   useEffect(() => {
@@ -445,7 +493,14 @@ const ImageDetailModal = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              overflow: "hidden", // Ensure zoomed image doesn't overflow container
+              cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
             }}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
           >
             {/* Blurry Background */}
             <div
@@ -473,8 +528,12 @@ const ImageDetailModal = ({
                 objectFit: "contain",
                 boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
                 zIndex: 2,
+                transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+                transition: isDragging ? "none" : "transform 0.1s ease-out", // Smooth zoom, instant drag
+                pointerEvents: "none", // Let container handle events
               }}
               src={file.url}
+              draggable={false}
             />
           </div>
         </div>

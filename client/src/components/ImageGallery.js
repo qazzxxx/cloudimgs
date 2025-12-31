@@ -36,6 +36,7 @@ import { thumbHashToDataURL } from "thumbhash";
 import DirectorySelector from "./DirectorySelector";
 import SvgToolModal from "./SvgToolModal";
 import AlbumManager from "./AlbumManager";
+import ImageDetailModal from "./ImageDetailModal";
 import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
@@ -401,6 +402,8 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [albumManagerVisible, setAlbumManagerVisible] = useState(false);
   const [directoryRefreshKey, setDirectoryRefreshKey] = useState(0);
 
+
+
   useEffect(() => {
     if (!hoverKey) {
         setHoverLocation("");
@@ -462,8 +465,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [isEditingDir, setIsEditingDir] = useState(false);
   const [dirValue, setDirValue] = useState("");
   
-  // Drag and drop states
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   // Drag Selection Logic
@@ -478,7 +480,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
     }
   }, []);
 
-  const handleMouseDown = (e) => {
+  const handleSelectionMouseDown = (e) => {
     if (!isBatchMode) return;
     if (e.button !== 0) return; // Only left click
     
@@ -500,7 +502,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
 
     document.body.style.userSelect = 'none';
 
-    const handleMouseMove = (e) => {
+    const handleSelectionMouseMove = (e) => {
         setSelectionBox(prev => ({
             ...prev,
             currentX: e.pageX,
@@ -508,17 +510,17 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         }));
     };
 
-    const handleMouseUp = (e) => {
+    const handleSelectionMouseUp = (e) => {
         document.body.style.userSelect = '';
         setSelectionBox(null);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mousemove', handleSelectionMouseMove);
+    window.addEventListener('mouseup', handleSelectionMouseUp);
 
     return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('mousemove', handleSelectionMouseMove);
+        window.removeEventListener('mouseup', handleSelectionMouseUp);
         document.body.style.userSelect = '';
     };
   }, [selectionBox?.isSelecting]);
@@ -804,7 +806,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         message.error("上传出错");
     } finally {
         setUploading(false);
-        setIsDragging(false);
+        setIsDragOver(false);
     }
   };
 
@@ -846,7 +848,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           e.stopPropagation();
           dragCounter++;
           if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-              setIsDragging(true);
+              setIsDragOver(true);
           }
       };
 
@@ -855,7 +857,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           e.stopPropagation();
           dragCounter--;
           if (dragCounter === 0) {
-              setIsDragging(false);
+              setIsDragOver(false);
           }
       };
 
@@ -867,7 +869,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
       const handleDrop = (e) => {
           e.preventDefault();
           e.stopPropagation();
-          setIsDragging(false);
+          setIsDragOver(false);
           dragCounter = 0;
           
           if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
@@ -925,6 +927,13 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [previewIndex, setPreviewIndex] = useState(-1);
 
   // ... (keep existing helper functions)
+
+  const handleUpdate = (updatedFile) => {
+      setImages(prev => prev.map(img => img.relPath === previewFile.relPath ? { ...img, ...updatedFile } : img));
+      setPreviewFile(updatedFile);
+      setPreviewTitle(updatedFile.filename);
+      setPreviewImage(updatedFile.url);
+  };
 
   const handlePreview = (file) => {
     // Find index in current images list
@@ -1040,7 +1049,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   return (
     <div 
         style={{ padding: isMobile ? "12px" : "24px", minHeight: "100vh" }}
-        onMouseDown={handleMouseDown}
+        onMouseDown={handleSelectionMouseDown}
     >
       {/* Drag Selection Box */}
       {selectionBox?.isSelecting && (
@@ -1060,7 +1069,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
       )}
 
       {/* Drag & Drop Overlay */}
-      {isDragging && (
+      {isDragOver && (
           <div
             style={{
                 position: 'fixed',
@@ -1348,399 +1357,24 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         </>
       )}
 
-      <Modal
-        open={previewVisible}
-        title={null}
-        footer={null}
+      <ImageDetailModal
+        visible={previewVisible}
         onCancel={() => {
           setPreviewVisible(false);
           setIsEditingName(false);
         }}
-        width="100vw"
-        style={{
-          top: 0,
-          margin: 0,
-          maxWidth: "100vw",
-          padding: 0,
+        file={previewFile}
+        api={api}
+        onNext={showNext}
+        onPrev={showPrev}
+        hasNext={previewIndex < images.length - 1}
+        hasPrev={previewIndex > 0}
+        onDelete={(relPath) => {
+            handleDelete(relPath);
+            setPreviewVisible(false);
         }}
-        styles={{
-          body: {
-            padding: 0,
-            height: "100vh",
-            overflow: "hidden",
-            background: "#000",
-          },
-          content: {
-              padding: 0,
-              background: "#000",
-              boxShadow: "none",
-          },
-          container: {
-            padding: 0
-          }
-        }}
-        closeIcon={null} // We will implement our own close button
-      >
-        <div
-          style={{
-            display: "flex",
-            height: "100vh",
-            position: "relative",
-          }}
-        >
-          {/* Close Button */}
-          <div style={{ position: "absolute", top: 20, right: isMobile ? 20 : 420, zIndex: 1000, display: "flex", gap: 12 }}>
-              <Tooltip title="复制链接">
-                  <Button
-                    shape="circle"
-                    icon={<CopyOutlined />}
-                    onClick={() => copyToClipboard(window.location.origin + previewFile.url)}
-                    style={{
-                        background: "rgba(0,0,0,0.5)",
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        color: "#fff",
-                        width: 40,
-                        height: 40,
-                    }}
-                  />
-              </Tooltip>
-              <Button
-                shape="circle"
-                icon={<span style={{ fontSize: 24, lineHeight: 1 }}>×</span>}
-                onClick={() => setPreviewVisible(false)}
-                style={{
-                    background: "rgba(0,0,0,0.5)",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    color: "#fff",
-                    width: 40,
-                    height: 40,
-                }}
-              />
-          </div>
-
-          {/* Left: Image Viewer */}
-          <div
-            style={{
-              flex: 1,
-              height: "100%",
-              overflow: "hidden",
-              position: "relative",
-              backgroundColor: "#0f0f0f",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {/* Nav Buttons */}
-            {!isMobile && previewIndex > 0 && (
-                <Button 
-                    type="text"
-                    icon={<LeftOutlined style={{ fontSize: 24, color: 'rgba(255,255,255,0.8)' }} />}
-                    onClick={(e) => { e.stopPropagation(); showPrev(); }}
-                    style={{
-                        position: 'absolute',
-                        left: 20,
-                        zIndex: 100,
-                        height: '100%',
-                        width: 80,
-                        background: 'linear-gradient(90deg, rgba(0,0,0,0.3) 0%, transparent 100%)',
-                        border: 'none',
-                        opacity: 0,
-                        transition: 'opacity 0.3s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = 0}
-                />
-            )}
-            {!isMobile && previewIndex < images.length - 1 && (
-                <Button 
-                    type="text"
-                    icon={<RightOutlined style={{ fontSize: 24, color: 'rgba(255,255,255,0.8)' }} />}
-                    onClick={(e) => { e.stopPropagation(); showNext(); }}
-                    style={{
-                        position: 'absolute',
-                        right: 20,
-                        zIndex: 100,
-                        height: '100%',
-                        width: 80,
-                        background: 'linear-gradient(-90deg, rgba(0,0,0,0.3) 0%, transparent 100%)',
-                        border: 'none',
-                        opacity: 0,
-                        transition: 'opacity 0.3s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = 0}
-                />
-            )}
-
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                position: "relative",
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-                {/* Blurry Background */}
-                <div
-                style={{
-                    position: "absolute",
-                    top: 0,
-                    right: 0,
-                    bottom: 0,
-                    left: 0,
-                    backgroundImage: `url(${previewImage})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    filter: "blur(40px) brightness(0.5)",
-                    transform: "scale(1.2)",
-                    zIndex: 0,
-                }}
-                />
-                <img
-                alt="preview"
-                style={{
-                    maxWidth: "100%",
-                    maxHeight: "100%",
-                    width: "auto",
-                    height: "auto",
-                    objectFit: "contain",
-                    boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-                    zIndex: 2,
-                }}
-                src={previewImage}
-                />
-            </div>
-          </div>
-
-          {/* Right: Info Sidebar */}
-          {previewFile && (() => {
-            const thumbUrl = getThumbHashUrl(previewFile.thumbhash);
-            const hasThumb = !!thumbUrl;
-            const isDarkBg = hasThumb || isDarkMode;
-            const isLight = !isDarkBg; 
-
-            const textColor = hasThumb ? "#fff" : colorText;
-            const secondaryTextColor = hasThumb ? "rgba(255,255,255,0.75)" : colorTextSecondary;
-            const tertiaryTextColor = hasThumb ? "rgba(255,255,255,0.5)" : (isDarkMode ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)");
-            const inputBg = hasThumb ? "rgba(255,255,255,0.15)" : (isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)");
-
-            return (
-            <div
-              style={{
-                width: isMobile ? "100%" : 360,
-                background: hasThumb 
-                    ? `linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url(${thumbUrl}) center/cover no-repeat`
-                    : colorBgContainer,
-                color: textColor,
-                borderLeft: isDarkMode ? "1px solid rgba(255,255,255,0.1)" : "none",
-                display: isMobile ? "none" : "flex",
-                flexDirection: "column",
-                zIndex: 20,
-                transition: "background 0.3s ease, color 0.3s ease",
-              }}
-            >
-              <div style={{ flex: 1, overflowY: "auto", padding: "32px 24px" }}>
-                {/* Header Section */}
-                <div style={{ marginBottom: 24 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                        <Title level={4} style={{ margin: 0, wordBreak: 'break-all', color: textColor, fontSize: 18 }}>
-                            {previewFile.filename}
-                        </Title>
-                        <Button
-                            type="text"
-                            icon={<EditOutlined style={{ color: secondaryTextColor }} />}
-                            onClick={() => setIsEditingName(!isEditingName)}
-                        />
-                    </div>
-                    
-                    {isEditingName && (
-                        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                            <Input
-                                value={renameValue}
-                                onChange={(e) => setRenameValue(e.target.value)}
-                                onPressEnter={() => {/* Trigger save logic */}}
-                                style={{ background: inputBg, color: textColor, border: "none" }}
-                            />
-                            <Button type="primary" ghost={!isLight} style={isLight ? {} : {}} onClick={async () => {
-                                // Rename logic (reused)
-                                const oldRel = previewFile.relPath;
-                                const ext = previewFile.filename.includes(".") ? previewFile.filename.substring(previewFile.filename.lastIndexOf(".")) : "";
-                                const newNameRaw = renameValue.trim();
-                                if (!newNameRaw) return;
-                                const hasExt = /\.[A-Za-z0-9]+$/.test(newNameRaw);
-                                const newName = hasExt ? newNameRaw : `${newNameRaw}${ext}`;
-                                try {
-                                    setRenaming(true);
-                                    const res = await api.put(`/images/${encodeURIComponent(oldRel)}`, { newName });
-                                    if (res.data?.success) {
-                                        const updated = res.data.data;
-                                        setPreviewFile(updated);
-                                        setPreviewTitle(updated.filename);
-                                        setPreviewImage(updated.url);
-                                        setImages(prev => prev.map(img => img.relPath === oldRel ? { ...img, ...updated } : img));
-                                        setIsEditingName(false);
-                                        message.success("重命名成功");
-                                    }
-                                } finally { setRenaming(false); }
-                            }}>保存</Button>
-                        </div>
-                    )}
-
-                    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <FolderOutlined style={{ color: secondaryTextColor }} />
-                        <Text style={{ fontSize: 13, color: secondaryTextColor }}>
-                            {dirValue || "根目录"}
-                        </Text>
-                        <Button type="link" size="small" onClick={() => setIsEditingDir(!isEditingDir)} style={{ padding: 0, height: 'auto', color: isLight ? colorPrimary : "rgba(255,255,255,0.8)" }}>
-                            修改
-                        </Button>
-                    </div>
-                    {isEditingDir && (
-                        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                             <div style={{ flex: 1 }}>
-                                <DirectorySelector
-                                    value={dirValue}
-                                    onChange={setDirValue}
-                                    size="small"
-                                    api={api}
-                                    style={{ background: inputBg, color: textColor, border: "none" }}
-                                />
-                             </div>
-                             <Button type="primary" ghost={!isLight} size="small" onClick={async () => {
-                                 // Dir change logic
-                                 const oldRel = previewFile.relPath;
-                                 try {
-                                     const res = await api.put(`/images/${encodeURIComponent(oldRel)}`, { newDir: dirValue || "" });
-                                     if (res.data?.success) {
-                                         const updated = res.data.data;
-                                         setPreviewFile(updated);
-                                         setImages(prev => prev.map(img => img.relPath === oldRel ? { ...img, ...updated } : img));
-                                         setIsEditingDir(false);
-                                         message.success("目录已更新");
-                                     }
-                                 } catch (e) {}
-                             }}>保存</Button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Actions Row */}
-                <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
-                    <Button block ghost icon={<DownloadOutlined />} onClick={() => handleDownload(previewFile)} variant="outlined" color="primary">
-                        下载
-                    </Button>
-                    <Popconfirm
-                        title="确定删除?"
-                        onConfirm={async () => {
-                            const success = await handleDelete(previewFile.relPath);
-                            if (success) setPreviewVisible(false);
-                        }}
-                        okText="是" cancelText="否"
-                    >
-                        <Button block ghost danger icon={<DeleteOutlined />} variant="outlined" color="danger">删除</Button>
-                    </Popconfirm>
-                </div>
-
-                {/* Info Sections */}
-                <Space direction="vertical" size={24} style={{ width: '100%' }}>
-                    
-                    {/* Basic Info */}
-                    <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: tertiaryTextColor, textTransform: 'uppercase', marginBottom: 12 }}>
-                            基本信息
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                            <div>
-                                <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>文件大小</div>
-                                <div style={{ fontSize: 13, color: textColor }}>{formatFileSize(previewFile.size)}</div>
-                            </div>
-                            <div>
-                                <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>格式</div>
-                                <div style={{ fontSize: 13, color: textColor }}>{previewFile.filename.split('.').pop().toUpperCase()}</div>
-                            </div>
-                            {imageMeta && (
-                                <>
-                                    <div>
-                                        <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>分辨率</div>
-                                        <div style={{ fontSize: 13, color: textColor }}>{imageMeta.width} × {imageMeta.height}</div>
-                                    </div>
-                                    <div>
-                                        <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>色彩空间</div>
-                                        <div style={{ fontSize: 13, color: textColor }}>{imageMeta.space || '-'}</div>
-                                    </div>
-                                </>
-                            )}
-                            <div>
-                                <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>上传时间</div>
-                                <div style={{ fontSize: 13, color: textColor }}>{dayjs(previewFile.uploadTime).format("YYYY-MM-DD")}</div>
-                            </div>
-                            {previewLocation && (
-                                <div style={{ gridColumn: 'span 2' }}>
-                                    <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>拍摄地点</div>
-                                    <div style={{ fontSize: 13, color: textColor, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <EnvironmentOutlined /> {previewLocation}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* EXIF Data */}
-                    {imageMeta?.exif && (
-                        <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: tertiaryTextColor, textTransform: 'uppercase', marginBottom: 12 }}>
-                                拍摄参数
-                            </div>
-                            <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <CameraOutlined style={{ fontSize: 16, color: tertiaryTextColor }} />
-                                    <div>
-                                        <div style={{ fontSize: 13, color: textColor }}>{[imageMeta.exif.make, imageMeta.exif.model].filter(Boolean).join(" ")}</div>
-                                        <div style={{ fontSize: 12, color: tertiaryTextColor }}>相机</div>
-                                    </div>
-                                </div>
-                                {imageMeta.exif.lensModel && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                        <span style={{ fontSize: 16, color: tertiaryTextColor }}>◎</span>
-                                        <div>
-                                            <div style={{ fontSize: 13, color: textColor }}>{imageMeta.exif.lensModel}</div>
-                                            <div style={{ fontSize: 12, color: tertiaryTextColor }}>镜头</div>
-                                        </div>
-                                    </div>
-                                )}
-                                <div style={{ display: 'flex', gap: 24, marginTop: 4, flexWrap: "wrap" }}>
-                                    {imageMeta.exif.fNumber && (
-                                        <div>
-                                            <div style={{ fontSize: 13, fontWeight: 500, color: textColor }}>f/{formatFNumber(imageMeta.exif.fNumber)}</div>
-                                            <div style={{ fontSize: 12, color: tertiaryTextColor }}>光圈</div>
-                                        </div>
-                                    )}
-                                    {imageMeta.exif.exposureTime && (
-                                        <div>
-                                            <div style={{ fontSize: 13, fontWeight: 500, color: textColor }}>{formatExposureTime(imageMeta.exif.exposureTime)}</div>
-                                            <div style={{ fontSize: 12, color: tertiaryTextColor }}>快门</div>
-                                        </div>
-                                    )}
-                                    {imageMeta.exif.iso && (
-                                        <div>
-                                            <div style={{ fontSize: 13, fontWeight: 500, color: textColor }}>{imageMeta.exif.iso}</div>
-                                            <div style={{ fontSize: 12, color: tertiaryTextColor }}>ISO</div>
-                                        </div>
-                                    )}
-                                </div>
-                            </Space>
-                        </div>
-                    )}
-                </Space>
-              </div>
-            </div>
-            );
-          })()}
-        </div>
-      </Modal>
+        onUpdate={handleUpdate}
+      />
       <SvgToolModal visible={svgToolVisible} onClose={() => setSvgToolVisible(false)} api={api} />
       <AlbumManager 
         visible={albumManagerVisible} 
