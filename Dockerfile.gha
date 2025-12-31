@@ -17,8 +17,8 @@ COPY package*.json ./
 COPY client/package*.json ./client/
 
 # 安装依赖
-RUN npm ci --no-audit --no-fund --prefer-offline
-RUN cd client && npm ci --no-audit --no-fund --prefer-offline
+RUN npm install --no-audit --no-fund --prefer-offline
+RUN cd client && npm install --no-audit --no-fund --prefer-offline
 
 # 复制源代码
 COPY . .

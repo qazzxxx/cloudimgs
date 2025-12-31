@@ -20,7 +20,7 @@ ENV NPM_CONFIG_LOGLEVEL=warn
 COPY package*.json ./
 
 # 安装所有依赖（包括开发依赖，用于构建）
-RUN npm ci --no-audit --no-fund --prefer-offline
+RUN npm install --no-audit --no-fund --prefer-offline
 
 # 复制客户端package.json
 COPY client/package*.json ./client/
@@ -28,7 +28,7 @@ COPY client/package*.json ./client/
 # 安装客户端依赖（添加详细输出和错误处理）
 RUN cd client && \
     echo "=== Installing client dependencies ===" && \
-    npm ci --no-audit --no-fund --prefer-offline --verbose && \
+    npm install --no-audit --no-fund --prefer-offline --verbose && \
     echo "=== Client dependencies installed successfully ==="
 
 # 复制源代码
