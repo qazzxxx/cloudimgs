@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import React, { useState, useEffect, useCallback } from 'react';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { Spin, message, Button, Tooltip } from 'antd';
 import { ArrowLeftOutlined, EnvironmentOutlined } from '@ant-design/icons';
@@ -57,6 +57,52 @@ const createClusterCustomIcon = function (cluster) {
   });
 };
 
+const getDisplayCoordinates = (lat, lng) => {
+  // Always convert WGS-84 to GCJ-02 for AutoNavi
+  const [lngGcj, latGcj] = coordtransform.wgs84togcj02(lng, lat);
+  return [latGcj, lngGcj];
+};
+
+const MarkerCluster = ({ markers, onMarkerClick }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !markers) return;
+
+    const markerClusterGroup = L.markerClusterGroup({
+      chunkedLoading: true,
+      iconCreateFunction: createClusterCustomIcon,
+      maxClusterRadius: 60,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false
+    });
+
+    const leafletMarkers = markers.map((marker, idx) => {
+      if (!marker.lat || !marker.lng) return null;
+      
+      const latLng = getDisplayCoordinates(marker.lat, marker.lng);
+      const leafletMarker = L.marker(latLng, {
+        icon: createPhotoIcon(marker.thumbUrl)
+      });
+
+      leafletMarker.on('click', () => {
+        onMarkerClick(idx);
+      });
+
+      return leafletMarker;
+    }).filter(Boolean);
+
+    markerClusterGroup.addLayers(leafletMarkers);
+    map.addLayer(markerClusterGroup);
+
+    return () => {
+      map.removeLayer(markerClusterGroup);
+    };
+  }, [map, markers, onMarkerClick]);
+
+  return null;
+};
+
 function MapPage() {
   const [state, setState] = useState({
     loading: true,
@@ -95,10 +141,10 @@ function MapPage() {
     window.location.href = '/';
   };
 
-  const handleMarkerClick = (index) => {
+  const handleMarkerClick = useCallback((index) => {
     setSelectedIndex(index);
     setModalVisible(true);
-  };
+  }, []);
 
   const handleNext = () => {
     if (selectedIndex < state.markers.length - 1) {
@@ -252,15 +298,11 @@ function MapPage() {
   }
 
   const tileLayerProps = {
-    url: "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+    url: "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}",
     attribution: '&copy; 高德地图',
-    subdomains: ['1', '2', '3', '4']
-  };
-
-  const getDisplayCoordinates = (lat, lng) => {
-    // Always convert WGS-84 to GCJ-02 for AutoNavi
-    const [lngGcj, latGcj] = coordtransform.wgs84togcj02(lng, lat);
-    return [latGcj, lngGcj];
+    subdomains: ['1', '2', '3', '4'],
+    minZoom: 3,
+    maxZoom: 18
   };
 
   return (
@@ -295,33 +337,15 @@ function MapPage() {
       </div>
       
       <MapContainer 
-        center={[35, 105]} 
-        zoom={4} 
+        center={[35, 108]} 
+        zoom={5}
         style={{ height: '100%', width: '100%' }} 
         zoomControl={false}
       >
         <TileLayer
           {...tileLayerProps}
         />
-        <MarkerClusterGroup 
-            chunkedLoading
-            iconCreateFunction={createClusterCustomIcon}
-            maxClusterRadius={60}
-            spiderfyOnMaxZoom={true}
-        >
-          {state.markers.map((marker, idx) => (
-            <Marker 
-              key={`${marker.filename}-${idx}`} 
-              position={getDisplayCoordinates(marker.lat, marker.lng)}
-              icon={createPhotoIcon(marker.thumbUrl)}
-              eventHandlers={{
-                click: () => handleMarkerClick(idx)
-              }}
-            >
-              {/* Removed Popup to allow direct click to modal */}
-            </Marker>
-          ))}
-        </MarkerClusterGroup>
+        <MarkerCluster markers={state.markers} onMarkerClick={handleMarkerClick} />
       </MapContainer>
 
       <ImageDetailModal
