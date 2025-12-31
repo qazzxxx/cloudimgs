@@ -362,6 +362,13 @@ async function updateMapCache() {
 
     if (cache[key] && cache[key].lastModified === lastModified) {
       newCache[key] = cache[key];
+      // Backfill thumbhash if missing in cache
+      if (!newCache[key].thumbhash) {
+         tasks.push(async () => {
+             const filePath = safeJoin(STORAGE_PATH, img.relPath);
+             newCache[key].thumbhash = await getThumbHash(filePath);
+         });
+      }
     } else {
       tasks.push(async () => {
         try {
@@ -377,6 +384,7 @@ async function updateMapCache() {
             
             // Re-check thumbhash as it might have been missing
             const thumbUrl = `${img.url}?w=200`;
+            const thumbhash = await getThumbHash(filePath);
 
             newCache[key] = {
               filename: img.filename,
@@ -388,6 +396,7 @@ async function updateMapCache() {
                   ? date.toISOString()
                   : new Date(date).toISOString(),
               thumbUrl: thumbUrl, 
+              thumbhash: thumbhash,
               lastModified: lastModified,
               orientation: meta.Orientation // Store orientation to help frontend if needed
             };

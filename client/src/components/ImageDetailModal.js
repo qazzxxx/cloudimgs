@@ -109,7 +109,7 @@ const ImageDetailModal = ({
         })
         .catch(() => {});
     }
-  }, [file, api]);
+  }, [file, api]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch Location
   useEffect(() => {
@@ -170,8 +170,6 @@ const ImageDetailModal = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [visible, hasNext, hasPrev, onNext, onPrev]);
-
-  if (!file) return null;
 
   const handleDownload = () => {
     const link = document.createElement("a");
@@ -253,7 +251,10 @@ const ImageDetailModal = ({
     }
   };
 
-  const thumbUrl = getThumbHashUrl(file.thumbhash);
+  const thumbUrl = React.useMemo(() => {
+    if (!file || !file.thumbhash) return null;
+    return getThumbHashUrl(file.thumbhash);
+  }, [file]);
   const hasThumb = !!thumbUrl;
   const isDarkBg = hasThumb || isDarkMode;
   const isLight = !isDarkBg;
@@ -272,6 +273,8 @@ const ImageDetailModal = ({
     : isDarkMode
     ? "rgba(255,255,255,0.1)"
     : "rgba(0,0,0,0.06)";
+
+  if (!file) return null;
 
   return (
     <Modal
@@ -437,7 +440,7 @@ const ImageDetailModal = ({
                 right: 0,
                 bottom: 0,
                 left: 0,
-                backgroundImage: `url(${file.url})`,
+                backgroundImage: `url(${thumbUrl || file.url})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 filter: "blur(40px) brightness(0.5)",
@@ -588,9 +591,11 @@ const ImageDetailModal = ({
             <div style={{ display: "flex", gap: 12, marginBottom: 32 }}>
               <Button
                 block
-                ghost={!isLight}
+                ghost
                 icon={<DownloadOutlined />}
                 onClick={handleDownload}
+                variant="outlined"
+                color="primary"
               >
                 下载
               </Button>
@@ -600,7 +605,7 @@ const ImageDetailModal = ({
                 okText="是"
                 cancelText="否"
               >
-                <Button block ghost={!isLight} danger icon={<DeleteOutlined />}>
+                <Button block ghost danger icon={<DeleteOutlined />} variant="outlined" color="danger">
                   删除
                 </Button>
               </Popconfirm>
