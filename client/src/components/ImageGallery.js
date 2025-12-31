@@ -345,6 +345,21 @@ const ImageItem = ({
     );
 };
 
+// Helper: Format aperture
+const formatFNumber = (val) => {
+  if (!val) return "";
+  const num = parseFloat(val);
+  return parseFloat(num.toFixed(1));
+};
+
+// Helper: Format exposure time
+const formatExposureTime = (val) => {
+  if (!val) return "";
+  const num = parseFloat(val);
+  if (num >= 1) return parseFloat(num.toFixed(1)) + "s";
+  return `1/${Math.round(1 / num)}s`;
+};
+
 const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigger, isBatchMode = false, selectedItems = new Set(), onSelectionChange = () => {} }) => {
   const {
     token: { colorBgContainer, colorBorder, colorPrimary, colorTextSecondary, colorText },
@@ -1696,16 +1711,16 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                                         </div>
                                     </div>
                                 )}
-                                <div style={{ display: 'flex', gap: 24, marginTop: 4 }}>
+                                <div style={{ display: 'flex', gap: 24, marginTop: 4, flexWrap: "wrap" }}>
                                     {imageMeta.exif.fNumber && (
                                         <div>
-                                            <div style={{ fontSize: 13, fontWeight: 500, color: textColor }}>f/{imageMeta.exif.fNumber}</div>
+                                            <div style={{ fontSize: 13, fontWeight: 500, color: textColor }}>f/{formatFNumber(imageMeta.exif.fNumber)}</div>
                                             <div style={{ fontSize: 12, color: tertiaryTextColor }}>光圈</div>
                                         </div>
                                     )}
                                     {imageMeta.exif.exposureTime && (
                                         <div>
-                                            <div style={{ fontSize: 13, fontWeight: 500, color: textColor }}>{imageMeta.exif.exposureTime}s</div>
+                                            <div style={{ fontSize: 13, fontWeight: 500, color: textColor }}>{formatExposureTime(imageMeta.exif.exposureTime)}</div>
                                             <div style={{ fontSize: 12, color: tertiaryTextColor }}>快门</div>
                                         </div>
                                     )}

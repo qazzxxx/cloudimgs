@@ -48,6 +48,21 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
+// Helper: Format aperture
+const formatFNumber = (val) => {
+  if (!val) return "";
+  const num = parseFloat(val);
+  return parseFloat(num.toFixed(1));
+};
+
+// Helper: Format exposure time
+const formatExposureTime = (val) => {
+  if (!val) return "";
+  const num = parseFloat(val);
+  if (num >= 1) return parseFloat(num.toFixed(1)) + "s";
+  return `1/${Math.round(1 / num)}s`;
+};
+
 const ImageDetailModal = ({
   visible,
   onCancel,
@@ -795,7 +810,7 @@ const ImageDetailModal = ({
                         </div>
                       </div>
                     )}
-                    <div style={{ display: "flex", gap: 24, marginTop: 4 }}>
+                    <div style={{ display: "flex", gap: 24, marginTop: 4, flexWrap: "wrap" }}>
                       {imageMeta.exif.fNumber && (
                         <div>
                           <div
@@ -805,7 +820,7 @@ const ImageDetailModal = ({
                               color: textColor,
                             }}
                           >
-                            f/{imageMeta.exif.fNumber}
+                            f/{formatFNumber(imageMeta.exif.fNumber)}
                           </div>
                           <div
                             style={{ fontSize: 12, color: tertiaryTextColor }}
@@ -823,7 +838,7 @@ const ImageDetailModal = ({
                               color: textColor,
                             }}
                           >
-                            {imageMeta.exif.exposureTime}s
+                            {formatExposureTime(imageMeta.exif.exposureTime)}
                           </div>
                           <div
                             style={{ fontSize: 12, color: tertiaryTextColor }}
