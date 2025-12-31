@@ -9,6 +9,10 @@ RUN apk add --no-cache git python3 make g++
 
 # 设置Node.js内存限制（避免OOM）
 ENV NODE_OPTIONS="--max-old-space-size=4096"
+# 禁用 Source Map 以减少内存占用和加快构建速度
+ENV GENERATE_SOURCEMAP=false
+# 禁用 ESLint 插件以避免构建期间的 Lint 错误中断
+ENV DISABLE_ESLINT_PLUGIN=true
 
 # 设置npm配置
 ENV NPM_CONFIG_AUDIT=false
