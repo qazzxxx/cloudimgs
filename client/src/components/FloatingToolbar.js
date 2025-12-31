@@ -12,7 +12,6 @@ import {
   ReloadOutlined,
   SunOutlined,
   MoonOutlined,
-  ArrowUpOutlined,
   CheckSquareOutlined,
   CloseOutlined,
   DeleteOutlined,

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Modal,
-  Card,
   Typography,
   Dropdown,
   Button,
@@ -21,16 +20,13 @@ import {
   ShareAltOutlined,
   FolderOpenOutlined,
   CopyOutlined,
-  GlobalOutlined,
-  ClockCircleOutlined,
   FireOutlined,
-  LinkOutlined,
   StopOutlined,
   PlusOutlined
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 
 const CountdownTimer = ({ expireSeconds, createdAt }) => {

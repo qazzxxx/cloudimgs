@@ -1,10 +1,8 @@
 import React from 'react';
-import { Typography, Card, Collapse, Tag, Divider, theme, Button, message, Space, Tooltip } from 'antd';
-import { 
-  CloudOutlined, 
+import { Typography, Card, Collapse, Tag, Divider, theme, Button, message, Tooltip } from 'antd';
+import {
   FileImageOutlined, 
   FolderOutlined, 
-  DeleteOutlined,
   InfoCircleOutlined,
   CopyOutlined,
   CodeOutlined,
