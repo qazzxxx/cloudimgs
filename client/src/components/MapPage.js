@@ -245,16 +245,16 @@ function MapPage() {
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.65);
+        background: rgba(20, 20, 20, 0.75);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
         display: flex;
         justify-content: center;
         align-items: center;
         font-weight: 600;
-        color: #333;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
         animation: pulse-light 3s infinite;
     }
     
@@ -264,23 +264,28 @@ function MapPage() {
     }
 
     @keyframes pulse-light {
-        0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.1); }
+        0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2); }
         70% { box-shadow: 0 0 0 8px rgba(0, 0, 0, 0); }
         100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
     }
     
     /* Controls Styling */
     .map-control-btn {
-        background: rgba(255, 255, 255, 0.85) !important;
+        background: rgba(20, 20, 20, 0.75) !important;
         backdrop-filter: blur(8px) !important;
-        border: 1px solid rgba(0, 0, 0, 0.1) !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+        color: #fff !important;
+    }
+    .map-control-btn:hover {
+        background: rgba(40, 40, 40, 0.85) !important;
+        border-color: rgba(255, 255, 255, 0.3) !important;
     }
     .leaflet-control-zoom a {
-        background: rgba(255, 255, 255, 0.85) !important;
+        background: rgba(20, 20, 20, 0.75) !important;
         backdrop-filter: blur(4px) !important;
-        color: #333 !important;
-        border-color: rgba(0,0,0,0.1) !important;
+        color: #fff !important;
+        border-color: rgba(255, 255, 255, 0.15) !important;
     }
   `;
 
@@ -321,15 +326,15 @@ function MapPage() {
             />
         </Tooltip>
         <div style={{ 
-            background: 'rgba(255,255,255,0.8)', 
+            background: 'rgba(20, 20, 20, 0.75)', 
             backdropFilter: 'blur(8px)',
             padding: '0 16px',
             borderRadius: 20,
             display: 'flex', 
             alignItems: 'center',
-            border: '1px solid rgba(0,0,0,0.05)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            color: '#333'
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+            color: '#fff'
         }}>
            <EnvironmentOutlined style={{ marginRight: 8 }} />
            <span style={{ fontWeight: 500 }}>{state.markers.length} 张照片</span>
