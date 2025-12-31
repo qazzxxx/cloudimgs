@@ -187,6 +187,57 @@ const ApiDocs = () => {
             </ul>
           </Card>
 
+          <Divider />
+
+          <Card type="inner" title="上传图片 (Base64)" bordered={false}>
+            <div style={endpointStyle}>
+              <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
+              <Text code copyable>/api/upload-base64</Text>
+              <CurlButton 
+                endpoint="/api/upload-base64" 
+                method="POST" 
+                options={{ 
+                    isJson: true, 
+                    body: { base64Image: "data:image/png;base64,iVBORw0KGgo...", dir: "uploads", originalName: "test.png" } 
+                }} 
+              />
+            </div>
+            <Paragraph>
+              通过 Base64 字符串上传图片。
+            </Paragraph>
+            <Divider orientation="left" plain>Body (JSON)</Divider>
+            <ul>
+                <li><Text code>base64Image</Text>: Base64 图片字符串 (包含 data URI scheme)</li>
+                <li><Text code>dir</Text>: 目标目录 (可选)</li>
+                <li><Text code>originalName</Text>: 原始文件名 (可选，用于保留扩展名)</li>
+            </ul>
+          </Card>
+
+           <Divider />
+
+           <Card type="inner" title="重命名/移动图片" bordered={false}>
+             <div style={endpointStyle}>
+              <Tag color="orange" style={methodTagStyle('PUT')}>PUT</Tag>
+              <Text code copyable>/api/images/:path</Text>
+               <CurlButton 
+                    endpoint="/api/images/example.jpg" 
+                    method="PUT" 
+                    options={{
+                        isJson: true,
+                        body: { newName: "new-name.jpg", newDir: "new/path" }
+                    }}
+                />
+            </div>
+            <Paragraph>
+              对图片进行重命名或移动到其他目录。
+            </Paragraph>
+            <Divider orientation="left" plain>Body (JSON)</Divider>
+            <ul>
+                <li><Text code>newName</Text>: 新文件名 (可选)</li>
+                <li><Text code>newDir</Text>: 新目录路径 (可选)</li>
+            </ul>
+          </Card>
+
            <Divider />
 
            <Card type="inner" title="删除图片" bordered={false}>
@@ -263,6 +314,64 @@ const ApiDocs = () => {
             <Paragraph>
               获取服务器存储空间使用情况及图片总数统计。
             </Paragraph>
+          </Card>
+        </Panel>
+        <Panel 
+            header={<div style={{ fontWeight: 600, fontSize: 16 }}>工具接口 (Tools)</div>} 
+            key="5"
+            extra={<CodeOutlined />}
+        >
+           <Card type="inner" title="图片处理" bordered={false}>
+            <div style={endpointStyle}>
+              <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
+              <Text code copyable>/api/process-image</Text>
+              <CurlButton 
+                endpoint="/api/process-image" 
+                method="POST" 
+                options={{ 
+                    isMultipart: true, 
+                    extraParams: [
+                        {key: 'width', value: '300'}, 
+                        {key: 'height', value: '300'},
+                        {key: 'dir', value: 'processed'}
+                    ] 
+                }} 
+              />
+            </div>
+            <Paragraph>
+              上传并调整图片尺寸（保持纵横比缩放至目标尺寸）。
+            </Paragraph>
+            <Divider orientation="left" plain>Body (FormData)</Divider>
+            <ul>
+                <li><Text code>image</Text>: 图片文件</li>
+                <li><Text code>width</Text>: 目标宽度</li>
+                <li><Text code>height</Text>: 目标高度</li>
+                <li><Text code>dir</Text>: 存储目录 (可选)</li>
+            </ul>
+          </Card>
+
+          <Divider />
+
+          <Card type="inner" title="SVG 转 PNG" bordered={false}>
+            <div style={endpointStyle}>
+              <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
+              <Text code copyable>/api/svg2png</Text>
+              <CurlButton 
+                endpoint="/api/svg2png" 
+                method="POST" 
+                options={{ 
+                    isJson: true, 
+                    body: { svgCode: "<svg>...</svg>" } 
+                }} 
+              />
+            </div>
+            <Paragraph>
+              将 SVG 代码转换为 PNG 图片流。
+            </Paragraph>
+            <Divider orientation="left" plain>Body (JSON)</Divider>
+            <ul>
+                <li><Text code>svgCode</Text>: SVG 源代码字符串</li>
+            </ul>
           </Card>
         </Panel>
       </Collapse>
