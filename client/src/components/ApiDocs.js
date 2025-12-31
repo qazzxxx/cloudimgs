@@ -64,7 +64,8 @@ const ApiDocs = () => {
   const buildCurl = (endpoint, method = 'GET', options = {}) => {
     const fullUrl = `${origin}${endpoint}`;
     const pwdHeader = savedPassword ? ` -H "X-Access-Password: ${savedPassword}"` : "";
-    let cmd = `curl -X ${method} "${fullUrl}"${pwdHeader}`;
+    const albumPwdHeader = options.albumPassword ? ` -H "X-Album-Password: ${options.albumPassword}"` : "";
+    let cmd = `curl -X ${method} "${fullUrl}"${pwdHeader}${albumPwdHeader}`;
 
     if (method === 'POST') {
         if (options.isMultipart) {
@@ -144,6 +145,10 @@ const ApiDocs = () => {
                 <li><Text code>pageSize</Text>: 每页数量 (默认 50)</li>
                 <li><Text code>dir</Text>: 目录路径 (可选)</li>
                 <li><Text code>search</Text>: 搜索关键词 (可选)</li>
+            </ul>
+            <Divider orientation="left" plain>Headers</Divider>
+            <ul>
+                <li><Text code>X-Album-Password</Text>: 相册访问密码 (如果访问的目录已加密)</li>
             </ul>
           </Card>
           
@@ -297,6 +302,56 @@ const ApiDocs = () => {
             <Paragraph>
               获取当前所有的图片目录结构。
             </Paragraph>
+          </Card>
+
+          <Divider />
+
+          <Card type="inner" title="设置相册密码" bordered={false}>
+            <div style={endpointStyle}>
+              <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
+              <Text code copyable>/api/album/password</Text>
+              <CurlButton 
+                endpoint="/api/album/password" 
+                method="POST" 
+                options={{ 
+                    isJson: true, 
+                    body: { dir: "private-album", password: "123" } 
+                }} 
+              />
+            </div>
+            <Paragraph>
+              设置或移除相册的访问密码。
+            </Paragraph>
+            <Divider orientation="left" plain>Body (JSON)</Divider>
+            <ul>
+                <li><Text code>dir</Text>: 目录路径</li>
+                <li><Text code>password</Text>: 新密码 (留空则移除密码)</li>
+            </ul>
+          </Card>
+
+          <Divider />
+
+          <Card type="inner" title="验证相册密码" bordered={false}>
+            <div style={endpointStyle}>
+              <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
+              <Text code copyable>/api/album/verify</Text>
+              <CurlButton 
+                endpoint="/api/album/verify" 
+                method="POST" 
+                options={{ 
+                    isJson: true, 
+                    body: { dir: "private-album", password: "123" } 
+                }} 
+              />
+            </div>
+            <Paragraph>
+              验证相册密码是否正确。
+            </Paragraph>
+            <Divider orientation="left" plain>Body (JSON)</Divider>
+            <ul>
+                <li><Text code>dir</Text>: 目录路径</li>
+                <li><Text code>password</Text>: 待验证的密码</li>
+            </ul>
           </Card>
         </Panel>
 

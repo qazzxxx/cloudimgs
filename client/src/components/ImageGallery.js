@@ -402,7 +402,11 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [albumManagerVisible, setAlbumManagerVisible] = useState(false);
   const [directoryRefreshKey, setDirectoryRefreshKey] = useState(0);
 
-
+  // Album Password Logic
+  const [albumPasswords, setAlbumPasswords] = useState({}); // { "dir": "password" }
+  const [passwordPromptVisible, setPasswordPromptVisible] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [pendingDir, setPendingDir] = useState(null); // The directory that required password
 
   useEffect(() => {
     if (!hoverKey) {
@@ -615,8 +619,13 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         ...(targetSearch && { search: targetSearch }),
         ...(targetDir && { dir: targetDir }),
       };
+      
+      const headers = {};
+      if (targetDir && albumPasswords[targetDir]) {
+          headers["x-album-password"] = albumPasswords[targetDir];
+      }
 
-      const res = await api.get("/images", { params });
+      const res = await api.get("/images", { params, headers });
       if (res.data.success) {
         setImages((prev) => (append ? prev.concat(res.data.data) : res.data.data));
         setPagination(res.data.pagination);
@@ -624,6 +633,15 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         setHasMore(p.current < p.totalPages);
       }
     } catch (e) {
+        if (e.response && e.response.status === 403 && e.response.data?.locked) {
+            // Album is locked
+            setPendingDir(targetDir);
+            // Do NOT clear passwordInput here to avoid clearing user input if multiple requests fail (race condition)
+            // It is already cleared when dir changes.
+            setPasswordPromptVisible(true);
+            setLoading(false); // Stop loading spinner
+            return;
+        }
         // Silent fail or minimal logging to avoid spamming user if it's just auth
         if (e.response && e.response.status !== 401) {
              message.error("获取图片列表失败");
@@ -642,6 +660,43 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const searchTimerRef = useRef(null);
 
   // 统一的数据获取逻辑
+  useEffect(() => {
+    // Clear password when dir changes to force re-entry if navigating back
+    // But we need to be careful not to clear if we are just searching in the same dir?
+    // User requirement: "每次都需要让输入子密码" (Every time need to enter password).
+    // This implies if I leave a locked folder and come back, I need to enter password again.
+    // So clearing all passwords (or at least for this dir?) when `dir` changes is correct.
+    // However, if we clear ALL passwords, it's safer.
+    
+    // We only want to clear passwords if the directory ACTUALLY changed.
+    // This effect runs on [dir, pageSize, searchText, isAuthenticated, refreshTrigger].
+    // We need to track previous dir.
+    
+    // Actually, simply clearing `albumPasswords` here might cause infinite loops if fetchImages depends on it?
+    // fetchImages reads `albumPasswords` from state closure.
+    
+    // Let's implement a dedicated effect for `dir` change to clear passwords.
+  }, [dir]); // Dummy placeholder, real logic below
+
+  // Track previous directory to detect changes
+  const prevDirRef = useRef(dir);
+  
+  useEffect(() => {
+      if (prevDirRef.current !== dir) {
+          // Directory changed!
+          // Clear all stored passwords to enforce re-entry
+          setAlbumPasswords({});
+          prevDirRef.current = dir;
+          
+          // Clear input and state to prevent race conditions
+          setPasswordInput(""); 
+          setImages([]); 
+          setHasMore(true);
+          setCurrentPage(1);
+          setPendingDir(null);
+      }
+  }, [dir]);
+
   useEffect(() => {
     if (!isInitialized.current) {
       fetchImages("", 1, pageSize, "");
@@ -1046,6 +1101,61 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
     return columns;
   };
 
+  const handlePasswordSubmit = () => {
+      if (!pendingDir) return;
+      
+      // Store password in a temporary session-like way? 
+      // User requested "每次都需要让输入子密码" (Every time need to enter password).
+      // So we should NOT store it in state persistently for auto-retry on subsequent navigations?
+      // Wait, if we don't store it, scrolling/pagination will fail because loadMore calls fetchImages which needs password.
+      // So we MUST store it at least for the current session while viewing this album.
+      // But if user navigates away and comes back, they should enter it again.
+      // Currently `albumPasswords` is state, so it persists as long as ImageGallery is mounted.
+      // If user switches dir via top menu, `dir` changes.
+      // If they switch back to locked dir, we check `albumPasswords[dir]`.
+      // To satisfy "Every time need to enter password", we should CLEAR the password when directory changes.
+      
+      // We will implement clearing logic in the `dir` change effect.
+      
+      // Store password
+      setAlbumPasswords(prev => ({
+          ...prev,
+          [pendingDir]: passwordInput
+      }));
+      
+      // Close modal
+      setPasswordPromptVisible(false);
+
+      setLoading(true);
+      const params = {
+        page: 1,
+        pageSize: pageSize,
+        dir: pendingDir,
+        search: searchText
+      };
+      const headers = { "x-album-password": passwordInput };
+      
+      api.get("/images", { params, headers })
+         .then(res => {
+             if (res.data.success) {
+                 setImages(res.data.data);
+                 setPagination(res.data.pagination);
+                 setHasMore(res.data.pagination.current < res.data.pagination.totalPages);
+             }
+         })
+         .catch(e => {
+             message.error("密码错误或访问失败");
+             // Clear invalid password
+             setAlbumPasswords(prev => {
+                 const next = { ...prev };
+                 delete next[pendingDir];
+                 return next;
+             });
+             setPasswordPromptVisible(true);
+         })
+         .finally(() => setLoading(false));
+  };
+
   return (
     <div 
         style={{ padding: isMobile ? "12px" : "24px", minHeight: "100vh" }}
@@ -1385,6 +1495,34 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         api={api}
         onSelectAlbum={(path) => setDir(path)}
       />
+
+      {/* Album Password Prompt Modal */}
+      <Modal
+        open={passwordPromptVisible}
+        title="请输入相册密码"
+        onOk={handlePasswordSubmit}
+        onCancel={() => {
+            setPasswordPromptVisible(false);
+            setDir(""); // Go back to root or previous? Root is safer.
+        }}
+        okText="确认"
+        cancelText="取消"
+        centered
+        closable={false}
+        maskClosable={false}
+        width={360}
+      >
+          <div style={{ marginBottom: 20 }}>该相册受密码保护，请输入密码以访问。</div>
+          <Input.Password
+            size="large"
+            value={passwordInput}
+            onChange={e => setPasswordInput(e.target.value)}
+            placeholder="输入密码"
+            onPressEnter={handlePasswordSubmit}
+            autoFocus
+            style={{ height: 48, fontSize: 16 }}
+          />
+      </Modal>
 
     </div>
   );

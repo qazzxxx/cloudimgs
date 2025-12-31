@@ -22,7 +22,9 @@ import {
   CopyOutlined,
   FireOutlined,
   StopOutlined,
-  PlusOutlined
+  PlusOutlined,
+  LockOutlined,
+  UnlockOutlined
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -96,6 +98,11 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
   // Create State
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [createValue, setCreateValue] = useState("");
+
+  // Password State
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
+  const [isRemovingPassword, setIsRemovingPassword] = useState(false);
 
   const { token } = theme.useToken();
 
@@ -264,6 +271,24 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
     }
   };
 
+  const handleSavePassword = async () => {
+    if (!currentAlbum) return;
+    try {
+        const res = await api.post("/album/password", {
+            dir: currentAlbum.path,
+            password: passwordValue
+        });
+        if (res.data.success) {
+            message.success(passwordValue ? "密码设置成功" : "密码已移除");
+            setPasswordModalVisible(false);
+            setPasswordValue("");
+            fetchAlbums(); // Refresh to update lock status
+        }
+    } catch (e) {
+        message.error("操作失败");
+    }
+  };
+
   const handleDelete = async (album) => {
     Modal.confirm({
       title: "删除相册",
@@ -397,12 +422,38 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
                     setRenameValue(album.name);
                     setRenameModalVisible(true);
                 }}
+                onSetPassword={() => {
+                    setCurrentAlbum(album);
+                    setPasswordValue("");
+                    setIsRemovingPassword(!!album.locked);
+                    setPasswordModalVisible(true);
+                }}
                 onDelete={() => handleDelete(album)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Password Modal */}
+      <Modal
+        open={passwordModalVisible}
+        onOk={handleSavePassword}
+        onCancel={() => setPasswordModalVisible(false)}
+        title={isRemovingPassword ? "修改/移除密码" : "设置相册密码"}
+        okText="保存"
+        cancelText="取消"
+      >
+          <div style={{ marginBottom: 16 }}>
+              {isRemovingPassword ? "此相册已设置密码。输入新密码以修改，或留空以移除密码。" : "设置密码后，访问该相册将需要输入密码。"}
+          </div>
+          <Input.Password
+            value={passwordValue} 
+            onChange={e => setPasswordValue(e.target.value)} 
+            placeholder={isRemovingPassword ? "留空移除密码" : "输入密码"} 
+            autoFocus
+          />
+      </Modal>
 
       {/* Share Modal */}
       <Modal
@@ -569,7 +620,7 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
   );
 };
 
-const AlbumCard = React.memo(({ album, token, onOpen, onShare, onRename, onDelete, isSystem }) => {
+const AlbumCard = React.memo(({ album, token, onOpen, onShare, onRename, onDelete, onSetPassword, isSystem }) => {
     const [hover, setHover] = useState(false);
     
     // Previews logic
@@ -588,6 +639,25 @@ const AlbumCard = React.memo(({ album, token, onOpen, onShare, onRename, onDelet
           onMouseLeave={() => setHover(false)}
           onClick={onOpen}
         >
+            {/* Lock Overlay */}
+            {album.locked && (
+                <div style={{
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                    zIndex: 20,
+                    background: "rgba(0,0,0,0.6)",
+                    color: "#fff",
+                    padding: 6,
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                }}>
+                    <LockOutlined />
+                </div>
+            )}
+
             {/* Stacked Images */}
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 60 }}>
                 {displayPreviews.length > 0 ? (
@@ -672,6 +742,7 @@ const AlbumCard = React.memo(({ album, token, onOpen, onShare, onRename, onDelet
                     menu={{
                         items: [
                             { key: 'share', label: '分享相册', icon: <ShareAltOutlined />, onClick: (e) => { e.domEvent.stopPropagation(); onShare(); } },
+                            !isSystem && { key: 'password', label: album.locked ? '管理密码' : '设置密码', icon: album.locked ? <UnlockOutlined /> : <LockOutlined />, onClick: (e) => { e.domEvent.stopPropagation(); onSetPassword(); } },
                             // System albums cannot be renamed or deleted
                             !isSystem && { key: 'rename', label: '重命名', icon: <EditOutlined />, onClick: (e) => { e.domEvent.stopPropagation(); onRename(); } },
                             !isSystem && { type: 'divider' },

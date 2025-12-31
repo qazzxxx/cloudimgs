@@ -14,9 +14,47 @@ const exifr = require("exifr");
 
 const CACHE_DIR_NAME = ".cache";
 const TRASH_DIR_NAME = ".trash";
+const CONFIG_DIR_NAME = "config";
+const ALBUM_PASSWORD_FILE = "album_password.json";
 
 const app = express();
 const PORT = config.server.port;
+
+// ...
+
+// Helper to get album password path
+function getAlbumPasswordPath(dirPath) {
+    const absDir = safeJoin(STORAGE_PATH, dirPath);
+    return path.join(absDir, CONFIG_DIR_NAME, ALBUM_PASSWORD_FILE);
+}
+
+// Helper to check if album is locked
+async function isAlbumLocked(dirPath) {
+    try {
+        const configPath = getAlbumPasswordPath(dirPath);
+        if (await fs.pathExists(configPath)) {
+            const data = await fs.readJson(configPath);
+            return !!data.password;
+        }
+    } catch (e) {}
+    return false;
+}
+
+// Helper to verify album password
+async function verifyAlbumPassword(dirPath, password) {
+    try {
+        const configPath = getAlbumPasswordPath(dirPath);
+        if (await fs.pathExists(configPath)) {
+            const data = await fs.readJson(configPath);
+            return data.password === password;
+        }
+        // If no password file, it's not locked, so any password (or none) is fine
+        // But logic usually calls this only if isAlbumLocked is true
+        return true; 
+    } catch (e) {
+        return false;
+    }
+}
 
 // 中间件
 app.use(cors());
@@ -307,31 +345,50 @@ async function moveThumbHash(oldPath, newPath) {
 }
 
 // 递归获取图片文件
-async function getAllImages(dir = "") {
+async function getAllImages(dir = "", authPassword = null) {
   const absDir = safeJoin(STORAGE_PATH, dir);
-  let results = [];
-  const files = await fs.readdir(absDir);
-  for (const file of files) {
-    if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME) continue;
-    const filePath = path.join(absDir, file);
-    const relPath = path.join(dir, file);
-    const stats = await fs.stat(filePath);
-    if (stats.isDirectory()) {
-      results = results.concat(await getAllImages(relPath));
-    } else {
-      const ext = path.extname(file).toLowerCase();
-      if (config.upload.allowedExtensions.includes(ext)) {
-        // 确保文件名编码正确
-        const safeFilename = sanitizeFilename(file);
-        results.push({
-          filename: safeFilename,
-          relPath: relPath.replace(/\\/g, "/"),
-          size: stats.size,
-          uploadTime: stats.mtime.toISOString(),
-          url: `/api/images/${relPath.replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/")}`,
-        });
+  
+  // Check if current directory is locked
+  if (await isAlbumLocked(dir)) {
+      // If locked, verify password
+      if (!authPassword || !(await verifyAlbumPassword(dir, authPassword))) {
+          return []; // Skip if locked and no valid password
       }
-    }
+  }
+
+  let results = [];
+  try {
+      const files = await fs.readdir(absDir);
+      for (const file of files) {
+        if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME) continue;
+        const filePath = path.join(absDir, file);
+        const relPath = path.join(dir, file);
+        const stats = await fs.stat(filePath);
+        if (stats.isDirectory()) {
+          // Recursive call - usually we don't pass password down to sub-albums automatically 
+          // unless we assume unlocking parent unlocks children? 
+          // For now, let's assume each locked album needs its own unlock. 
+          // So we pass null as password for sub-directories unless it matches exactly?
+          // Actually, standard behavior: listing root shouldn't show locked subfolders.
+          // Listing locked folder should show its contents.
+          // If subfolder is also locked, it stays hidden.
+          results = results.concat(await getAllImages(relPath, null));
+        } else {
+          const ext = path.extname(file).toLowerCase();
+          if (config.upload.allowedExtensions.includes(ext)) {
+            const safeFilename = sanitizeFilename(file);
+            results.push({
+              filename: safeFilename,
+              relPath: relPath.replace(/\\/g, "/"),
+              size: stats.size,
+              uploadTime: stats.mtime.toISOString(),
+              url: `/api/images/${relPath.replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/")}`,
+            });
+          }
+        }
+      }
+  } catch (e) {
+      // ignore error (e.g. dir not found)
   }
   return results;
 }
@@ -785,8 +842,18 @@ app.get("/api/images", requirePassword, async (req, res) => {
     const pageSize = parseInt(req.query.pageSize) || 10;
     const search = req.query.search || "";
 
+    // Get album password from header
+    const albumPassword = req.headers["x-album-password"];
+
+    // Check lock status before fetching
+    if (dir && await isAlbumLocked(dir)) {
+        if (!albumPassword || !(await verifyAlbumPassword(dir, albumPassword))) {
+             return res.status(403).json({ success: false, error: "需要访问密码", locked: true });
+        }
+    }
+
     // 获取所有图片
-    let images = await getAllImages(dir);
+    let images = await getAllImages(dir, albumPassword);
 
     // 按上传时间倒序排列
     images.sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
@@ -829,6 +896,53 @@ app.get("/api/images", requirePassword, async (req, res) => {
     console.error("获取图片列表错误:", error);
     res.status(500).json({ error: "获取图片列表失败" });
   }
+});
+
+// Set Album Password
+app.post("/api/album/password", requirePassword, async (req, res) => {
+    try {
+        const { dir, password } = req.body;
+        // dir is required, but empty string (root) is valid too? Usually root doesn't have password logic implemented yet
+        // but let's allow it if logic supports it.
+        // However, `req.body.dir` being undefined check is good.
+        if (dir === undefined) return res.status(400).json({ error: "Missing directory" });
+
+        const configPath = getAlbumPasswordPath(dir);
+        
+        if (!password) {
+            // Remove password
+            if (await fs.pathExists(configPath)) {
+                await fs.remove(configPath);
+            }
+            return res.json({ success: true, message: "密码已移除" });
+        }
+
+        // Set password
+        await fs.ensureDir(path.dirname(configPath));
+        await fs.writeJSON(configPath, { password });
+        res.json({ success: true, message: "密码设置成功" });
+    } catch (e) {
+        console.error("Set album password error:", e);
+        res.status(500).json({ error: "设置密码失败" });
+    }
+});
+
+// Verify Album Password
+app.post("/api/album/verify", requirePassword, async (req, res) => {
+    try {
+        const { dir, password } = req.body;
+        if (dir === undefined) return res.status(400).json({ error: "Missing directory" });
+
+        const isValid = await verifyAlbumPassword(dir, password);
+        if (isValid) {
+            res.json({ success: true, message: "验证通过" });
+        } else {
+            res.status(401).json({ success: false, error: "密码错误" });
+        }
+    } catch (e) {
+        console.error("Verify album password error:", e);
+        res.status(500).json({ error: "验证失败" });
+    }
 });
 
 // 3. 获取随机图片（支持dir参数）
@@ -1287,8 +1401,6 @@ app.put("/api/images/*", requirePassword, async (req, res) => {
 
 const crypto = require("crypto");
 
-const CONFIG_DIR_NAME = "config";
-
 // Get or create persistent share secret
 const getShareSecret = () => {
     if (process.env.SHARE_SECRET) {
@@ -1402,14 +1514,22 @@ async function getDirectories(dir = "") {
       const stats = await fs.stat(filePath);
       if (stats.isDirectory()) {
         const relPath = path.join(dir, file).replace(/\\/g, "/");
-        const previews = await getPreviewImages(relPath, 3);
+        // Check locked status
+        const isLocked = await isAlbumLocked(relPath);
+        
+        // If locked, maybe we shouldn't show previews? 
+        // User said: "default loading does not load images of that album"
+        // So previews should be empty if locked.
+        const previews = isLocked ? [] : await getPreviewImages(relPath, 3);
+        
         directories.push({
           name: file,
           path: relPath,
           fullPath: filePath,
           previews: previews,
           imageCount: previews.length, // Rough indicator
-          mtime: stats.mtime
+          mtime: stats.mtime,
+          locked: isLocked
         });
       }
     }
