@@ -10,6 +10,7 @@
     "antd": "^6.0.0",
     "axios": "^1.10.0",
     "coordtransform": "^2.1.2",
+    "konva": "^9.3.20",
     "cropperjs": "^1.6.2",
     "dayjs": "^1.11.13",
     "leaflet": "^1.9.4",
@@ -19,10 +20,13 @@
     "react-cropper": "^2.3.3",
     "react-dom": "^18.3.1",
     "react-easy-crop": "^5.0.1",
+    "react-filerobot-image-editor": "^4.9.1",
+    "react-konva": "^18.2.10",
     "react-leaflet": "^4.2.1",
     "react-leaflet-cluster": "^4.0.0",
     "react-router-dom": "^6.20.1",
     "react-scripts": "5.0.1",
+    "styled-components": "^5.3.11",
     "thumbhash": "^0.1.1"
   },
   "scripts": {

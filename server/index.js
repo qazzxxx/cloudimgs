@@ -211,6 +211,14 @@ const storage = multer.diskStorage({
     }
 
     const sanitizedName = sanitizeFilename(originalName);
+    const forceOverwrite =
+      req.query.overwrite === "true" ||
+      req.body?.overwrite === "true" ||
+      req.query.overwrite === true ||
+      req.body?.overwrite === true;
+    if (forceOverwrite) {
+      return cb(null, sanitizedName);
+    }
     const ext = path.extname(sanitizedName);
     const nameWithoutExt = path.basename(sanitizedName, ext);
     let finalName = sanitizedName;

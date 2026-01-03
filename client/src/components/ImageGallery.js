@@ -37,6 +37,7 @@ import DirectorySelector from "./DirectorySelector";
 import SvgToolModal from "./SvgToolModal";
 import AlbumManager from "./AlbumManager";
 import ImageDetailModal from "./ImageDetailModal";
+import ImageEditModal from "./ImageEditModal";
 import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
@@ -64,6 +65,7 @@ const ImageItem = ({
     handleDownload, 
     copyToClipboard, 
     handleDelete, 
+    handleEdit,
     hoverLocation,
     isBatchMode,
     isSelected,
@@ -311,6 +313,24 @@ const ImageItem = ({
                             >
                                 链接
                             </Button>
+                            <Button
+                                size="small"
+                                type="text"
+                                icon={<EditOutlined />}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEdit(image);
+                                }}
+                                style={{
+                                    color: "#fff",
+                                    background: "rgba(255,255,255,0.2)",
+                                    backdropFilter: "blur(4px)",
+                                    border: "1px solid rgba(255,255,255,0.1)",
+                                    borderRadius: "4px",
+                                    fontSize: "12px",
+                                }}
+                            >
+                            </Button>
                             <Popconfirm
                                 title="确定删除?"
                                 onConfirm={(e) => {
@@ -471,6 +491,10 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editorVisible, setEditorVisible] = useState(false);
+  const [editorFile, setEditorFile] = useState(null);
+  const [editorSaving, setEditorSaving] = useState(false);
+  const editorGetCurrentImgDataRef = useRef(null);
 
   // Drag Selection Logic
   const imageRefs = useRef(new Map());
@@ -581,6 +605,182 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
     return dates.map((d) => ({ date: d, items: map.get(d) }));
   }, [images]);
 
+  const getEditorDefaults = useCallback((file) => {
+    const filename = file?.filename || "image";
+    const lastDot = filename.lastIndexOf(".");
+    const baseName = lastDot > 0 ? filename.slice(0, lastDot) : filename;
+    const ext = lastDot > 0 ? filename.slice(lastDot + 1).toLowerCase() : "png";
+    const normalizedExt = ext === "jpeg" ? "jpg" : ext;
+    const type =
+      normalizedExt === "jpg" || normalizedExt === "png" || normalizedExt === "webp"
+        ? normalizedExt
+        : "png";
+    return { baseName, type };
+  }, []);
+
+  const handleEdit = useCallback((img) => {
+    setEditorFile(img);
+    setEditorVisible(true);
+  }, []);
+
+  const getDirFromRelPath = useCallback((relPath) => {
+    if (!relPath) return "";
+    const idx = relPath.lastIndexOf("/");
+    return idx >= 0 ? relPath.slice(0, idx) : "";
+  }, []);
+
+  const splitFilename = useCallback((filename) => {
+    const safe = filename || "image.png";
+    const lastDot = safe.lastIndexOf(".");
+    if (lastDot <= 0) return { baseName: safe, ext: "png" };
+    return { baseName: safe.slice(0, lastDot), ext: safe.slice(lastDot + 1).toLowerCase() };
+  }, []);
+
+  const dataUrlToFile = useCallback((dataUrl, filename) => {
+    const commaIndex = dataUrl.indexOf(",");
+    const header = commaIndex >= 0 ? dataUrl.slice(0, commaIndex) : "";
+    const base64 = commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
+    const mimeMatch = header.match(/data:([^;]+);base64/i);
+    const mimeType = mimeMatch?.[1] || "application/octet-stream";
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new File([bytes], filename, { type: mimeType });
+  }, []);
+
+  async function refreshAfterEdit(targetDir) {
+    setCurrentPage(1);
+    setHasMore(true);
+    await fetchImages(targetDir, 1, pageSize, searchText, false);
+  }
+
+  const exportFromEditor = useCallback((name, extension) => {
+    if (!editorGetCurrentImgDataRef.current) {
+      throw new Error("编辑器未就绪");
+    }
+    const result = editorGetCurrentImgDataRef.current(
+      { name, extension, quality: 92 },
+      2,
+      true
+    );
+    return result;
+  }, []);
+
+  const uploadEdited = useCallback(
+    async ({ base64Image, targetDir, filename, overwrite }) => {
+      const file = dataUrlToFile(base64Image, filename);
+      const form = new FormData();
+      form.append("image", file);
+      const params = overwrite ? { dir: targetDir, overwrite: "true" } : { dir: targetDir };
+      return api.post("/upload", form, { params });
+    },
+    [api, dataUrlToFile]
+  );
+
+  const handleOverwriteSave = useCallback(async () => {
+    if (!editorFile) return;
+    const { baseName, ext } = splitFilename(editorFile.filename);
+    const targetDir = getDirFromRelPath(editorFile.relPath);
+
+    setEditorSaving(true);
+    let hideLoadingSpinner = null;
+    try {
+      const result = exportFromEditor(baseName, ext);
+      hideLoadingSpinner = result.hideLoadingSpinner;
+      const base64Image = result.imageData?.imageBase64;
+      if (!base64Image) throw new Error("导出失败");
+
+      const res = await uploadEdited({
+        base64Image,
+        targetDir,
+        filename: editorFile.filename,
+        overwrite: true,
+      });
+
+      if (res.data?.success) {
+        message.success("已覆盖保存");
+        setEditorVisible(false);
+        setEditorFile(null);
+        await refreshAfterEdit(targetDir);
+      } else {
+        message.error(res.data?.error || "保存失败");
+      }
+    } catch (e) {
+      message.error(e?.response?.data?.error || e?.message || "保存失败");
+    } finally {
+      try {
+        hideLoadingSpinner && hideLoadingSpinner();
+      } catch (e) {}
+      setEditorSaving(false);
+    }
+  }, [editorFile, exportFromEditor, getDirFromRelPath, refreshAfterEdit, splitFilename, uploadEdited]);
+
+  const handleSaveAs = useCallback(() => {
+    if (!editorFile) return;
+    const { baseName, ext } = splitFilename(editorFile.filename);
+    const targetDir = getDirFromRelPath(editorFile.relPath);
+    let nextName = `${baseName}-edited.${ext}`;
+
+    Modal.confirm({
+      title: "另存为上传",
+      content: (
+        <Input
+          defaultValue={nextName}
+          onChange={(e) => {
+            nextName = e.target.value;
+          }}
+          onPressEnter={() => {}}
+          autoFocus
+        />
+      ),
+      okText: "上传",
+      cancelText: "取消",
+      centered: true,
+      onOk: async () => {
+        const raw = (nextName || "").trim();
+        if (!raw) {
+          message.error("请输入文件名");
+          throw new Error("invalid");
+        }
+
+        const parts = splitFilename(raw);
+        setEditorSaving(true);
+        let hideLoadingSpinner = null;
+        try {
+          const result = exportFromEditor(parts.baseName, parts.ext);
+          hideLoadingSpinner = result.hideLoadingSpinner;
+          const base64Image = result.imageData?.imageBase64;
+          if (!base64Image) throw new Error("导出失败");
+
+          const res = await uploadEdited({
+            base64Image,
+            targetDir,
+            filename: raw,
+            overwrite: false,
+          });
+
+          if (res.data?.success) {
+            message.success("已上传");
+            setEditorVisible(false);
+            setEditorFile(null);
+            await refreshAfterEdit(targetDir);
+          } else {
+            message.error(res.data?.error || "上传失败");
+            throw new Error("failed");
+          }
+        } catch (e) {
+          message.error(e?.response?.data?.error || e?.message || "上传失败");
+          throw e;
+        } finally {
+          try {
+            hideLoadingSpinner && hideLoadingSpinner();
+          } catch (e) {}
+          setEditorSaving(false);
+        }
+      },
+    });
+  }, [editorFile, exportFromEditor, getDirFromRelPath, refreshAfterEdit, splitFilename, uploadEdited]);
+
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(() => {
@@ -595,13 +795,13 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
     totalPages: 0,
   });
 
-  const fetchImages = async (
+  async function fetchImages(
     targetDir = dir,
     targetPage = currentPage,
     targetPageSize = pageSize,
     targetSearch = searchText,
     append = false
-  ) => {
+  ) {
     // Check authentication first
     if (isAuthenticated === false) {
         return;
@@ -653,7 +853,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         setLoading(false);
       }
     }
-  };
+  }
 
   // 使用ref来跟踪是否是首次加载和防抖
   const isInitialized = useRef(false);
@@ -1443,6 +1643,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                     handleDownload={handleDownload}
                     copyToClipboard={copyToClipboard}
                     handleDelete={handleDelete}
+                    handleEdit={handleEdit}
                     hoverLocation={hoverLocation}
                     isBatchMode={isBatchMode}
                     isSelected={selectedItems.has(imgItem.relPath)}
@@ -1484,6 +1685,24 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
             setPreviewVisible(false);
         }}
         onUpdate={handleUpdate}
+      />
+      <ImageEditModal
+        open={editorVisible}
+        file={editorFile}
+        editorSaving={editorSaving}
+        onCancel={() => {
+          setEditorVisible(false);
+          setEditorFile(null);
+        }}
+        onClose={() => {
+          setEditorVisible(false);
+          setEditorFile(null);
+        }}
+        onOverwriteSave={handleOverwriteSave}
+        onSaveAs={handleSaveAs}
+        getEditorDefaults={getEditorDefaults}
+        getCurrentImgDataFnRef={editorGetCurrentImgDataRef}
+        theme={isDarkMode ? "dark" : "light"}
       />
       <SvgToolModal visible={svgToolVisible} onClose={() => setSvgToolVisible(false)} api={api} />
       <AlbumManager 
