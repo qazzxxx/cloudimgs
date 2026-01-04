@@ -353,7 +353,7 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
       title={<div style={{ fontSize: 20, fontWeight: 600 }}>相册管理</div>}
       width={1000}
       footer={null}
-      styles={{ body: { padding: "20px 0", minHeight: 400, maxHeight: "80vh", overflowY: "auto", overflowX: "hidden", background: token.colorBgLayout } }}
+      styles={{ body: { padding: "20px 0", minHeight: 400, maxHeight: "60vh", overflowY: "auto", overflowX: "hidden", background: token.colorBgLayout } }}
     >
       <div 
         style={{ padding: "0 32px" }}
@@ -385,7 +385,8 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
                     cursor: "pointer",
                     background: token.colorFillAlter,
                     transition: "all 0.3s",
-                    margin: 24
+                    margin: 24,
+                    height: 200
                 }}
                 onClick={() => setCreateModalVisible(true)}
                 onMouseEnter={e => {
@@ -631,7 +632,8 @@ const AlbumCard = React.memo(({ album, token, onOpen, onShare, onRename, onDelet
         <div
           style={{
               position: "relative",
-              height: 240,
+              height: 200, // Match Create Card height
+              margin: 24,  // Match Create Card margin
               cursor: "pointer",
               perspective: "1000px"
           }}
