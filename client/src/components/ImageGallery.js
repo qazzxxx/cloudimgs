@@ -7,6 +7,7 @@ import {
   Modal,
   message,
   Popconfirm,
+  Tabs,
   Input,
   Tooltip,
   Empty,
@@ -492,6 +493,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadQueue, setUploadQueue] = useState([]);
+  const [sessionUploadedFiles, setSessionUploadedFiles] = useState([]);
   const uploading = uploadQueue.some(item => item.status === 'pending' || item.status === 'uploading');
   const [editorVisible, setEditorVisible] = useState(false);
   const [editorFile, setEditorFile] = useState(null);
@@ -1011,6 +1013,67 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
     return () => { active = false; };
   }, [previewVisible, imageMeta]);
 
+  // Helper for Upload Result
+  const generateLinks = (type) => {
+      return sessionUploadedFiles.map(file => {
+          const fullUrl = `${window.location.origin}${file.url}`;
+          switch (type) {
+              case 'markdown':
+                  return `![${file.originalName}](${fullUrl})`;
+              case 'html':
+                  return `<img src="${fullUrl}" alt="${file.originalName}" />`;
+              case 'url':
+              default:
+                  return fullUrl;
+          }
+      }).join('\n');
+  };
+
+  const UploadResult = () => {
+      const [activeTab, setActiveTab] = useState('url');
+      const content = generateLinks(activeTab);
+
+      const items = [
+          { key: 'url', label: 'URL' },
+          { key: 'markdown', label: 'Markdown' },
+          { key: 'html', label: 'HTML' },
+      ];
+
+      return (
+          <div style={{ marginTop: 16, background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', padding: 12, borderRadius: 8, width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Tabs 
+                      activeKey={activeTab} 
+                      onChange={setActiveTab} 
+                      items={items} 
+                      size="small" 
+                      style={{ marginBottom: 0 }}
+                      tabBarStyle={{ marginBottom: 0, borderBottom: 'none' }}
+                  />
+                  <Button 
+                      type="primary" 
+                      size="small" 
+                      icon={<CopyOutlined />} 
+                      onClick={() => copyToClipboard(content)}
+                  >
+                      一键复制
+                  </Button>
+              </div>
+              <Input.TextArea 
+                  value={content} 
+                  autoSize={{ minRows: 3, maxRows: 6 }} 
+                  readOnly 
+                  style={{ 
+                      fontFamily: 'monospace', 
+                      fontSize: 12, 
+                      background: isDarkMode ? '#141414' : '#fff',
+                      color: isDarkMode ? 'rgba(255,255,255,0.85)' : undefined
+                  }} 
+              />
+          </div>
+      );
+  };
+
   // Handle file uploads (Drag & Drop + Paste)
   const handleUploadFiles = async (files) => {
     if (!isAuthenticated) {
@@ -1036,7 +1099,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         status: 'pending'
     }));
 
-    setUploadQueue(prev => [...prev, ...newQueueItems]);
+    setUploadQueue(newQueueItems);
     setIsDragOver(false);
 
     // Process queue
@@ -1074,6 +1137,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
 
             if (res.data && res.data.success) {
                 setUploadQueue(prev => prev.map(i => i.uid === item.uid ? { ...i, status: 'success', progress: 100 } : i));
+                setSessionUploadedFiles(prev => [...prev, res.data.data]);
                 return true;
             } else {
                 throw new Error(res.data?.error || "上传失败");
@@ -1447,7 +1511,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
-            zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1005, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             padding: '20px'
         }}>
             <div style={{
@@ -1464,7 +1528,10 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                     <Button 
                         type="text" 
                         icon={<CloseOutlined style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }} />} 
-                        onClick={() => setUploadQueue([])} 
+                        onClick={() => {
+                            setUploadQueue([]);
+                            setSessionUploadedFiles([]);
+                        }} 
                     />
                 </div>
                 <div style={{ overflowY: 'auto', flex: 1, paddingRight: '8px' }}>
@@ -1490,11 +1557,17 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                     ))}
                 </div>
                 {!uploading && (
-                    <div style={{ textAlign: 'center', marginTop: '16px' }}>
-                        <Button type="primary" onClick={() => setUploadQueue([])}>
-                            关闭
-                        </Button>
-                    </div>
+                    <>
+                        {sessionUploadedFiles.length > 0 && <UploadResult />}
+                        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                            <Button type="primary" onClick={() => {
+                                setUploadQueue([]);
+                                setSessionUploadedFiles([]);
+                            }}>
+                                关闭
+                            </Button>
+                        </div>
+                    </>
                 )}
             </div>
         </div>
