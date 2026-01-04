@@ -31,6 +31,7 @@ import {
   EnvironmentOutlined,
   CodeOutlined,
   CheckOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import { thumbHashToDataURL } from "thumbhash";
 import DirectorySelector from "./DirectorySelector";
@@ -490,7 +491,8 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [dirValue, setDirValue] = useState("");
   
   const [isDragOver, setIsDragOver] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState([]);
+  const uploading = uploadQueue.some(item => item.status === 'pending' || item.status === 'uploading');
   const [editorVisible, setEditorVisible] = useState(false);
   const [editorFile, setEditorFile] = useState(null);
   const [editorSaving, setEditorSaving] = useState(false);
@@ -1017,51 +1019,80 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
     }
     if (!files || files.length === 0) return;
 
-    setUploading(true);
-    const formData = new FormData();
-    // Use current directory if set, otherwise root
-    if (dir) {
-        formData.append("dir", dir);
-    }
+    // Filter images
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith("image/"));
     
-    let imageCount = 0;
-    Array.from(files).forEach((file) => {
-        if (file.type.startsWith("image/")) {
-            formData.append("image", file); // API expects "image" field for multiple files too? 
-            // Checking UploadComponent logic, usually it's "image" or "files"
-            // Let's assume the API handles multiple files under same key or we need to check API docs
-            // Based on ApiDocs.js: POST /api/upload uses 'image' field for files
-            imageCount++;
-        }
-    });
-
-    if (imageCount === 0) {
+    if (imageFiles.length === 0) {
         message.warning("请选择图片文件");
-        setUploading(false);
         return;
     }
 
-    try {
-        const res = await api.post("/upload", formData, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
-        });
-        
-        if (res.data && res.data.success) {
-            message.success(`成功上传 ${res.data.data.length || imageCount} 张图片`);
-            // Refresh list
-            setCurrentPage(1);
-            fetchImages(dir, 1, pageSize, searchText, false);
-        } else {
-             message.error(res.data?.error || "上传失败");
+    // Add to queue
+    const newQueueItems = imageFiles.map(file => ({
+        uid: `upload-${Date.now()}-${Math.random()}`,
+        file: file,
+        name: file.name,
+        progress: 0,
+        status: 'pending'
+    }));
+
+    setUploadQueue(prev => [...prev, ...newQueueItems]);
+    setIsDragOver(false);
+
+    // Process queue
+    // We use a simple loop here, but could be concurrent if needed
+    // Using for...of loop to process sequentially or Promise.all for parallel?
+    // Parallel is better for user experience, maybe limit concurrency?
+    // Let's do simple Promise.all for now, browser limits connections anyway.
+    
+    // Actually, let's process them one by one to ensure we don't overwhelm server if many files
+    // But Promise.all is faster. Let's do parallel.
+    
+    // We need to define the upload function inside or outside
+    const uploadSingleFile = async (item) => {
+        const formData = new FormData();
+        if (dir) {
+            formData.append("dir", dir);
         }
-    } catch (error) {
-        console.error("Upload error:", error);
-        message.error("上传出错");
-    } finally {
-        setUploading(false);
-        setIsDragOver(false);
+        formData.append("image", item.file, item.file.name);
+
+        try {
+            // Update status to uploading
+            setUploadQueue(prev => prev.map(i => i.uid === item.uid ? { ...i, status: 'uploading' } : i));
+
+            const res = await api.post("/upload", formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+                onUploadProgress: (progressEvent) => {
+                    const percentCompleted = Math.round(
+                        (progressEvent.loaded * 100) / progressEvent.total
+                    );
+                    setUploadQueue(prev => prev.map(i => i.uid === item.uid ? { ...i, progress: percentCompleted } : i));
+                },
+            });
+
+            if (res.data && res.data.success) {
+                setUploadQueue(prev => prev.map(i => i.uid === item.uid ? { ...i, status: 'success', progress: 100 } : i));
+                return true;
+            } else {
+                throw new Error(res.data?.error || "上传失败");
+            }
+        } catch (error) {
+            console.error("Upload error:", error);
+            setUploadQueue(prev => prev.map(i => i.uid === item.uid ? { ...i, status: 'error', errorMsg: error.message || "上传出错" } : i));
+            return false;
+        }
+    };
+
+    // Execute uploads
+    const results = await Promise.all(newQueueItems.map(item => uploadSingleFile(item)));
+    
+    // Check if any success to refresh
+    if (results.some(r => r === true)) {
+        message.success(`上传完成`);
+        setCurrentPage(1);
+        fetchImages(dir, 1, pageSize, searchText, false);
     }
   };
 
@@ -1411,28 +1442,62 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           </div>
       )}
       
-      {/* Uploading Spinner Overlay */}
-      {uploading && (
-          <div
-             style={{
-                 position: 'fixed',
-                 top: 0,
-                 left: 0,
-                 right: 0,
-                 bottom: 0,
-                 zIndex: 10000,
-                 background: 'rgba(0,0,0,0.5)',
-                 display: 'flex',
-                 alignItems: 'center',
-                 justifyContent: 'center',
-                 flexDirection: 'column',
-                 gap: 16,
-                 color: '#fff'
-             }}
-          >
-              <Spin size="large" />
-              <Text style={{ color: '#fff', fontSize: 16 }}>正在上传图片...</Text>
-          </div>
+      {/* Upload Queue Overlay */}
+      {uploadQueue.length > 0 && (
+        <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+            zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: '20px'
+        }}>
+            <div style={{
+                width: '100%', maxWidth: '600px', 
+                background: isDarkMode ? '#1f1f1f' : '#fff',
+                borderRadius: '12px', padding: '24px', 
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                maxHeight: '80vh', display: 'flex', flexDirection: 'column'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
+                    <Title level={4} style={{ margin: 0, color: isDarkMode ? '#fff' : undefined }}>
+                        正在上传 ({uploadQueue.filter(i => i.status === 'success').length}/{uploadQueue.length})
+                    </Title>
+                    <Button 
+                        type="text" 
+                        icon={<CloseOutlined style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }} />} 
+                        onClick={() => setUploadQueue([])} 
+                    />
+                </div>
+                <div style={{ overflowY: 'auto', flex: 1, paddingRight: '8px' }}>
+                    {uploadQueue.map(item => (
+                        <div key={item.uid} style={{ marginBottom: 12 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <Text ellipsis style={{ maxWidth: '70%', color: isDarkMode ? '#fff' : undefined }}>{item.name}</Text>
+                                <Text type="secondary" style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }}>
+                                    {item.status === 'error' ? '失败' : item.status === 'success' ? '完成' : `${item.progress}%`}
+                                </Text>
+                            </div>
+                            {/* antd Progress component is imported but we need to ensure correct props */}
+                            <div style={{ position: 'relative', height: 8, background: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f5f5f5', borderRadius: 4, overflow: 'hidden' }}>
+                                <div style={{
+                                    position: 'absolute', left: 0, top: 0, bottom: 0,
+                                    width: `${item.progress}%`,
+                                    background: item.status === 'error' ? '#ff4d4f' : item.status === 'success' ? '#52c41a' : '#1677ff',
+                                    transition: 'width 0.3s ease'
+                                }} />
+                            </div>
+                            {item.errorMsg && <Text type="danger" style={{ fontSize: 12 }}>{item.errorMsg}</Text>}
+                        </div>
+                    ))}
+                </div>
+                {!uploading && (
+                    <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                        <Button type="primary" onClick={() => setUploadQueue([])}>
+                            关闭
+                        </Button>
+                    </div>
+                )}
+            </div>
+        </div>
       )}
 
       {/* Floating Capsule Header */}

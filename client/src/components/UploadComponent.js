@@ -13,7 +13,7 @@ import {
   theme,
   Grid,
 } from "antd";
-import { InboxOutlined, CheckCircleOutlined } from "@ant-design/icons";
+import { InboxOutlined, CheckCircleOutlined, CloseOutlined } from "@ant-design/icons";
 import DirectorySelector from "./DirectorySelector";
 
 const { Dragger } = Upload;
@@ -35,8 +35,8 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const isDarkMode = theme.useToken().theme?.id === 1 || colorBgContainer === "#141414" || colorBgContainer === "#000000" || colorBgContainer === "#1f1f1f";
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  const [uploadQueue, setUploadQueue] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [dir, setDir] = useState("");
   const [config, setConfig] = useState({
@@ -54,6 +54,8 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
     allowedFormats: "JPG, JPEG, PNG, GIF, WEBP, BMP, SVG",
   });
 
+  const uploading = uploadQueue.some(item => item.status === 'pending' || item.status === 'uploading');
+
   // 获取配置
   useEffect(() => {
     const fetchConfig = async () => {
@@ -68,6 +70,12 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
     };
     fetchConfig();
   }, [api]);
+
+  const updateQueueItem = (uid, updates) => {
+    setUploadQueue((prev) =>
+      prev.map((item) => (item.uid === uid ? { ...item, ...updates } : item))
+    );
+  };
 
   // 处理粘贴事件
   const handlePaste = async (event) => {
@@ -110,21 +118,30 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
 
     // 创建新的File对象，设置文件名
     const renamedFile = new File([file], fileName, { type: file.type });
+    // 添加uid
+    renamedFile.uid = `pasted-${timestamp}`;
+
+    // 添加到队列
+    setUploadQueue(prev => [...prev, { uid: renamedFile.uid, name: fileName, progress: 0, status: 'pending' }]);
 
     // 上传文件
-    await uploadFile(renamedFile);
+    try {
+        await uploadFile(renamedFile, (progress) => {
+             updateQueueItem(renamedFile.uid, { progress, status: 'uploading' });
+        });
+        updateQueueItem(renamedFile.uid, { progress: 100, status: 'success' });
+    } catch (error) {
+        updateQueueItem(renamedFile.uid, { status: 'error', errorMsg: error.message });
+    }
   };
 
   // 上传文件的通用方法
-  const uploadFile = async (file) => {
+  const uploadFile = async (file, onProgress) => {
     let safeDir = sanitizeDir(dir);
     if (safeDir.includes("..")) {
-      message.error("目录不能包含 .. 等非法字符");
-      return;
+        throw new Error("目录不能包含 .. 等非法字符");
     }
 
-    setUploading(true);
-    setUploadProgress(0);
     const formData = new FormData();
 
     // 确保文件名编码正确，特别是中文文件名
@@ -144,7 +161,7 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
           const percentCompleted = Math.round(
             (progressEvent.loaded * 100) / progressEvent.total
           );
-          setUploadProgress(percentCompleted);
+          if (onProgress) onProgress(percentCompleted);
         },
       });
 
@@ -155,14 +172,12 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
           onUploadSuccess();
         }
       } else {
-        message.error(response.data.error || "上传失败");
+        throw new Error(response.data.error || "上传失败");
       }
     } catch (error) {
       const msg = error?.response?.data?.error || error.message || "上传失败";
       message.error(msg);
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
+      throw new Error(msg);
     }
   };
 
@@ -209,10 +224,17 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
       return true;
     },
     customRequest: async ({ file, onSuccess, onError }) => {
+      const uid = file.uid;
+      setUploadQueue(prev => [...prev, { uid, name: file.name, progress: 0, status: 'pending' }]);
+      
       try {
-        await uploadFile(file);
+        await uploadFile(file, (progress) => {
+             updateQueueItem(uid, { progress, status: 'uploading' });
+        });
+        updateQueueItem(uid, { progress: 100, status: 'success' });
         onSuccess();
       } catch (error) {
+        updateQueueItem(uid, { status: 'error', errorMsg: error.message });
         onError(error);
       }
     },
@@ -314,14 +336,63 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
             支持 {config.allowedFormats} 格式，最大 {config.maxFileSizeMB}MB
           </p>
         </Dragger>
-
-        {uploading && (
-          <div style={{ marginTop: 16 }}>
-            <Progress percent={uploadProgress} status="active" strokeColor={isModal ? (isDarkMode ? '#fff' : '#1677ff') : undefined} />
-            <Text type="secondary" style={{ color: isModal ? (isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)') : undefined }}>正在上传...</Text>
-          </div>
-        )}
       </Card>
+
+      {/* Full Page Upload Overlay */}
+      {uploadQueue.length > 0 && (
+        <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+            zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: '20px'
+        }}>
+            <div style={{
+                width: '100%', maxWidth: '600px', 
+                background: isDarkMode ? '#1f1f1f' : '#fff',
+                borderRadius: '12px', padding: '24px', 
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                maxHeight: '80vh', display: 'flex', flexDirection: 'column'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
+                    <Title level={4} style={{ margin: 0, color: isDarkMode ? '#fff' : undefined }}>
+                        正在上传 ({uploadQueue.filter(i => i.status === 'success').length}/{uploadQueue.length})
+                    </Title>
+                    <Button 
+                        type="text" 
+                        icon={<CloseOutlined style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }} />} 
+                        onClick={() => setUploadQueue([])} 
+                    />
+                </div>
+                <div style={{ overflowY: 'auto', flex: 1, paddingRight: '8px' }}>
+                    {uploadQueue.map(item => (
+                        <div key={item.uid} style={{ marginBottom: 12 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <Text ellipsis style={{ maxWidth: '70%', color: isDarkMode ? '#fff' : undefined }}>{item.name}</Text>
+                                <Text type="secondary" style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }}>
+                                    {item.status === 'error' ? '失败' : item.status === 'success' ? '完成' : `${item.progress}%`}
+                                </Text>
+                            </div>
+                            <Progress 
+                                percent={item.progress} 
+                                status={item.status === 'error' ? 'exception' : item.status === 'success' ? 'success' : 'active'} 
+                                showInfo={false}
+                                size="small"
+                                strokeColor={item.status === 'success' ? '#52c41a' : undefined}
+                            />
+                            {item.errorMsg && <Text type="danger" style={{ fontSize: 12 }}>{item.errorMsg}</Text>}
+                        </div>
+                    ))}
+                </div>
+                {!uploading && (
+                    <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                        <Button type="primary" onClick={() => setUploadQueue([])}>
+                            关闭
+                        </Button>
+                    </div>
+                )}
+            </div>
+        </div>
+      )}
 
       {uploadedFiles.length > 0 && (
         <Card title="最近上传" style={{ marginTop: isMobile ? 16 : 24 }}>

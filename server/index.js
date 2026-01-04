@@ -587,13 +587,18 @@ app.post(
 app.post(
   "/api/upload",
   requirePassword,
-  upload.single("image"),
+  upload.any(),
   handleMulterError,
   async (req, res) => {
     try {
       let dir = req.body.dir || req.query.dir || "";
       dir = dir.replace(/\\/g, "/");
       
+      // Handle upload.any() result - req.files is an array
+      if (req.files && req.files.length > 0) {
+          req.file = req.files[0];
+      }
+
       // 处理常规文件上传
       if (!req.file) {
         return res.status(400).json({ success: false, error: "没有选择文件" });
