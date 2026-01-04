@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Select, Input, Space, Typography, Divider, Button, message } from "antd";
+import { Select, Input, Space, Typography, Divider, message } from "antd";
 import { FolderOutlined, PlusOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
@@ -112,7 +112,7 @@ const DirectorySelector = ({
             {allowInput && (
               <>
                 <Divider style={{ margin: "8px 0" }} />
-                <Space style={{ padding: "0 8px 8px", width: "100%" }}>
+                <div style={{ padding: "0 8px 8px" }}>
                   <Input
                     placeholder="输入新相册名称 (支持多级如 A/B)"
                     ref={inputRef}
@@ -121,11 +121,14 @@ const DirectorySelector = ({
                     onKeyDown={(e) => e.stopPropagation()}
                     onKeyPress={handleInputKeyPress}
                     size={size}
+                    suffix={
+                      <PlusOutlined
+                        style={{ cursor: "pointer" }}
+                        onClick={addNewDirectory}
+                      />
+                    }
                   />
-                  <Button type="text" icon={<PlusOutlined />} onClick={addNewDirectory}>
-                    添加
-                  </Button>
-                </Space>
+                </div>
               </>
             )}
           </div>
