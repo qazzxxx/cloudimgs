@@ -968,21 +968,90 @@ app.get("/api/random", requirePassword, async (req, res) => {
       return res.status(404).json({ error: "没有找到图片" });
     }
     const randomImage = images[Math.floor(Math.random() * images.length)];
+    const fullUrl = `${req.protocol}://${req.get("host")}/api/images/${encodeURIComponent(randomImage.relPath)}`;
+
     if (req.query.format === "json") {
       return res.json({
         success: true,
-        data: randomImage,
+        data: {
+          ...randomImage,
+          fullPath: fullUrl
+        },
       });
     }
-    // 直接返回图片文件
+
+    // 非 JSON 模式，支持实时处理
     const filePath = safeJoin(STORAGE_PATH, randomImage.relPath);
-    const mimeType = mime.lookup(filePath) || "application/octet-stream";
-    res.setHeader("Content-Type", mimeType);
-    res.sendFile(filePath, (err) => {
-      if (err) {
-        res.status(500).json({ error: "图片发送失败" });
-      }
+    
+    // 触发 ThumbHash 生成（异步）
+    getThumbHash(filePath).then(hash => {
+      if (!hash) generateThumbHash(filePath);
     });
+
+    const w = req.query.w ? parseInt(req.query.w) : undefined;
+    const h = req.query.h ? parseInt(req.query.h) : undefined;
+    const qRaw = req.query.q ? parseInt(req.query.q) : undefined;
+    const q = qRaw && qRaw > 0 && qRaw <= 100 ? qRaw : undefined;
+    let fmt = (req.query.fmt || "").toLowerCase();
+    if (fmt === "jpg") fmt = "jpeg";
+
+    const hasTransform = w || h || q || fmt;
+    if (!hasTransform) {
+      const mimeType = mime.lookup(filePath) || "application/octet-stream";
+      res.setHeader("Content-Type", mimeType);
+      return res.sendFile(filePath, (err) => {
+        if (err) {
+          res.status(500).json({ error: "图片发送失败" });
+        }
+      });
+    }
+
+    // Sharp 实时处理逻辑
+    let img = sharp(filePath).rotate();
+    if (w || h) {
+      img = img.resize({
+        width: w,
+        height: h,
+        fit: "cover",
+        position: "center",
+        withoutEnlargement: true,
+      });
+    }
+
+    let outMime = mime.lookup(filePath) || "application/octet-stream";
+    if (fmt === "webp") {
+      img = img.webp({ quality: q ?? 80 });
+      outMime = "image/webp";
+    } else if (fmt === "jpeg") {
+      img = img.jpeg({ quality: q ?? 80 });
+      outMime = "image/jpeg";
+    } else if (fmt === "png") {
+      img = img.png();
+      outMime = "image/png";
+    } else if (fmt === "avif") {
+      img = img.avif({ quality: q ?? 50 });
+      outMime = "image/avif";
+    } else if (q) {
+      const orig = (mime.lookup(filePath) || "").toLowerCase();
+      if (orig.includes("jpeg") || orig.includes("jpg")) {
+        img = img.jpeg({ quality: q });
+        outMime = "image/jpeg";
+      } else if (orig.includes("webp")) {
+        img = img.webp({ quality: q });
+        outMime = "image/webp";
+      } else if (orig.includes("avif")) {
+        img = img.avif({ quality: q });
+        outMime = "image/avif";
+      } else {
+        img = img.png();
+        outMime = "image/png";
+      }
+    }
+
+    const buffer = await img.toBuffer();
+    res.setHeader("Content-Type", outMime);
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"); // 随机图不应缓存
+    res.send(buffer);
   } catch (error) {
     console.error("获取随机图片错误:", error);
     res.status(500).json({ error: "获取随机图片失败" });
