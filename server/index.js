@@ -2068,6 +2068,9 @@ app.post(
       
       // 处理文件名冲突
       const dest = safeJoin(STORAGE_PATH, dir);
+      // 确保目标目录存在
+      await fs.ensureDir(dest);
+      
       let finalFilename = processedFilename;
       let counter = 1;
       
