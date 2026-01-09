@@ -183,12 +183,16 @@ const ApiDocs = () => {
               <CurlButton endpoint="/api/random?format=json" method="GET" />
             </div>
             <Paragraph>
-              随机获取一张图片。
+              随机获取一张图片。支持实时图像处理参数（缩放、格式转换等）。
             </Paragraph>
             <Divider orientation="left" plain>参数</Divider>
             <ul>
                 <li><Text code>dir</Text>: 目录路径 (可选)</li>
-                <li><Text code>format</Text>: 返回格式，<Text code>json</Text> 返回元数据，否则直接返回图片流</li>
+                <li><Text code>format</Text>: 返回格式，<Text code>json</Text> 返回元数据（包含 <Text code>fullPath</Text>），否则直接返回图片流</li>
+                <li><Text code>w</Text>: 目标宽度 (可选)</li>
+                <li><Text code>h</Text>: 目标高度 (可选)</li>
+                <li><Text code>q</Text>: 图片质量，1-100 (可选)</li>
+                <li><Text code>fmt</Text>: 目标格式，支持 <Text code>webp</Text>, <Text code>avif</Text>, <Text code>jpg</Text>, <Text code>png</Text> (可选)</li>
             </ul>
           </Card>
 
