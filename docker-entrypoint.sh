@@ -17,9 +17,9 @@ if [ -z "$GROUP_NAME" ]; then
     # GID 未被占用，创建新组 cloudimgs
     addgroup -g "$PGID" cloudimgs
     GROUP_NAME=cloudimgs
-else
-    echo "GID $PGID already in use by group '$GROUP_NAME', utilizing it."
+    echo "[INFO] Created new group 'cloudimgs' with GID $PGID"
 fi
+# 如果 GID 已被占用，静默使用已有组（这是 NAS 上的正常情况）
 
 # 处理用户
 # 检查 UID 是否已被占用
@@ -28,10 +28,9 @@ if [ -z "$USER_NAME" ]; then
     # UID 未被占用，创建新用户 cloudimgs
     adduser -D -H -u "$PUID" -G "$GROUP_NAME" cloudimgs
     USER_NAME=cloudimgs
-else
-    echo "UID $PUID already in use by user '$USER_NAME', utilizing it."
-    # 如果用户组不匹配，尝试修正（非必须，su-exec 可以指定组）
+    echo "[INFO] Created new user 'cloudimgs' with UID $PUID"
 fi
+# 如果 UID 已被占用，静默使用已有用户（这是 NAS 上的正常情况）
 
 # 确保目录存在
 mkdir -p "$STORAGE_PATH" logs
