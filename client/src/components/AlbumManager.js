@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Modal,
   Typography,
@@ -82,6 +82,7 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
   
   // Pagination / Chunk Rendering
   const [visibleCount, setVisibleCount] = useState(12);
+  const scrollContainerRef = useRef(null);
 
   // ... (rest of state)
   const [shareExpiry, setShareExpiry] = useState(3600 * 24); // 1 day
@@ -330,15 +331,24 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
   };
 
   // Scroll handler for infinite loading
-  const handleScroll = (e) => {
-    const { scrollTop, clientHeight, scrollHeight } = e.target;
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const { scrollTop, clientHeight, scrollHeight } = container;
     if (scrollHeight - scrollTop - clientHeight < 100) {
         // Load more
-        if (visibleCount < albums.length) {
-            setVisibleCount(prev => Math.min(prev + 12, albums.length));
-        }
+        setVisibleCount(prev => Math.min(prev + 12, albums.length));
     }
-  };
+  }, [albums.length]);
+
+  // Attach scroll listener to scrollable container
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (visible && container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [visible, handleScroll]);
 
   return (
     <Modal
@@ -353,11 +363,11 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
       title={<div style={{ fontSize: 20, fontWeight: 600 }}>相册管理</div>}
       width={1000}
       footer={null}
-      styles={{ body: { padding: "20px 0", minHeight: 400, maxHeight: "60vh", overflowY: "auto", overflowX: "hidden", background: token.colorBgLayout } }}
+      styles={{ body: { padding: 0, minHeight: 400, background: token.colorBgLayout } }}
     >
       <div 
-        style={{ padding: "0 32px" }}
-        onScroll={handleScroll}
+        ref={scrollContainerRef}
+        style={{ padding: "20px 32px", maxHeight: "60vh", overflowY: "auto", overflowX: "hidden" }}
       >
         {loading || isClosing ? (
           <div style={{ textAlign: "center", padding: 50 }}>
