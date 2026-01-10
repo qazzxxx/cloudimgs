@@ -124,9 +124,9 @@ ENV UMASK=002
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# 健康检查
+# 健康检查（使用环境变量 PORT）
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/api/stats', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3001) + '/api/stats', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # 使用入口脚本启动
 ENTRYPOINT ["docker-entrypoint.sh"]
