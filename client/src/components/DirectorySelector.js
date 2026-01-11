@@ -106,6 +106,7 @@ const DirectorySelector = ({
           return optionText.toLowerCase().indexOf(input.toLowerCase()) >= 0;
         }}
         notFoundContent={loading ? "加载中..." : "暂无相册"}
+        popupClassName="directory-selector-dropdown"
         dropdownRender={(menu) => (
           <div>
             {menu}
