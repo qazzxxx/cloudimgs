@@ -1278,6 +1278,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   };
 
   const [previewIndex, setPreviewIndex] = useState(-1);
+  const pendingNavigateRef = useRef(null); // 'next' | null - Used to auto-navigate after loading more in preview mode
 
   // ... (keep existing helper functions)
 
@@ -1329,6 +1330,10 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const showNext = () => {
       if (previewIndex < images.length - 1) {
           handlePreview(images[previewIndex + 1]);
+      } else if (hasMore && !loadingMore) {
+          // Reached the end of loaded images but more are available, trigger load more
+          setCurrentPage((p) => p + 1);
+          pendingNavigateRef.current = 'next';
       }
   };
 
@@ -1337,6 +1342,17 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           handlePreview(images[previewIndex - 1]);
       }
   };
+
+  // Handle auto-navigation to next image after loading more in preview mode
+  useEffect(() => {
+      if (pendingNavigateRef.current === 'next' && previewVisible && !loadingMore) {
+          // Images list has been updated and loading is complete, navigate to next
+          if (previewIndex < images.length - 1) {
+              handlePreview(images[previewIndex + 1]);
+          }
+          pendingNavigateRef.current = null;
+      }
+  }, [images.length, loadingMore]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -1819,7 +1835,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         api={api}
         onNext={showNext}
         onPrev={showPrev}
-        hasNext={previewIndex < images.length - 1}
+        hasNext={previewIndex < images.length - 1 || hasMore}
         hasPrev={previewIndex > 0}
         onDelete={(relPath) => {
             handleDelete(relPath);
