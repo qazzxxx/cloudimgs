@@ -179,6 +179,12 @@ function App() {
     ::-webkit-scrollbar-thumb:hover {
       background: ${currentTheme === 'dark' ? '#555' : '#999'};
     }
+    
+    /* Prevent dropdown scroll from affecting main page */
+    .directory-selector-dropdown .rc-virtual-list-holder {
+      overflow-y: auto !important;
+      overscroll-behavior: contain;
+    }
   `;
 
   return (
