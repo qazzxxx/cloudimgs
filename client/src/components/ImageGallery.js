@@ -898,6 +898,9 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           setHasMore(true);
           setCurrentPage(1);
           setPendingDir(null);
+          
+          // Reset scroll position to top when switching folders
+          window.scrollTo(0, 0);
       }
   }, [dir]);
 
