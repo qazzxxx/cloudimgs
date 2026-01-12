@@ -873,8 +873,12 @@ app.get("/api/images", requirePassword, async (req, res) => {
     // 获取所有图片
     let images = await getAllImages(dir, albumPassword);
 
-    // 按上传时间倒序排列
-    images.sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
+    // 按上传时间倒序排列，使用 filename 升序作为次要排序键保证稳定性
+    images.sort((a, b) => {
+      const timeDiff = new Date(b.uploadTime) - new Date(a.uploadTime);
+      if (timeDiff !== 0) return timeDiff;
+      return a.filename.localeCompare(b.filename);
+    });
 
     // 搜索过滤
     if (search) {
@@ -1851,8 +1855,12 @@ app.get("/api/share/access", async (req, res) => {
         // Token valid, return content
         let images = await getAllImages(dir);
         
-        // Sort
-        images.sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
+        // Sort - 按上传时间倒序，filename 升序作为次要排序键保证稳定性
+        images.sort((a, b) => {
+          const timeDiff = new Date(b.uploadTime) - new Date(a.uploadTime);
+          if (timeDiff !== 0) return timeDiff;
+          return a.filename.localeCompare(b.filename);
+        });
 
         // Pagination
         const page = parseInt(req.query.page) || 1;
