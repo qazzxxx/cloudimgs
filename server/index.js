@@ -62,6 +62,11 @@ app.use(express.json({ limit: '50mb' })); // 增加限制以支持大型 base64 
 app.use(express.static(path.join(__dirname, "../client/build")));
 app.enable("trust proxy");
 
+// 健康检查接口 (不需要密码验证)
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 function getProtocol(req) {
   const proto = req.headers["x-forwarded-proto"] || req.protocol;
   if (Array.isArray(proto)) return proto[0];

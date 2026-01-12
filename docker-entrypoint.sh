@@ -38,8 +38,10 @@ mkdir -p "$STORAGE_PATH" logs
 # 修正权限（如果使用 root 启动容器，则修正所有权）
 if [ "$(id -u)" = "0" ]; then
     chown -R "$USER_NAME:$GROUP_NAME" "$STORAGE_PATH" logs /app
+    
     # 使用 su-exec 降权运行应用
-    exec su-exec "$USER_NAME:$GROUP_NAME" "$@"
+    # 设置 HOME=/app 避免 npm 日志权限问题（NAS 映射用户可能没有主目录）
+    exec su-exec "$USER_NAME:$GROUP_NAME" env HOME=/app "$@"
 else
     # 如果已经是普通用户，直接运行
     exec "$@"
