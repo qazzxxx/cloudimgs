@@ -962,6 +962,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   }, [hasMore, loading, loadingMore, images.length]);
 
   const [previewLocation, setPreviewLocation] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Effect for fetching address in Preview Modal
   useEffect(() => {
@@ -1681,12 +1682,18 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
             }}
           />
           <Popover
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
             content={
               <div style={{ padding: 4 }}>
                   <Button
                     type="text"
                     icon={<FolderOutlined />}
-                    onClick={() => setAlbumManagerVisible(true)}
+                    onClick={() => {
+                        setMenuOpen(false);
+                        // Defer modal opening to let popover close smoothly
+                        setTimeout(() => setAlbumManagerVisible(true), 300);
+                    }}
                     style={{ 
                         width: "100%", 
                         textAlign: "left", 
@@ -1701,7 +1708,10 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                   <Button
                     type="text"
                     icon={<CodeOutlined />}
-                    onClick={() => setSvgToolVisible(true)}
+                    onClick={() => {
+                        setMenuOpen(false);
+                        setSvgToolVisible(true);
+                    }}
                     style={{ 
                         width: "100%", 
                         textAlign: "left", 
@@ -1716,7 +1726,10 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                   <Button
                     type="text"
                     icon={<ApiOutlined />}
-                    onClick={() => window.open("/opendocs", "_blank")}
+                    onClick={() => {
+                         setMenuOpen(false);
+                         window.open("/opendocs", "_blank");
+                    }}
                     style={{ 
                         width: "100%", 
                         textAlign: "left", 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   Typography,
@@ -76,13 +76,9 @@ const CountdownTimer = ({ expireSeconds, createdAt }) => {
 const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isClosing, setIsClosing] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [currentAlbum, setCurrentAlbum] = useState(null);
-  
-  // Pagination / Chunk Rendering
-  const [visibleCount, setVisibleCount] = useState(12);
-  const scrollContainerRef = useRef(null);
+
 
   // ... (rest of state)
   const [shareExpiry, setShareExpiry] = useState(3600 * 24); // 1 day
@@ -107,10 +103,10 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
 
   const { token } = theme.useToken();
 
-  const fetchAlbums = async () => {
+  const fetchAlbums = async (abortSignal) => {
     setLoading(true);
     try {
-      const res = await api.get("/directories");
+      const res = await api.get("/directories", { signal: abortSignal });
       if (res.data.success) {
         const allAlbums = res.data.data || [];
         const allImagesAlbum = {
@@ -125,11 +121,12 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
         // Wait, user said: "全部图片 相册固定放在新建相册后面"
         // So order: [New Album Card (UI), All Images, ...Real Albums]
         setAlbums([allImagesAlbum, ...allAlbums]);
-        
-        // We also need to make sure visibleCount is enough to show at least the first few items
-        // It defaults to 12, so it should be fine.
       }
     } catch (e) {
+      // Ignore aborted requests
+      if (e.name === 'AbortError' || e.name === 'CanceledError') {
+        return;
+      }
       message.error("获取相册列表失败");
     } finally {
       setLoading(false);
@@ -137,10 +134,16 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
   };
 
   useEffect(() => {
-    if (visible) {
-      fetchAlbums();
+    if (visible && api) {
+      
+      const abortController = new AbortController();
+      fetchAlbums(abortController.signal);
+      
+      return () => {
+        abortController.abort();
+      };
     }
-  }, [visible]);
+  }, [visible, api]);
 
   const fetchShareList = async (path) => {
     setLoadingShares(true);
@@ -316,62 +319,28 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
     });
   };
 
-  const handleClose = () => {
-    setIsClosing(true);
-    // Short delay to let the state update before triggering modal close animation
-    // Actually, setting state will trigger re-render.
-    // We want the re-render (hiding content) to happen BEFORE the modal starts closing?
-    // No, we want it to happen AT THE SAME TIME or slightly before.
-    // If we call onClose() immediately, Modal starts animating out.
-    // At the same time React renders.
-    // If we hide content, the modal becomes light.
-    
-    // We can just set isClosing(true), and let the Modal onCancel call this.
-    onClose();
-  };
-
-  // Scroll handler for infinite loading
-  const handleScroll = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const { scrollTop, clientHeight, scrollHeight } = container;
-    if (scrollHeight - scrollTop - clientHeight < 100) {
-        // Load more
-        setVisibleCount(prev => Math.min(prev + 12, albums.length));
-    }
-  }, [albums.length]);
-
-  // Attach scroll listener to scrollable container
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (visible && container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, [visible, handleScroll]);
-
   return (
     <Modal
       open={visible}
-      onCancel={handleClose}
+      onCancel={onClose}
       afterClose={() => {
           setAlbums([]);
           setLoading(true);
-          setIsClosing(false);
-          setVisibleCount(12);
       }}
+      destroyOnClose
+      transitionName=""
+      maskTransitionName=""
       title={<div style={{ fontSize: 20, fontWeight: 600 }}>相册管理</div>}
       width={1000}
       footer={null}
       styles={{ body: { padding: 0, minHeight: 400, background: token.colorBgLayout } }}
     >
       <div 
-        ref={scrollContainerRef}
         style={{ padding: "20px 32px", maxHeight: "60vh", overflowY: "auto", overflowX: "hidden" }}
       >
-        {loading || isClosing ? (
+        {loading ? (
           <div style={{ textAlign: "center", padding: 50 }}>
-            {loading && !isClosing && <Spin size="large" />}
+            <Spin size="large" />
           </div>
         ) : albums.length === 0 ? (
           <Empty description="暂无相册" />
@@ -412,7 +381,7 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
                 <div style={{ fontSize: 16, fontWeight: 500 }}>新建相册</div>
             </div>
 
-            {albums.slice(0, visibleCount).map((album) => (
+            {albums.map((album) => (
               <AlbumCard
                 key={album.path}
                 album={album}
@@ -645,7 +614,8 @@ const AlbumCard = React.memo(({ album, token, onOpen, onShare, onRename, onDelet
               height: 200, // Match Create Card height
               margin: 24,  // Match Create Card margin
               cursor: "pointer",
-              perspective: "1000px"
+              perspective: "1000px",
+              contain: "layout style"
           }}
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
@@ -671,7 +641,7 @@ const AlbumCard = React.memo(({ album, token, onOpen, onShare, onRename, onDelet
             )}
 
             {/* Stacked Images */}
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 60 }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 60, contain: "layout style" }}>
                 {displayPreviews.length > 0 ? (
                     displayPreviews.map((src, index) => {
                         // index 0 is bottom, index 2 is top
@@ -707,9 +677,12 @@ const AlbumCard = React.memo(({ album, token, onOpen, onShare, onRename, onDelet
                                     zIndex: zIndex,
                                     transform: `translateY(${translateY}px) translateX(${translateX}px) rotate(${rotate}deg) scale(${scale})`,
                                     transformOrigin: "bottom center",
-                                    transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                                    // Performance: only transition transform, use GPU acceleration
+                                    transition: "transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                                    willChange: hover ? "transform" : "auto",
+                                    backfaceVisibility: "hidden",
                                     border: `2px solid ${token.colorBgContainer}`,
-                                    opacity: 1
+                                    contain: "paint"
                                 }}
                             />
                         );
