@@ -95,6 +95,7 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - STORAGE_PATH=/app/uploads
+      # - MAX_FILE_SIZE=10485760 # 最大文件大小，默认 10MB
       # 密码保护配置（可选）
       # - PASSWORD=your_secure_password_here
 ```
