@@ -1594,39 +1594,45 @@ async function getPreviewImages(dir, limit = 3) {
 }
 
 // 6. 获取目录列表 (Modified to include previews)
-async function getDirectories(dir = "") {
+async function getDirectories(dir = "", recursive = false) {
   const absDir = safeJoin(STORAGE_PATH, dir);
   let directories = [];
 
   try {
     const files = await fs.readdir(absDir);
+    let currentLevelDirs = [];
+    
     for (const file of files) {
       if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME) continue;
       const filePath = path.join(absDir, file);
       const stats = await fs.stat(filePath);
       if (stats.isDirectory()) {
         const relPath = path.join(dir, file).replace(/\\/g, "/");
-        // Check locked status
         const isLocked = await isAlbumLocked(relPath);
+        const previews = (isLocked || recursive) ? [] : await getPreviewImages(relPath, 3);
         
-        // If locked, maybe we shouldn't show previews? 
-        // User said: "default loading does not load images of that album"
-        // So previews should be empty if locked.
-        const previews = isLocked ? [] : await getPreviewImages(relPath, 3);
-        
-        directories.push({
+        currentLevelDirs.push({
           name: file,
           path: relPath,
           fullPath: filePath,
           previews: previews,
-          imageCount: previews.length, // Rough indicator
+          imageCount: previews.length,
           mtime: stats.mtime,
           locked: isLocked
         });
       }
     }
-    // 按目录名排序
-    directories.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
+
+    // Sort current level
+    currentLevelDirs.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
+
+    for (const d of currentLevelDirs) {
+        directories.push(d);
+        if (recursive) {
+          const subDirs = await getDirectories(d.path, true);
+          directories = directories.concat(subDirs);
+        }
+    }
   } catch (error) {
     console.error("读取目录失败:", error);
   }
@@ -1678,8 +1684,9 @@ app.post("/api/directories", requirePassword, async (req, res) => {
 app.get("/api/directories", requirePassword, async (req, res) => {
   try {
     let dir = req.query.dir || "";
+    const recursive = req.query.recursive === "true";
     dir = dir.replace(/\\/g, "/");
-    const directories = await getDirectories(dir);
+    const directories = await getDirectories(dir, recursive);
     res.json({
       success: true,
       data: directories,

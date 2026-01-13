@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Select, Input, Space, Typography, Divider, message } from "antd";
-import { FolderOutlined, PlusOutlined } from "@ant-design/icons";
+import { FolderOutlined, PlusOutlined, RightOutlined, DownOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -20,13 +20,15 @@ const DirectorySelector = ({
   const [directories, setDirectories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [createName, setCreateName] = useState("");
+  const [expandedPaths, setExpandedPaths] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef(null);
 
   // 获取相册列表
-  const fetchDirectories = async () => {
+  const fetchDirectories = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get("/directories");
+      const response = await api.get("/directories?recursive=true");
       if (response.data.success) {
         setDirectories(response.data.data);
       }
@@ -35,11 +37,27 @@ const DirectorySelector = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [api]);
 
   useEffect(() => {
     fetchDirectories();
-  }, [refreshKey]);
+  }, [refreshKey, fetchDirectories]);
+
+  // Auto expand parents of the current value
+  useEffect(() => {
+    if (value && directories.length > 0) {
+      const parts = value.split("/");
+      if (parts.length > 1) {
+        const pathsToExpand = [];
+        let currentPath = "";
+        for (let i = 0; i < parts.length - 1; i++) {
+          currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+          pathsToExpand.push(currentPath);
+        }
+        setExpandedPaths(prev => Array.from(new Set([...prev, ...pathsToExpand])));
+      }
+    }
+  }, [value, directories]);
 
   const handleSelectChange = (selectedValue) => {
     if (onChange) {
@@ -58,7 +76,16 @@ const DirectorySelector = ({
   };
 
   const handleSearch = (searchValue) => {
-    // 搜索功能已通过filterOption实现
+    setIsSearching(!!searchValue);
+  };
+
+  const toggleExpand = (e, path) => {
+    e.stopPropagation(); // Prevent selection
+    setExpandedPaths(prev => 
+      prev.includes(path) 
+        ? prev.filter(p => p !== path) 
+        : [...prev, path]
+    );
   };
 
   const addNewDirectory = async (e) => {
@@ -99,11 +126,12 @@ const DirectorySelector = ({
         size={size}
         loading={loading}
         onSearch={handleSearch}
+        optionLabelProp="label"
         filterOption={(input, option) => {
           if (!input) return true;
-          const optionText =
-            option?.children?.props?.children?.[1]?.props?.children || "";
-          return optionText.toLowerCase().indexOf(input.toLowerCase()) >= 0;
+          // Use search text from the dir name or path
+          const searchContent = option.searchValue || "";
+          return searchContent.toLowerCase().indexOf(input.toLowerCase()) >= 0;
         }}
         notFoundContent={loading ? "加载中..." : "暂无相册"}
         popupClassName="directory-selector-dropdown"
@@ -135,20 +163,59 @@ const DirectorySelector = ({
           </div>
         )}
       >
-        <Option value="">
+        <Option value="" searchValue="全部图片" label="全部图片">
           <Space>
             <FolderOutlined />
             <Text>全部图片</Text>
           </Space>
         </Option>
-        {directories.map((dir) => (
-          <Option key={dir.path} value={dir.path}>
-            <Space>
-              <FolderOutlined />
-              <Text>{dir.name}</Text>
-            </Space>
-          </Option>
-        ))}
+        {directories.map((dir) => {
+          const parts = (dir.path || "").split("/").filter(Boolean);
+          const depth = parts.length - 1;
+          const isExpanded = expandedPaths.includes(dir.path);
+          const hasChildren = directories.some(d => d.path !== dir.path && d.path.startsWith(dir.path + '/'));
+          
+          // Visibility check
+          let isVisible = true;
+          if (parts.length > 1 && !isSearching) {
+            let currentPath = "";
+            for (let i = 0; i < parts.length - 1; i++) {
+              currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+              if (!expandedPaths.includes(currentPath)) {
+                isVisible = false;
+                break;
+              }
+            }
+          }
+
+          if (!isVisible && !isSearching) return null;
+
+          return (
+            <Option key={dir.path} value={dir.path} searchValue={dir.name} label={dir.name}>
+              <div style={{ paddingLeft: depth * 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Space size={4}>
+                  <FolderOutlined style={{ color: '#1890ff' }} />
+                  <Text>{dir.name}</Text>
+                </Space>
+                {hasChildren && !isSearching && (
+                   <div 
+                     onClick={(e) => toggleExpand(e, dir.path)}
+                     style={{ 
+                       padding: '0 4px', 
+                       cursor: 'pointer', 
+                       display: 'flex', 
+                       alignItems: 'center',
+                       height: '100%',
+                       marginLeft: '8px'
+                     }}
+                   >
+                     {isExpanded ? <DownOutlined style={{ fontSize: 10, color: '#999' }} /> : <RightOutlined style={{ fontSize: 10, color: '#999' }} />}
+                   </div>
+                )}
+              </div>
+            </Option>
+          );
+        })}
       </Select>
       
     </Space>
