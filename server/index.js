@@ -968,7 +968,8 @@ app.post("/api/album/verify", requirePassword, async (req, res) => {
 });
 
 // 3. 获取随机图片（支持dir参数）
-app.get("/api/random", requirePassword, async (req, res) => {
+// 获取随机图片接口 (无需全局密码验证)
+app.get("/api/random", async (req, res) => {
   try {
     let dir = req.query.dir || "";
     dir = dir.replace(/\\/g, "/");
