@@ -177,7 +177,7 @@ const ImageItem = ({
                 {/* Real Image Layer */}
                 <img
                     alt={image.filename}
-                    src={image.url}
+                    src={image.url + "?w=400"}
                     draggable={false}
                     loading="lazy"
                     onLoad={() => setLoaded(true)}
