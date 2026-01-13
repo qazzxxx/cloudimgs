@@ -11,6 +11,7 @@ const sharp = require("sharp");
 const mime = require("mime-types");
 const mm = require("music-metadata");
 const exifr = require("exifr");
+const cookieParser = require("cookie-parser");
 
 const CACHE_DIR_NAME = ".cache";
 const TRASH_DIR_NAME = ".trash";
@@ -57,9 +58,10 @@ async function verifyAlbumPassword(dirPath, password) {
 }
 
 // 中间件
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '50mb' })); // 增加限制以支持大型 base64 数据
 app.use(express.static(path.join(__dirname, "../client/build")));
+app.use(cookieParser());
 app.enable("trust proxy");
 
 // 健康检查接口 (不需要密码验证)
@@ -92,7 +94,7 @@ function requirePassword(req, res, next) {
   }
 
   const password =
-    req.headers["x-access-password"] || req.body.password || req.query.password;
+    req.headers["x-access-password"] || req.cookies?.access_password || req.body.password || req.query.password;
 
   if (!password) {
     return res.status(401).json({ error: "需要提供访问密码" });
@@ -968,8 +970,8 @@ app.post("/api/album/verify", requirePassword, async (req, res) => {
 });
 
 // 3. 获取随机图片（支持dir参数）
-// 获取随机图片接口 (无需全局密码验证)
-app.get("/api/random", async (req, res) => {
+// 获取随机图片接口
+app.get("/api/random", requirePassword, async (req, res) => {
   try {
     let dir = req.query.dir || "";
     dir = dir.replace(/\\/g, "/");
@@ -1147,7 +1149,7 @@ app.get("/api/images/meta/*", requirePassword, async (req, res) => {
 });
 
 // 4. 获取指定图片（支持多层目录、实时处理）
-app.get("/api/images/*", async (req, res) => {
+app.get("/api/images/*", requirePassword, async (req, res) => {
   const relPath = decodeURIComponent(req.params[0]);
   try {
     const filePath = safeJoin(STORAGE_PATH, relPath);
@@ -1221,7 +1223,7 @@ app.get("/api/images/*", async (req, res) => {
 });
 
 // 4.1. 获取指定文件（支持多层目录）
-app.get("/api/files/*", (req, res) => {
+app.get("/api/files/*", requirePassword, (req, res) => {
   const relPath = decodeURIComponent(req.params[0]);
   try {
     const filePath = safeJoin(STORAGE_PATH, relPath);
@@ -1878,10 +1880,13 @@ app.get("/api/share/access", async (req, res) => {
         const endIndex = startIndex + pageSize;
         const paginatedImages = images.slice(startIndex, endIndex);
         
-        // ThumbHash
+        // ThumbHash and Share URL
         for (const img of paginatedImages) {
              const filePath = safeJoin(STORAGE_PATH, img.relPath);
              img.thumbhash = await getThumbHash(filePath);
+             // 为分享页面生成专用 URL (使用 token 验证而非密码)
+             const encodedPath = img.relPath.split("/").map(encodeURIComponent).join("/");
+             img.url = `/api/share/image/${encodedPath}?token=${encodeURIComponent(token)}`;
         }
 
         res.json({
@@ -1899,6 +1904,65 @@ app.get("/api/share/access", async (req, res) => {
     } catch (e) {
         console.error("Share access error:", e);
         res.status(500).json({ error: "Share access failed" });
+    }
+});
+
+// 分享专用图片访问路由 (不需要密码，通过 token 验证)
+app.get("/api/share/image/*", async (req, res) => {
+    try {
+        const { token } = req.query;
+        if (!token) return res.status(401).json({ error: "Missing token" });
+
+        // 验证 token
+        let decoded;
+        try {
+            const jsonStr = Buffer.from(token, "base64").toString("utf8");
+            decoded = JSON.parse(jsonStr);
+        } catch (e) {
+            return res.status(400).json({ error: "Invalid token" });
+        }
+
+        const { d: payload, s: signature } = decoded;
+        const expectedSig = crypto.createHmac("sha256", SHARE_SECRET).update(JSON.stringify(payload)).digest("hex");
+
+        if (signature !== expectedSig) {
+            return res.status(403).json({ error: "Invalid signature" });
+        }
+
+        // 检查分享记录
+        const shareDir = payload.p;
+        const shares = await readShares(shareDir);
+        const shareRecord = shares.find(s => s.signature === signature);
+        
+        if (!shareRecord || shareRecord.status === "revoked" || shareRecord.status === "burned") {
+            return res.status(403).json({ error: "Share expired or revoked" });
+        }
+
+        // 检查过期
+        if (payload.e && Date.now() > payload.e) {
+            return res.status(410).json({ error: "Share expired" });
+        }
+
+        // 获取请求的图片路径
+        const imagePath = req.params[0];
+        const decodedPath = decodeURIComponent(imagePath);
+        
+        // 安全检查：确保请求的图片在分享目录下
+        if (!decodedPath.startsWith(shareDir) && shareDir !== "") {
+            return res.status(403).json({ error: "Access denied" });
+        }
+
+        const filePath = safeJoin(STORAGE_PATH, decodedPath);
+
+        if (!filePath || !(await fs.pathExists(filePath))) {
+            return res.status(404).json({ error: "Image not found" });
+        }
+
+        // 返回图片
+        res.sendFile(filePath);
+    } catch (e) {
+        console.error("Share image error:", e);
+        res.status(500).json({ error: "Failed to load image" });
     }
 });
 
@@ -1974,6 +2038,13 @@ app.post("/api/auth/verify", (req, res) => {
   if (password !== config.security.password.accessPassword) {
     return res.status(401).json({ error: "密码错误" });
   }
+
+  // 设置 httpOnly Cookie，30天过期
+  res.cookie('access_password', password, {
+    httpOnly: true,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    sameSite: 'lax',
+  });
 
   res.json({ success: true, message: "密码验证成功" });
 });

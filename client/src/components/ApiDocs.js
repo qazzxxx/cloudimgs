@@ -300,8 +300,8 @@ const ApiDocs = () => {
            <Card type="inner" title="获取目录列表" bordered={false}>
             <div style={endpointStyle}>
               <Tag color="blue" style={methodTagStyle('GET')}>GET</Tag>
-              <Text code copyable>/api/dirs</Text>
-              <CurlButton endpoint="/api/dirs" method="GET" />
+              <Text code copyable>/api/directories</Text>
+              <CurlButton endpoint="/api/directories" method="GET" />
             </div>
             <Paragraph>
               获取当前所有的图片目录结构。

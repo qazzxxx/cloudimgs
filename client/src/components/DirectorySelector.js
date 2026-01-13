@@ -16,6 +16,7 @@ const DirectorySelector = ({
   allowInput = true,
   api,
   refreshKey = 0,
+  enabled = true,
 }) => {
   const [directories, setDirectories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -40,8 +41,10 @@ const DirectorySelector = ({
   }, [api]);
 
   useEffect(() => {
-    fetchDirectories();
-  }, [refreshKey, fetchDirectories]);
+    if (enabled) {
+      fetchDirectories();
+    }
+  }, [refreshKey, fetchDirectories, enabled]);
 
   // Auto expand parents of the current value
   useEffect(() => {

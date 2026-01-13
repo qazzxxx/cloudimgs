@@ -1,6 +1,6 @@
 const STORAGE_KEY = "cloudimgs_password";
 const SALT = "cloudimgs-salt-2025";
-const EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const EXPIRATION_TIME = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
 
 function xorCipher(input) {
   const salt = SALT;

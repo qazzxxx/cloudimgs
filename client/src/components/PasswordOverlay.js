@@ -43,7 +43,7 @@ const PasswordOverlay = ({ onLoginSuccess, isMobile }) => {
       }}
     >
       {/* Dynamic Background */}
-      <ScrollingBackground />
+      <ScrollingBackground usePicsum={true} />
 
       {/* Glassmorphism Overlay */}
       <div
