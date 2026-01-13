@@ -65,7 +65,7 @@ const ImageItem = ({
     formatFileSize, 
     isMobile, 
     handleDownload, 
-    copyToClipboard, 
+    onCopyClick, 
     handleDelete, 
     handleEdit,
     hoverLocation,
@@ -300,9 +300,7 @@ const ImageItem = ({
                                 icon={<CopyOutlined />}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    copyToClipboard(
-                                        `${window.location.origin}${image.url}`
-                                    );
+                                    onCopyClick(image);
                                 }}
                                 style={{
                                     color: "#fff",
@@ -313,7 +311,6 @@ const ImageItem = ({
                                     fontSize: "12px",
                                 }}
                             >
-                                链接
                             </Button>
                             <Button
                                 size="small"
@@ -423,6 +420,8 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [svgToolVisible, setSvgToolVisible] = useState(false);
   const [albumManagerVisible, setAlbumManagerVisible] = useState(false);
   const [directoryRefreshKey, setDirectoryRefreshKey] = useState(0);
+  const [copyModalVisible, setCopyModalVisible] = useState(false);
+  const [copyTargetImage, setCopyTargetImage] = useState(null);
 
   // Album Password Logic
   const [albumPasswords, setAlbumPasswords] = useState({}); // { "dir": "password" }
@@ -479,6 +478,100 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         clearTimeout(timer);
     };
   }, [hoverKey, images, api]);
+
+  const handleCopyClick = useCallback((image) => {
+    setCopyTargetImage(image);
+    setCopyModalVisible(true);
+  }, []);
+
+  const generateImageLinks = (image, type) => {
+    if (!image) return "";
+    const fullUrl = `${window.location.origin}${image.url}`;
+    switch (type) {
+      case "markdown":
+        return `![${image.filename}](${fullUrl})`;
+      case "html":
+        return `<img src="${fullUrl}" alt="${image.filename}" />`;
+      case "url":
+      default:
+        return fullUrl;
+    }
+  };
+
+  const CopyLinksModal = () => {
+    const [activeTab, setActiveTab] = useState("url");
+    const content = generateImageLinks(copyTargetImage, activeTab);
+
+    const items = [
+      { key: "url", label: "URL" },
+      { key: "markdown", label: "Markdown" },
+      { key: "html", label: "HTML" },
+    ];
+
+    return (
+      <Modal
+        title="复制链接"
+        open={copyModalVisible}
+        onCancel={() => {
+          setCopyModalVisible(false);
+          setCopyTargetImage(null);
+        }}
+        footer={null}
+        width={500}
+        centered
+        zIndex={1005} // Match upload overlay z-index
+      >
+        <div
+          style={{
+            background: isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.02)",
+            padding: 16,
+            borderRadius: 8,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 12,
+            }}
+          >
+            <Tabs
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              items={items}
+              size="small"
+              style={{ marginBottom: 0 }}
+              tabBarStyle={{ marginBottom: 0, borderBottom: "none" }}
+            />
+            <Button
+              type="primary"
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => {
+                copyToClipboard(content);
+                setCopyModalVisible(false);
+                setCopyTargetImage(null);
+              }}
+            >
+              一键复制
+            </Button>
+          </div>
+          <Input.TextArea
+            value={content}
+            autoSize={{ minRows: 3, maxRows: 6 }}
+            readOnly
+            style={{
+              fontFamily: "monospace",
+              fontSize: 12,
+              background: isDarkMode ? "#141414" : "#fff",
+              color: isDarkMode ? "rgba(255,255,255,0.85)" : undefined,
+            }}
+          />
+        </div>
+      </Modal>
+    );
+  };
 
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -1811,7 +1904,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                     formatFileSize={formatFileSize}
                     isMobile={isMobile}
                     handleDownload={handleDownload}
-                    copyToClipboard={copyToClipboard}
+                    onCopyClick={handleCopyClick}
                     handleDelete={handleDelete}
                     handleEdit={handleEdit}
                     hoverLocation={hoverLocation}
@@ -1884,6 +1977,8 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         api={api}
         onSelectAlbum={(path) => setDir(path)}
       />
+
+      <CopyLinksModal />
 
       {/* Album Password Prompt Modal */}
       <Modal
