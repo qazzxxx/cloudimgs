@@ -1766,7 +1766,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
               api={api}
               bordered={false}
               size="middle"
-              refreshKey={directoryRefreshKey}
+              refreshKey={`${directoryRefreshKey}-${isAuthenticated}`}
             />
           </div>
           <div

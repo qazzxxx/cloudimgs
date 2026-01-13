@@ -1603,7 +1603,7 @@ async function getDirectories(dir = "", recursive = false) {
     let currentLevelDirs = [];
     
     for (const file of files) {
-      if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME) continue;
+      if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME || file.startsWith('@')) continue;
       const filePath = path.join(absDir, file);
       const stats = await fs.stat(filePath);
       if (stats.isDirectory()) {
