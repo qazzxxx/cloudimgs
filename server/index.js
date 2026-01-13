@@ -1985,6 +1985,7 @@ app.get("/api/config", (req, res) => {
           .map((ext) => ext.replace(".", ""))
           .join(", ")
           .toUpperCase(),
+        thumbnailWidth: config.upload.thumbnailWidth || 0,
       },
       storage: {
         path: config.storage.path,

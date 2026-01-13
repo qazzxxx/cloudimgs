@@ -72,7 +72,8 @@ const ImageItem = ({
     isBatchMode,
     isSelected,
     onToggleSelect,
-    registerRef
+    registerRef,
+    thumbnailWidth = 0
 }) => {
     const [loaded, setLoaded] = useState(false);
     const {
@@ -177,7 +178,7 @@ const ImageItem = ({
                 {/* Real Image Layer */}
                 <img
                     alt={image.filename}
-                    src={image.url + "?w=400"}
+                    src={thumbnailWidth > 0 ? `${image.url}?w=${thumbnailWidth}` : image.url}
                     draggable={false}
                     loading="lazy"
                     onLoad={() => setLoaded(true)}
@@ -428,6 +429,24 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [passwordPromptVisible, setPasswordPromptVisible] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingDir, setPendingDir] = useState(null); // The directory that required password
+
+  // Thumbnail width from config (0 = use original)
+  const [thumbnailWidth, setThumbnailWidth] = useState(0);
+
+  // Fetch config to get thumbnailWidth
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await api.get("/config");
+        if (response.data.success && response.data.data?.upload?.thumbnailWidth) {
+          setThumbnailWidth(response.data.data.upload.thumbnailWidth);
+        }
+      } catch (error) {
+        console.warn("获取配置失败:", error);
+      }
+    };
+    fetchConfig();
+  }, [api]);
 
   useEffect(() => {
     if (!hoverKey) {
@@ -1917,9 +1936,11 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                         onSelectionChange(newSet);
                     }}
                     registerRef={registerRef}
+                    thumbnailWidth={thumbnailWidth}
                   />
                 )}
               />
+
             </div>
           ))}
           <div ref={loadMoreRef} style={{ height: 20 }} />
