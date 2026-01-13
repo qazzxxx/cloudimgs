@@ -30,6 +30,11 @@ module.exports = {
 
     // 文件名冲突时的处理策略: 'timestamp' | 'counter' | 'overwrite'
     duplicateStrategy: process.env.DUPLICATE_STRATEGY || "timestamp",
+
+    // 瀑布流缩略图宽度（像素），0 表示使用原图
+    thumbnailWidth: process.env.THUMBNAIL_WIDTH
+      ? parseInt(process.env.THUMBNAIL_WIDTH)
+      : 0,
   },
 
   // 存储配置
