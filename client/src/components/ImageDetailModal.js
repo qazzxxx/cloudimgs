@@ -21,6 +21,7 @@ import {
   DeleteOutlined,
   EnvironmentOutlined,
   CameraOutlined,
+  HistoryOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { thumbHashToDataURL } from "thumbhash";
@@ -123,14 +124,19 @@ const ImageDetailModal = ({
       setDirValue(currentDir);
 
       // Fetch Meta
+      let active = true;
       api
         .get(`/images/meta/${encodeURIComponent(file.relPath)}`)
         .then((res) => {
-          if (res.data && res.data.success) {
+          if (active && res.data && res.data.success) {
             setImageMeta(res.data.data);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
+
+      return () => {
+        active = false;
+      };
     }
   }, [file, api]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -214,7 +220,7 @@ const ImageDetailModal = ({
 
           setPreviewLocation(fullAddr);
         }
-      } catch (e) {}
+      } catch (e) { }
     };
 
     fetchPreviewLoc();
@@ -291,7 +297,7 @@ const ImageDetailModal = ({
         if (onUpdate) onUpdate(updated);
       }
     } catch (e) {
-        message.error("重命名失败");
+      message.error("重命名失败");
     } finally {
       setRenaming(false);
     }
@@ -310,7 +316,7 @@ const ImageDetailModal = ({
         if (onUpdate) onUpdate(updated);
       }
     } catch (e) {
-        message.error("移动失败");
+      message.error("移动失败");
     }
   };
 
@@ -329,13 +335,13 @@ const ImageDetailModal = ({
   const tertiaryTextColor = hasThumb
     ? "rgba(255,255,255,0.5)"
     : isDarkMode
-    ? "rgba(255,255,255,0.45)"
-    : "rgba(0,0,0,0.45)";
+      ? "rgba(255,255,255,0.45)"
+      : "rgba(0,0,0,0.45)";
   const inputBg = hasThumb
     ? "rgba(255,255,255,0.15)"
     : isDarkMode
-    ? "rgba(255,255,255,0.1)"
-    : "rgba(0,0,0,0.06)";
+      ? "rgba(255,255,255,0.1)"
+      : "rgba(0,0,0,0.06)";
 
   if (!file) return null;
 
@@ -364,7 +370,7 @@ const ImageDetailModal = ({
           background: "#000",
           boxShadow: "none",
         },
-        container: {padding: 0}
+        container: { padding: 0 }
       }}
       closeIcon={null}
     >
@@ -844,6 +850,29 @@ const ImageDetailModal = ({
                         </div>
                       </div>
                     </div>
+                    {imageMeta.exif.dateTimeOriginal && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                        }}
+                      >
+                        <HistoryOutlined
+                          style={{ fontSize: 16, color: tertiaryTextColor }}
+                        />
+                        <div>
+                          <div style={{ fontSize: 13, color: textColor }}>
+                            {dayjs(imageMeta.exif.dateTimeOriginal).format(
+                              "YYYY-MM-DD HH:mm:ss"
+                            )}
+                          </div>
+                          <div style={{ fontSize: 12, color: tertiaryTextColor }}>
+                            拍摄时间
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {imageMeta.exif.lensModel && (
                       <div
                         style={{

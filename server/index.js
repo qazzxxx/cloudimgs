@@ -24,36 +24,36 @@ const PORT = config.server.port;
 
 // Helper to get album password path
 function getAlbumPasswordPath(dirPath) {
-    const absDir = safeJoin(STORAGE_PATH, dirPath);
-    return path.join(absDir, CONFIG_DIR_NAME, ALBUM_PASSWORD_FILE);
+  const absDir = safeJoin(STORAGE_PATH, dirPath);
+  return path.join(absDir, CONFIG_DIR_NAME, ALBUM_PASSWORD_FILE);
 }
 
 // Helper to check if album is locked
 async function isAlbumLocked(dirPath) {
-    try {
-        const configPath = getAlbumPasswordPath(dirPath);
-        if (await fs.pathExists(configPath)) {
-            const data = await fs.readJson(configPath);
-            return !!data.password;
-        }
-    } catch (e) {}
-    return false;
+  try {
+    const configPath = getAlbumPasswordPath(dirPath);
+    if (await fs.pathExists(configPath)) {
+      const data = await fs.readJson(configPath);
+      return !!data.password;
+    }
+  } catch (e) { }
+  return false;
 }
 
 // Helper to verify album password
 async function verifyAlbumPassword(dirPath, password) {
-    try {
-        const configPath = getAlbumPasswordPath(dirPath);
-        if (await fs.pathExists(configPath)) {
-            const data = await fs.readJson(configPath);
-            return data.password === password;
-        }
-        // If no password file, it's not locked, so any password (or none) is fine
-        // But logic usually calls this only if isAlbumLocked is true
-        return true; 
-    } catch (e) {
-        return false;
+  try {
+    const configPath = getAlbumPasswordPath(dirPath);
+    if (await fs.pathExists(configPath)) {
+      const data = await fs.readJson(configPath);
+      return data.password === password;
     }
+    // If no password file, it's not locked, so any password (or none) is fine
+    // But logic usually calls this only if isAlbumLocked is true
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 // 中间件
@@ -297,7 +297,7 @@ async function generateThumbHash(filePath) {
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
-    
+
     // Dynamic import for ESM module
     const { rgbaToThumbHash } = await import("thumbhash");
     const binaryHash = rgbaToThumbHash(info.width, info.height, data);
@@ -310,98 +310,98 @@ async function generateThumbHash(filePath) {
 }
 
 async function getThumbHash(filePath) {
-   try {
+  try {
     const dir = path.dirname(filePath);
     const filename = path.basename(filePath);
     const cacheFile = path.join(dir, CACHE_DIR_NAME, `${filename}.th`);
-    
+
     if (await fs.pathExists(cacheFile)) {
       const buffer = await fs.readFile(cacheFile);
       return buffer.toString('base64');
     }
     return null;
-   } catch (err) {
-     return null;
-   }
+  } catch (err) {
+    return null;
+  }
 }
 
 async function deleteThumbHash(filePath) {
-    try {
-        const dir = path.dirname(filePath);
-        const filename = path.basename(filePath);
-        const cacheFile = path.join(dir, CACHE_DIR_NAME, `${filename}.th`);
-        if (await fs.pathExists(cacheFile)) {
-            await fs.remove(cacheFile);
-        }
-    } catch (e) {
-        // ignore
+  try {
+    const dir = path.dirname(filePath);
+    const filename = path.basename(filePath);
+    const cacheFile = path.join(dir, CACHE_DIR_NAME, `${filename}.th`);
+    if (await fs.pathExists(cacheFile)) {
+      await fs.remove(cacheFile);
     }
+  } catch (e) {
+    // ignore
+  }
 }
 
 async function moveThumbHash(oldPath, newPath) {
-    try {
-        const oldDir = path.dirname(oldPath);
-        const oldName = path.basename(oldPath);
-        const oldCache = path.join(oldDir, CACHE_DIR_NAME, `${oldName}.th`);
-        
-        if (await fs.pathExists(oldCache)) {
-             const newDir = path.dirname(newPath);
-             const newName = path.basename(newPath);
-             const newCacheDir = path.join(newDir, CACHE_DIR_NAME);
-             await fs.ensureDir(newCacheDir);
-             const newCache = path.join(newCacheDir, `${newName}.th`);
-             await fs.rename(oldCache, newCache);
-        }
-    } catch (e) {
-        // ignore
+  try {
+    const oldDir = path.dirname(oldPath);
+    const oldName = path.basename(oldPath);
+    const oldCache = path.join(oldDir, CACHE_DIR_NAME, `${oldName}.th`);
+
+    if (await fs.pathExists(oldCache)) {
+      const newDir = path.dirname(newPath);
+      const newName = path.basename(newPath);
+      const newCacheDir = path.join(newDir, CACHE_DIR_NAME);
+      await fs.ensureDir(newCacheDir);
+      const newCache = path.join(newCacheDir, `${newName}.th`);
+      await fs.rename(oldCache, newCache);
     }
+  } catch (e) {
+    // ignore
+  }
 }
 
 // 递归获取图片文件
 async function getAllImages(dir = "", authPassword = null) {
   const absDir = safeJoin(STORAGE_PATH, dir);
-  
+
   // Check if current directory is locked
   if (await isAlbumLocked(dir)) {
-      // If locked, verify password
-      if (!authPassword || !(await verifyAlbumPassword(dir, authPassword))) {
-          return []; // Skip if locked and no valid password
-      }
+    // If locked, verify password
+    if (!authPassword || !(await verifyAlbumPassword(dir, authPassword))) {
+      return []; // Skip if locked and no valid password
+    }
   }
 
   let results = [];
   try {
-      const files = await fs.readdir(absDir);
-      for (const file of files) {
-        if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME) continue;
-        const filePath = path.join(absDir, file);
-        const relPath = path.join(dir, file);
-        const stats = await fs.stat(filePath);
-        if (stats.isDirectory()) {
-          // Recursive call - usually we don't pass password down to sub-albums automatically 
-          // unless we assume unlocking parent unlocks children? 
-          // For now, let's assume each locked album needs its own unlock. 
-          // So we pass null as password for sub-directories unless it matches exactly?
-          // Actually, standard behavior: listing root shouldn't show locked subfolders.
-          // Listing locked folder should show its contents.
-          // If subfolder is also locked, it stays hidden.
-          results = results.concat(await getAllImages(relPath, null));
-        } else {
-          const ext = path.extname(file).toLowerCase();
-          if (config.upload.allowedExtensions.includes(ext)) {
-            const safeFilename = sanitizeFilename(file);
-            results.push({
-              filename: safeFilename,
-              relPath: relPath.replace(/\\/g, "/"),
-              size: stats.size,
-              uploadTime: stats.mtime.toISOString(),
-              url: `/api/images/${relPath.replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/")}`,
-            });
-          }
+    const files = await fs.readdir(absDir);
+    for (const file of files) {
+      if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME) continue;
+      const filePath = path.join(absDir, file);
+      const relPath = path.join(dir, file);
+      const stats = await fs.stat(filePath);
+      if (stats.isDirectory()) {
+        // Recursive call - usually we don't pass password down to sub-albums automatically 
+        // unless we assume unlocking parent unlocks children? 
+        // For now, let's assume each locked album needs its own unlock. 
+        // So we pass null as password for sub-directories unless it matches exactly?
+        // Actually, standard behavior: listing root shouldn't show locked subfolders.
+        // Listing locked folder should show its contents.
+        // If subfolder is also locked, it stays hidden.
+        results = results.concat(await getAllImages(relPath, null));
+      } else {
+        const ext = path.extname(file).toLowerCase();
+        if (config.upload.allowedExtensions.includes(ext)) {
+          const safeFilename = sanitizeFilename(file);
+          results.push({
+            filename: safeFilename,
+            relPath: relPath.replace(/\\/g, "/"),
+            size: stats.size,
+            uploadTime: stats.mtime.toISOString(),
+            url: `/api/images/${relPath.replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/")}`,
+          });
         }
       }
+    }
   } catch (e) {
-      // ignore error (e.g. dir not found)
+    // ignore error (e.g. dir not found)
   }
   return results;
 }
@@ -434,10 +434,10 @@ async function updateMapCache() {
       newCache[key] = cache[key];
       // Backfill thumbhash if missing in cache
       if (!newCache[key].thumbhash) {
-         tasks.push(async () => {
-             const filePath = safeJoin(STORAGE_PATH, img.relPath);
-             newCache[key].thumbhash = await getThumbHash(filePath);
-         });
+        tasks.push(async () => {
+          const filePath = safeJoin(STORAGE_PATH, img.relPath);
+          newCache[key].thumbhash = await getThumbHash(filePath);
+        });
       }
     } else {
       tasks.push(async () => {
@@ -451,7 +451,7 @@ async function updateMapCache() {
           if (meta && meta.latitude && meta.longitude) {
             const date =
               meta.DateTimeOriginal || meta.CreateDate || img.uploadTime;
-            
+
             // Re-check thumbhash as it might have been missing
             const thumbUrl = `${img.url}?w=200`;
             const thumbhash = await getThumbHash(filePath);
@@ -465,7 +465,7 @@ async function updateMapCache() {
                 date instanceof Date
                   ? date.toISOString()
                   : new Date(date).toISOString(),
-              thumbUrl: thumbUrl, 
+              thumbUrl: thumbUrl,
               thumbhash: thumbhash,
               lastModified: lastModified,
               orientation: meta.Orientation // Store orientation to help frontend if needed
@@ -519,28 +519,28 @@ const handleBase64Image = async (base64Data, dir, originalName) => {
     throw new Error('仅允许图片类型的 base64 上传');
   }
   const buffer = Buffer.from(matches[2], 'base64');
-  
+
   // 生成文件名
   const ext = mimetype.split('/')[1] || 'png';
   const filename = `${Date.now()}-${Math.floor(Math.random() * 1000)}.${ext}`;
-  
+
   // 确保目标目录存在
   const targetDir = dir ? path.join(STORAGE_PATH, dir) : STORAGE_PATH;
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
-  
+
   // 保存文件
   const filePath = path.join(targetDir, filename);
   await fs.promises.writeFile(filePath, buffer);
-  
+
   // Generate ThumbHash
   const thumbhash = await generateThumbHash(filePath);
-  
+
   // 返回文件信息
   const relPath = path.join(dir, filename).replace(/\\/g, "/");
   const safeFilename = sanitizeFilename(filename);
-  
+
   return {
     filename: safeFilename,
     originalName: originalName || safeFilename,
@@ -561,12 +561,12 @@ app.post(
     try {
       let dir = req.body.dir || req.query.dir || "";
       dir = dir.replace(/\\/g, "/");
-      
+
       // 检查是否提供了 base64 图片数据
       if (!req.body.base64Image) {
         return res.status(400).json({ success: false, error: "缺少 base64Image 参数" });
       }
-      
+
       try {
         const fileInfo = await handleBase64Image(req.body.base64Image, dir, req.body.originalName);
         return res.json({
@@ -598,24 +598,24 @@ app.post(
     try {
       let dir = req.body.dir || req.query.dir || "";
       dir = dir.replace(/\\/g, "/");
-      
+
       // Handle upload.any() result - req.files is an array
       if (req.files && req.files.length > 0) {
-          req.file = req.files[0];
+        req.file = req.files[0];
       }
 
       // 处理常规文件上传
       if (!req.file) {
         return res.status(400).json({ success: false, error: "没有选择文件" });
       }
-      
+
       // 创建目标目录（如果不存在）
       if (dir) {
         const targetDir = path.join(STORAGE_PATH, dir);
         if (!fs.existsSync(targetDir)) {
           fs.mkdirSync(targetDir, { recursive: true });
         }
-        
+
         // 如果文件已上传但需要移动到指定目录
         const oldPath = req.file.path;
         const newPath = path.join(targetDir, req.file.filename);
@@ -623,7 +623,7 @@ app.post(
           fs.renameSync(oldPath, newPath);
         }
       }
-      
+
       const relPath = path.join(dir, req.file.filename).replace(/\\/g, "/");
 
       // 这里要对 originalName 做转码
@@ -632,7 +632,7 @@ app.post(
       if (!/[^\u0000-\u00ff]/.test(originalName)) {
         try {
           originalName = Buffer.from(originalName, "latin1").toString("utf8");
-        } catch (e) {}
+        } catch (e) { }
       }
 
       const safeFilename = sanitizeFilename(req.file.filename);
@@ -673,7 +673,7 @@ async function parseMp3Duration(filePath) {
     const metadata = await mm.parseFile(filePath, {
       duration: true
     });
-    
+
     // 获取时长（秒）
     return metadata.format.duration;
   } catch (error) {
@@ -705,7 +705,7 @@ app.post(
       }
       let dir = req.body.dir || req.query.dir || "";
       dir = dir.replace(/\\/g, "/");
-      
+
       // 创建目标目录（如果不存在）
       if (dir) {
         const targetDir = path.join(STORAGE_PATH, dir);
@@ -713,29 +713,29 @@ app.post(
           fs.mkdirSync(targetDir, { recursive: true });
         }
       }
-      
+
       // 检查是否传入了自定义文件名
       const customFilename = req.body.filename || req.query.filename;
       let finalFilename;
       let displayName;
-      
+
       if (customFilename) {
         // 使用自定义文件名
         finalFilename = sanitizeFilename(customFilename);
         displayName = customFilename;
-        
+
         // 重命名文件
         const oldPath = req.file.path;
         // 确保文件存储在指定目录
         const targetDir = dir ? path.join(STORAGE_PATH, dir) : path.dirname(oldPath);
         const newPath = path.join(targetDir, finalFilename);
-        
+
         // 处理文件名冲突
         let counter = 1;
         let actualNewPath = newPath;
         const ext = path.extname(finalFilename);
         const nameWithoutExt = path.basename(finalFilename, ext);
-        
+
         if (!config.upload.allowDuplicateNames) {
           while (fs.existsSync(actualNewPath)) {
             if (config.upload.duplicateStrategy === "timestamp") {
@@ -752,7 +752,7 @@ app.post(
             counter++;
           }
         }
-        
+
         // 执行重命名和移动
         if (oldPath !== actualNewPath) {
           fs.renameSync(oldPath, actualNewPath);
@@ -760,17 +760,17 @@ app.post(
       } else {
         // 使用原有逻辑
         finalFilename = sanitizeFilename(req.file.filename);
-        
+
         // 这里要对 originalName 做转码
         let originalName = req.file.originalname;
         // 修复：如果包含非 Latin1 字符 (> 255)，说明已经是 UTF-8，不需要转换
         if (!/[^\u0000-\u00ff]/.test(originalName)) {
           try {
             originalName = Buffer.from(originalName, "latin1").toString("utf8");
-          } catch (e) {}
+          } catch (e) { }
         }
         displayName = originalName;
-        
+
         // 如果指定了目录，则移动文件到该目录
         if (dir) {
           const oldPath = req.file.path;
@@ -779,23 +779,23 @@ app.post(
           fs.renameSync(oldPath, newPath);
         }
       }
-      
+
       const relPath = path.join(dir, finalFilename).replace(/\\/g, "/");
-      
+
       // 计算MP3时长（如果适用）
       let duration = null;
       if (req.file.mimetype === 'audio/mpeg' || (customFilename && customFilename.toLowerCase().endsWith('.mp3'))) {
         try {
           const filePath = safeJoin(STORAGE_PATH, relPath);
           const rawDuration = await parseMp3Duration(filePath);
-          
+
           // 精确到小数点后2位，根据小数点后第3位向上取整
           // 例如：9.114 -> 9.12, 9.125 -> 9.13, 9.199 -> 9.20
-          
+
           // 将原始时长乘以1000并向上取整，然后除以100得到精确到小数点后2位的结果
           // Math.ceil 向上取整，确保第三位小数有值时会进位
           duration = Math.ceil(rawDuration * 1000) / 1000;
-          
+
           // 格式化为保留2位小数
           duration = parseFloat(duration.toFixed(2));
         } catch (error) {
@@ -865,9 +865,9 @@ app.get("/api/images", requirePassword, async (req, res) => {
 
     // Check lock status before fetching
     if (dir && await isAlbumLocked(dir)) {
-        if (!albumPassword || !(await verifyAlbumPassword(dir, albumPassword))) {
-             return res.status(403).json({ success: false, error: "需要访问密码", locked: true });
-        }
+      if (!albumPassword || !(await verifyAlbumPassword(dir, albumPassword))) {
+        return res.status(403).json({ success: false, error: "需要访问密码", locked: true });
+      }
     }
 
     // 获取所有图片
@@ -895,8 +895,8 @@ app.get("/api/images", requirePassword, async (req, res) => {
 
     // Attach ThumbHash
     for (const img of paginatedImages) {
-        const filePath = safeJoin(STORAGE_PATH, img.relPath);
-        img.thumbhash = await getThumbHash(filePath);
+      const filePath = safeJoin(STORAGE_PATH, img.relPath);
+      img.thumbhash = await getThumbHash(filePath);
     }
 
     // 禁止缓存 API 响应
@@ -922,49 +922,49 @@ app.get("/api/images", requirePassword, async (req, res) => {
 
 // Set Album Password
 app.post("/api/album/password", requirePassword, async (req, res) => {
-    try {
-        const { dir, password } = req.body;
-        // dir is required, but empty string (root) is valid too? Usually root doesn't have password logic implemented yet
-        // but let's allow it if logic supports it.
-        // However, `req.body.dir` being undefined check is good.
-        if (dir === undefined) return res.status(400).json({ error: "Missing directory" });
+  try {
+    const { dir, password } = req.body;
+    // dir is required, but empty string (root) is valid too? Usually root doesn't have password logic implemented yet
+    // but let's allow it if logic supports it.
+    // However, `req.body.dir` being undefined check is good.
+    if (dir === undefined) return res.status(400).json({ error: "Missing directory" });
 
-        const configPath = getAlbumPasswordPath(dir);
-        
-        if (!password) {
-            // Remove password
-            if (await fs.pathExists(configPath)) {
-                await fs.remove(configPath);
-            }
-            return res.json({ success: true, message: "密码已移除" });
-        }
+    const configPath = getAlbumPasswordPath(dir);
 
-        // Set password
-        await fs.ensureDir(path.dirname(configPath));
-        await fs.writeJSON(configPath, { password });
-        res.json({ success: true, message: "密码设置成功" });
-    } catch (e) {
-        console.error("Set album password error:", e);
-        res.status(500).json({ error: "设置密码失败" });
+    if (!password) {
+      // Remove password
+      if (await fs.pathExists(configPath)) {
+        await fs.remove(configPath);
+      }
+      return res.json({ success: true, message: "密码已移除" });
     }
+
+    // Set password
+    await fs.ensureDir(path.dirname(configPath));
+    await fs.writeJSON(configPath, { password });
+    res.json({ success: true, message: "密码设置成功" });
+  } catch (e) {
+    console.error("Set album password error:", e);
+    res.status(500).json({ error: "设置密码失败" });
+  }
 });
 
 // Verify Album Password
 app.post("/api/album/verify", requirePassword, async (req, res) => {
-    try {
-        const { dir, password } = req.body;
-        if (dir === undefined) return res.status(400).json({ error: "Missing directory" });
+  try {
+    const { dir, password } = req.body;
+    if (dir === undefined) return res.status(400).json({ error: "Missing directory" });
 
-        const isValid = await verifyAlbumPassword(dir, password);
-        if (isValid) {
-            res.json({ success: true, message: "验证通过" });
-        } else {
-            res.status(401).json({ success: false, error: "密码错误" });
-        }
-    } catch (e) {
-        console.error("Verify album password error:", e);
-        res.status(500).json({ error: "验证失败" });
+    const isValid = await verifyAlbumPassword(dir, password);
+    if (isValid) {
+      res.json({ success: true, message: "验证通过" });
+    } else {
+      res.status(401).json({ success: false, error: "密码错误" });
     }
+  } catch (e) {
+    console.error("Verify album password error:", e);
+    res.status(500).json({ error: "验证失败" });
+  }
 });
 
 // 3. 获取随机图片（支持dir参数）
@@ -992,7 +992,7 @@ app.get("/api/random", async (req, res) => {
 
     // 非 JSON 模式，支持实时处理
     const filePath = safeJoin(STORAGE_PATH, randomImage.relPath);
-    
+
     // 触发 ThumbHash 生成（异步）
     getThumbHash(filePath).then(hash => {
       if (!hash) generateThumbHash(filePath);
@@ -1097,13 +1097,40 @@ app.get("/api/images/meta/*", requirePassword, async (req, res) => {
       };
       // 解析EXIF详细信息
       try {
-        const ex = await exifr.parse(filePath, {
-          tiff: true,
-          ifd0: true,
-          exif: true,
-          gps: true,
-        });
-        if (ex) {
+        let parsedExif = null;
+
+        // 尝试从 sharp buffer 解析
+        if (m && m.exif) {
+          try {
+            let exifBuffer = m.exif;
+            // sharp 返回的 buffer 可能包含 6 字节的 Exif header (Exif\0\0)，exifr 不支持，需要移除
+            const headerHex = exifBuffer.slice(0, 6).toString('hex');
+            if (headerHex === '457869660000') {
+              exifBuffer = exifBuffer.slice(6);
+            }
+            parsedExif = await exifr.parse(exifBuffer, {
+              tiff: true,
+              ifd0: true,
+              exif: true,
+              gps: true,
+            });
+          } catch (bufferErr) {
+            console.warn(`Buffer EXIF parsing failed for ${filePath}, falling back to file:`, bufferErr);
+          }
+        }
+
+        // 如果 buffer 解析失败，降级到文件直接解析
+        if (!parsedExif) {
+          parsedExif = await exifr.parse(filePath, {
+            tiff: true,
+            ifd0: true,
+            exif: true,
+            gps: true,
+          });
+        }
+
+        if (parsedExif) {
+          const ex = parsedExif;
           const latitude = ex.latitude ?? ex.GPSLatitude ?? null;
           const longitude = ex.longitude ?? ex.GPSLongitude ?? null;
           const date =
@@ -1124,6 +1151,7 @@ app.get("/api/images/meta/*", requirePassword, async (req, res) => {
         }
       } catch (e) {
         // EXIF解析失败不阻断
+        console.warn(`EXIF parsing completely failed for ${filePath}:`, e);
       }
     } catch (e) {
       meta = {};
@@ -1157,7 +1185,7 @@ app.get("/api/images/*", async (req, res) => {
 
     // Trigger ThumbHash generation if missing (async, non-blocking)
     getThumbHash(filePath).then(hash => {
-        if (!hash) generateThumbHash(filePath);
+      if (!hash) generateThumbHash(filePath);
     });
 
     const w = req.query.w ? parseInt(req.query.w) : undefined;
@@ -1238,7 +1266,7 @@ app.get("/api/files/*", (req, res) => {
   }
 });
 
- 
+
 
 // 辅助函数：移动到回收站
 async function moveToTrash(filePath) {
@@ -1337,83 +1365,83 @@ app.delete("/api/files/*", requirePassword, async (req, res) => {
 
 // 批量移动图片
 app.post("/api/batch/move", requirePassword, async (req, res) => {
-    try {
-        const { files, targetDir } = req.body;
-        if (!Array.isArray(files) || files.length === 0) {
-            return res.status(400).json({ error: "未选择文件" });
-        }
-        
-        let newDir = targetDir || "";
-        newDir = newDir.replace(/\\/g, "/").trim();
-        const absTargetDir = safeJoin(STORAGE_PATH, newDir);
-        await fs.ensureDir(absTargetDir);
-        
-        let successCount = 0;
-        let failCount = 0;
-        
-        for (const relPath of files) {
-            try {
-                const oldRelPath = decodeURIComponent(relPath).replace(/\\/g, "/");
-                const oldFilePath = safeJoin(STORAGE_PATH, oldRelPath);
-                
-                if (await fs.pathExists(oldFilePath)) {
-                    const filename = path.basename(oldFilePath);
-                    let newRelPath = path.join(newDir, filename).replace(/\\/g, "/");
-                    let newFilePath = safeJoin(STORAGE_PATH, newRelPath);
-                    
-                    // Handle duplicates
-                    if (oldFilePath !== newFilePath) {
-                         if (!config.upload.allowDuplicateNames && await fs.pathExists(newFilePath)) {
-                            const ext = path.extname(filename);
-                            const nameWithoutExt = path.basename(filename, ext);
-                            let counter = 1;
-                            let finalName = filename;
-                            
-                            while (await fs.pathExists(newFilePath)) {
-                                if (config.upload.duplicateStrategy === "overwrite") break;
-                                
-                                if (config.upload.duplicateStrategy === "timestamp") {
-                                    finalName = `${nameWithoutExt}_${Date.now()}_${counter}${ext}`;
-                                } else {
-                                    // counter
-                                    finalName = `${nameWithoutExt}_${counter}${ext}`;
-                                }
-                                newRelPath = path.join(newDir, finalName).replace(/\\/g, "/");
-                                newFilePath = safeJoin(STORAGE_PATH, newRelPath);
-                                counter++;
-                            }
-                        }
-                        
-                        if (oldFilePath !== newFilePath) {
-                            await fs.rename(oldFilePath, newFilePath);
-                            await moveThumbHash(oldFilePath, newFilePath);
-                            successCount++;
-                        } else {
-                            // Same file, technically success
-                            successCount++;
-                        }
-                    } else {
-                        successCount++;
-                    }
-                } else {
-                    failCount++;
-                }
-            } catch (e) {
-                console.error(`Move failed for ${relPath}:`, e);
-                failCount++;
-            }
-        }
-        
-        res.json({ 
-            success: true, 
-            message: `成功移动 ${successCount} 个文件` + (failCount > 0 ? `，失败 ${failCount} 个` : ""),
-            data: { successCount, failCount }
-        });
-        
-    } catch (e) {
-        console.error("Batch move error:", e);
-        res.status(500).json({ error: "批量移动失败" });
+  try {
+    const { files, targetDir } = req.body;
+    if (!Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ error: "未选择文件" });
     }
+
+    let newDir = targetDir || "";
+    newDir = newDir.replace(/\\/g, "/").trim();
+    const absTargetDir = safeJoin(STORAGE_PATH, newDir);
+    await fs.ensureDir(absTargetDir);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const relPath of files) {
+      try {
+        const oldRelPath = decodeURIComponent(relPath).replace(/\\/g, "/");
+        const oldFilePath = safeJoin(STORAGE_PATH, oldRelPath);
+
+        if (await fs.pathExists(oldFilePath)) {
+          const filename = path.basename(oldFilePath);
+          let newRelPath = path.join(newDir, filename).replace(/\\/g, "/");
+          let newFilePath = safeJoin(STORAGE_PATH, newRelPath);
+
+          // Handle duplicates
+          if (oldFilePath !== newFilePath) {
+            if (!config.upload.allowDuplicateNames && await fs.pathExists(newFilePath)) {
+              const ext = path.extname(filename);
+              const nameWithoutExt = path.basename(filename, ext);
+              let counter = 1;
+              let finalName = filename;
+
+              while (await fs.pathExists(newFilePath)) {
+                if (config.upload.duplicateStrategy === "overwrite") break;
+
+                if (config.upload.duplicateStrategy === "timestamp") {
+                  finalName = `${nameWithoutExt}_${Date.now()}_${counter}${ext}`;
+                } else {
+                  // counter
+                  finalName = `${nameWithoutExt}_${counter}${ext}`;
+                }
+                newRelPath = path.join(newDir, finalName).replace(/\\/g, "/");
+                newFilePath = safeJoin(STORAGE_PATH, newRelPath);
+                counter++;
+              }
+            }
+
+            if (oldFilePath !== newFilePath) {
+              await fs.rename(oldFilePath, newFilePath);
+              await moveThumbHash(oldFilePath, newFilePath);
+              successCount++;
+            } else {
+              // Same file, technically success
+              successCount++;
+            }
+          } else {
+            successCount++;
+          }
+        } else {
+          failCount++;
+        }
+      } catch (e) {
+        console.error(`Move failed for ${relPath}:`, e);
+        failCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `成功移动 ${successCount} 个文件` + (failCount > 0 ? `，失败 ${failCount} 个` : ""),
+      data: { successCount, failCount }
+    });
+
+  } catch (e) {
+    console.error("Batch move error:", e);
+    res.status(500).json({ error: "批量移动失败" });
+  }
 });
 
 // 图片重命名（支持多层目录）
@@ -1495,40 +1523,40 @@ const crypto = require("crypto");
 
 // Get or create persistent share secret
 const getShareSecret = () => {
-    if (process.env.SHARE_SECRET) {
-        return process.env.SHARE_SECRET;
-    }
-    
-    // Store secret in config dir to persist across restarts
-    const configDir = path.join(STORAGE_PATH, CONFIG_DIR_NAME);
-    const secretPath = path.join(configDir, ".share_secret");
-    
-    try {
-        fs.ensureDirSync(configDir);
-        
-        // Migration: check if old secret exists in root and move it
-        const oldSecretPath = path.join(STORAGE_PATH, ".share_secret");
-        if (fs.existsSync(oldSecretPath) && !fs.existsSync(secretPath)) {
-            try {
-                fs.renameSync(oldSecretPath, secretPath);
-                return fs.readFileSync(secretPath, 'utf8').trim();
-            } catch (e) {
-                console.error("Migration of share secret failed:", e);
-                // Continue to create new or read existing
-            }
-        }
+  if (process.env.SHARE_SECRET) {
+    return process.env.SHARE_SECRET;
+  }
 
-        if (fs.existsSync(secretPath)) {
-            return fs.readFileSync(secretPath, 'utf8').trim();
-        } else {
-            const newSecret = uuidv4();
-            fs.writeFileSync(secretPath, newSecret);
-            return newSecret;
-        }
-    } catch (e) {
-        console.error("Failed to manage share secret:", e);
-        return uuidv4(); // Fallback to memory-only if FS fails
+  // Store secret in config dir to persist across restarts
+  const configDir = path.join(STORAGE_PATH, CONFIG_DIR_NAME);
+  const secretPath = path.join(configDir, ".share_secret");
+
+  try {
+    fs.ensureDirSync(configDir);
+
+    // Migration: check if old secret exists in root and move it
+    const oldSecretPath = path.join(STORAGE_PATH, ".share_secret");
+    if (fs.existsSync(oldSecretPath) && !fs.existsSync(secretPath)) {
+      try {
+        fs.renameSync(oldSecretPath, secretPath);
+        return fs.readFileSync(secretPath, 'utf8').trim();
+      } catch (e) {
+        console.error("Migration of share secret failed:", e);
+        // Continue to create new or read existing
+      }
     }
+
+    if (fs.existsSync(secretPath)) {
+      return fs.readFileSync(secretPath, 'utf8').trim();
+    } else {
+      const newSecret = uuidv4();
+      fs.writeFileSync(secretPath, newSecret);
+      return newSecret;
+    }
+  } catch (e) {
+    console.error("Failed to manage share secret:", e);
+    return uuidv4(); // Fallback to memory-only if FS fails
+  }
 };
 
 const SHARE_SECRET = getShareSecret();
@@ -1536,30 +1564,30 @@ const SHARES_FILE_NAME = "burned_tokens.json"; // Keep filename as requested by 
 
 // Helper to get share config path
 const getShareConfigPath = (dirPath) => {
-    const absDir = safeJoin(STORAGE_PATH, dirPath);
-    return path.join(absDir, CONFIG_DIR_NAME, SHARES_FILE_NAME);
+  const absDir = safeJoin(STORAGE_PATH, dirPath);
+  return path.join(absDir, CONFIG_DIR_NAME, SHARES_FILE_NAME);
 };
 
 // Helper to read shares
 const readShares = async (dirPath) => {
-    try {
-        const filePath = getShareConfigPath(dirPath);
-        if (await fs.pathExists(filePath)) {
-            return await fs.readJSON(filePath);
-        }
-    } catch (e) {}
-    return [];
+  try {
+    const filePath = getShareConfigPath(dirPath);
+    if (await fs.pathExists(filePath)) {
+      return await fs.readJSON(filePath);
+    }
+  } catch (e) { }
+  return [];
 };
 
 // Helper to write shares
 const writeShares = async (dirPath, shares) => {
-    try {
-        const filePath = getShareConfigPath(dirPath);
-        await fs.ensureDir(path.dirname(filePath));
-        await fs.writeJSON(filePath, shares, { spaces: 2 });
-    } catch (e) {
-        console.error("Write shares failed:", e);
-    }
+  try {
+    const filePath = getShareConfigPath(dirPath);
+    await fs.ensureDir(path.dirname(filePath));
+    await fs.writeJSON(filePath, shares, { spaces: 2 });
+  } catch (e) {
+    console.error("Write shares failed:", e);
+  }
 };
 
 // Helper to get previews
@@ -1574,22 +1602,22 @@ async function getPreviewImages(dir, limit = 3) {
     // Optimization: limit the stat calls if directory is huge?
     // For now, let's just grab the first few images we find.
     for (const file of files) {
-        if (previews.length >= limit) break;
-        if (file === CACHE_DIR_NAME) continue;
-        const filePath = path.join(absDir, file);
-        const ext = path.extname(file).toLowerCase();
-        if (config.upload.allowedExtensions.includes(ext)) {
-            // Check if it's a file
-            try {
-                const stats = await fs.stat(filePath);
-                if (stats.isFile()) {
-                    const relPath = path.join(dir, file).replace(/\\/g, "/");
-                    previews.push(`/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`);
-                }
-            } catch (e) {}
-        }
+      if (previews.length >= limit) break;
+      if (file === CACHE_DIR_NAME) continue;
+      const filePath = path.join(absDir, file);
+      const ext = path.extname(file).toLowerCase();
+      if (config.upload.allowedExtensions.includes(ext)) {
+        // Check if it's a file
+        try {
+          const stats = await fs.stat(filePath);
+          if (stats.isFile()) {
+            const relPath = path.join(dir, file).replace(/\\/g, "/");
+            previews.push(`/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`);
+          }
+        } catch (e) { }
+      }
     }
-  } catch (e) {}
+  } catch (e) { }
   return previews;
 }
 
@@ -1601,7 +1629,7 @@ async function getDirectories(dir = "", recursive = false) {
   try {
     const files = await fs.readdir(absDir);
     let currentLevelDirs = [];
-    
+
     for (const file of files) {
       if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME || file.startsWith('@')) continue;
       const filePath = path.join(absDir, file);
@@ -1610,7 +1638,7 @@ async function getDirectories(dir = "", recursive = false) {
         const relPath = path.join(dir, file).replace(/\\/g, "/");
         const isLocked = await isAlbumLocked(relPath);
         const previews = (isLocked || recursive) ? [] : await getPreviewImages(relPath, 3);
-        
+
         currentLevelDirs.push({
           name: file,
           path: relPath,
@@ -1627,11 +1655,11 @@ async function getDirectories(dir = "", recursive = false) {
     currentLevelDirs.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
 
     for (const d of currentLevelDirs) {
-        directories.push(d);
-        if (recursive) {
-          const subDirs = await getDirectories(d.path, true);
-          directories = directories.concat(subDirs);
-        }
+      directories.push(d);
+      if (recursive) {
+        const subDirs = await getDirectories(d.path, true);
+        directories = directories.concat(subDirs);
+      }
     }
   } catch (error) {
     console.error("读取目录失败:", error);
@@ -1642,43 +1670,43 @@ async function getDirectories(dir = "", recursive = false) {
 
 // Create Directory
 app.post("/api/directories", requirePassword, async (req, res) => {
-    try {
-        const { name } = req.body;
-        if (!name) return res.status(400).json({ error: "Missing name" });
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: "Missing name" });
 
-        // Allow multi-level directory creation
-        // Split by / or \ to handle path separators
-        const parts = name.split(/[/\\]/);
-        // Sanitize each part to ensure valid folder names
-        const safeParts = parts.map(p => sanitizeFilename(p)).filter(p => p.length > 0);
-        
-        if (safeParts.length === 0) {
-             return res.status(400).json({ error: "Invalid directory name" });
-        }
+    // Allow multi-level directory creation
+    // Split by / or \ to handle path separators
+    const parts = name.split(/[/\\]/);
+    // Sanitize each part to ensure valid folder names
+    const safeParts = parts.map(p => sanitizeFilename(p)).filter(p => p.length > 0);
 
-        const relativePath = safeParts.join("/");
-        const dirPath = safeJoin(STORAGE_PATH, relativePath);
-
-        if (await fs.pathExists(dirPath)) {
-            return res.status(400).json({ error: "目录已存在" });
-        }
-
-        await fs.ensureDir(dirPath);
-        
-        // Return the created directory info
-        res.json({ 
-            success: true, 
-            message: "创建成功",
-            data: {
-                name: safeParts[safeParts.length - 1],
-                path: relativePath,
-                fullPath: dirPath
-            }
-        });
-    } catch (e) {
-        console.error("Create dir error:", e);
-        res.status(500).json({ error: "创建目录失败" });
+    if (safeParts.length === 0) {
+      return res.status(400).json({ error: "Invalid directory name" });
     }
+
+    const relativePath = safeParts.join("/");
+    const dirPath = safeJoin(STORAGE_PATH, relativePath);
+
+    if (await fs.pathExists(dirPath)) {
+      return res.status(400).json({ error: "目录已存在" });
+    }
+
+    await fs.ensureDir(dirPath);
+
+    // Return the created directory info
+    res.json({
+      success: true,
+      message: "创建成功",
+      data: {
+        name: safeParts[safeParts.length - 1],
+        path: relativePath,
+        fullPath: dirPath
+      }
+    });
+  } catch (e) {
+    console.error("Create dir error:", e);
+    res.status(500).json({ error: "创建目录失败" });
+  }
 });
 
 app.get("/api/directories", requirePassword, async (req, res) => {
@@ -1699,207 +1727,207 @@ app.get("/api/directories", requirePassword, async (req, res) => {
 
 // Share API
 app.post("/api/share/generate", requirePassword, async (req, res) => {
-    try {
-        const { path: sharePath, expireSeconds, burnAfterReading } = req.body;
-        if (sharePath === undefined) return res.status(400).json({ error: "Missing path" });
+  try {
+    const { path: sharePath, expireSeconds, burnAfterReading } = req.body;
+    if (sharePath === undefined) return res.status(400).json({ error: "Missing path" });
 
-        const payload = {
-            p: sharePath,
-            e: expireSeconds ? Date.now() + expireSeconds * 1000 : null,
-            b: !!burnAfterReading,
-            n: uuidv4() // Nonce
-        };
-        
-        const dataStr = JSON.stringify(payload);
-        const signature = crypto.createHmac("sha256", SHARE_SECRET).update(dataStr).digest("hex");
-        const token = Buffer.from(JSON.stringify({ d: payload, s: signature })).toString("base64");
-        
-        // Save to local config
-        const shares = await readShares(sharePath);
-        shares.push({
-            token,
-            signature, // Used for quick lookup
-            createdAt: Date.now(),
-            expireSeconds,
-            burnAfterReading: !!burnAfterReading,
-            status: "active"
-        });
-        await writeShares(sharePath, shares);
+    const payload = {
+      p: sharePath,
+      e: expireSeconds ? Date.now() + expireSeconds * 1000 : null,
+      b: !!burnAfterReading,
+      n: uuidv4() // Nonce
+    };
 
-        res.json({ success: true, token });
-    } catch (e) {
-        console.error(e);
-        res.status(500).json({ error: "Generate share link failed" });
-    }
+    const dataStr = JSON.stringify(payload);
+    const signature = crypto.createHmac("sha256", SHARE_SECRET).update(dataStr).digest("hex");
+    const token = Buffer.from(JSON.stringify({ d: payload, s: signature })).toString("base64");
+
+    // Save to local config
+    const shares = await readShares(sharePath);
+    shares.push({
+      token,
+      signature, // Used for quick lookup
+      createdAt: Date.now(),
+      expireSeconds,
+      burnAfterReading: !!burnAfterReading,
+      status: "active"
+    });
+    await writeShares(sharePath, shares);
+
+    res.json({ success: true, token });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Generate share link failed" });
+  }
 });
 
 // List shares
 app.get("/api/share/list", requirePassword, async (req, res) => {
-    try {
-        const { path: sharePath } = req.query;
-        if (sharePath === undefined) return res.status(400).json({ error: "Missing path" });
-        
-        const shares = await readShares(sharePath);
-        // Filter out expired or revoked? Maybe show all but indicate status
-        // Check expiry dynamically
-        const now = Date.now();
-        const result = shares.map(s => {
-            let status = s.status;
-            if (status === "active" && s.expireSeconds && (s.createdAt + s.expireSeconds * 1000 < now)) {
-                status = "expired";
-            }
-            return { ...s, status };
-        });
-        
-        res.json({ success: true, data: result });
-    } catch (e) {
-        res.status(500).json({ error: "List shares failed" });
-    }
+  try {
+    const { path: sharePath } = req.query;
+    if (sharePath === undefined) return res.status(400).json({ error: "Missing path" });
+
+    const shares = await readShares(sharePath);
+    // Filter out expired or revoked? Maybe show all but indicate status
+    // Check expiry dynamically
+    const now = Date.now();
+    const result = shares.map(s => {
+      let status = s.status;
+      if (status === "active" && s.expireSeconds && (s.createdAt + s.expireSeconds * 1000 < now)) {
+        status = "expired";
+      }
+      return { ...s, status };
+    });
+
+    res.json({ success: true, data: result });
+  } catch (e) {
+    res.status(500).json({ error: "List shares failed" });
+  }
 });
 
 // Delete share
 app.delete("/api/share/delete", requirePassword, async (req, res) => {
-    try {
-        const { path: sharePath, signature } = req.body;
-        if (sharePath === undefined || !signature) return res.status(400).json({ error: "Missing params" });
+  try {
+    const { path: sharePath, signature } = req.body;
+    if (sharePath === undefined || !signature) return res.status(400).json({ error: "Missing params" });
 
-        const shares = await readShares(sharePath);
-        const newShares = shares.filter(s => s.signature !== signature);
-        
-        if (shares.length === newShares.length) {
-            return res.status(404).json({ error: "Share not found" });
-        }
-        
-        await writeShares(sharePath, newShares);
-        res.json({ success: true });
-    } catch (e) {
-        console.error("Delete share failed:", e);
-        res.status(500).json({ error: "Delete share failed" });
+    const shares = await readShares(sharePath);
+    const newShares = shares.filter(s => s.signature !== signature);
+
+    if (shares.length === newShares.length) {
+      return res.status(404).json({ error: "Share not found" });
     }
+
+    await writeShares(sharePath, newShares);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("Delete share failed:", e);
+    res.status(500).json({ error: "Delete share failed" });
+  }
 });
 
 // Revoke share
 app.post("/api/share/revoke", requirePassword, async (req, res) => {
-    try {
-        const { path: sharePath, signature } = req.body;
-        // Allow empty string for root path
-        if (sharePath === undefined || !signature) return res.status(400).json({ error: "Missing params" });
+  try {
+    const { path: sharePath, signature } = req.body;
+    // Allow empty string for root path
+    if (sharePath === undefined || !signature) return res.status(400).json({ error: "Missing params" });
 
-        const shares = await readShares(sharePath);
-        const index = shares.findIndex(s => s.signature === signature);
-        if (index !== -1) {
-            shares[index].status = "revoked";
-            await writeShares(sharePath, shares);
-            res.json({ success: true });
-        } else {
-            res.status(404).json({ error: "Share not found" });
-        }
-    } catch (e) {
-        res.status(500).json({ error: "Revoke failed" });
+    const shares = await readShares(sharePath);
+    const index = shares.findIndex(s => s.signature === signature);
+    if (index !== -1) {
+      shares[index].status = "revoked";
+      await writeShares(sharePath, shares);
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: "Share not found" });
     }
+  } catch (e) {
+    res.status(500).json({ error: "Revoke failed" });
+  }
 });
 
 app.get("/api/share/access", async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: "Missing token" });
+
+    let decoded;
     try {
-        const { token } = req.query;
-        if (!token) return res.status(400).json({ error: "Missing token" });
-
-        let decoded;
-        try {
-            const jsonStr = Buffer.from(token, "base64").toString("utf8");
-            decoded = JSON.parse(jsonStr);
-        } catch (e) {
-            return res.status(400).json({ error: "Invalid token format" });
-        }
-
-        const { d: payload, s: signature } = decoded;
-        const expectedSig = crypto.createHmac("sha256", SHARE_SECRET).update(JSON.stringify(payload)).digest("hex");
-
-        if (signature !== expectedSig) {
-            return res.status(403).json({ error: "Invalid signature" });
-        }
-
-        // Check local config
-        const dir = payload.p;
-        const shares = await readShares(dir);
-        const shareRecord = shares.find(s => s.signature === signature);
-        
-        if (!shareRecord) {
-             // If not found in local config (maybe old token or deleted), fallback to payload validation only?
-             // But user wants "manual revoke", so we MUST check record.
-             // If record missing, treat as invalid or revoked.
-             return res.status(403).json({ error: "分享记录不存在或已失效" });
-        }
-
-        if (shareRecord.status === "revoked") {
-            return res.status(410).json({ error: "链接已失效" });
-        }
-        
-        if (shareRecord.status === "burned") {
-             return res.status(410).json({ error: "链接已失效（阅后即焚）" });
-        }
-
-        // Check expiry
-        // Priority: Record > Payload (though they should match)
-        if (payload.e && Date.now() > payload.e) {
-            return res.status(410).json({ error: "链接已过期" });
-        }
-        
-        // Also check creation time based expiry from record just in case
-        if (shareRecord.expireSeconds && (shareRecord.createdAt + shareRecord.expireSeconds * 1000 < Date.now())) {
-             return res.status(410).json({ error: "链接已过期" });
-        }
-
-        if (payload.b) {
-            // Burn after reading
-            // Update status to burned
-            shareRecord.status = "burned";
-            // Update in array
-            const index = shares.findIndex(s => s.signature === signature);
-            if (index !== -1) shares[index] = shareRecord;
-            await writeShares(dir, shares);
-        }
-
-        // Token valid, return content
-        let images = await getAllImages(dir);
-        
-        // Sort - 按上传时间倒序，filename 升序作为次要排序键保证稳定性
-        images.sort((a, b) => {
-          const timeDiff = new Date(b.uploadTime) - new Date(a.uploadTime);
-          if (timeDiff !== 0) return timeDiff;
-          return a.filename.localeCompare(b.filename);
-        });
-
-        // Pagination
-        const page = parseInt(req.query.page) || 1;
-        const pageSize = parseInt(req.query.pageSize) || 20;
-        const total = images.length;
-        const startIndex = (page - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        const paginatedImages = images.slice(startIndex, endIndex);
-        
-        // ThumbHash
-        for (const img of paginatedImages) {
-             const filePath = safeJoin(STORAGE_PATH, img.relPath);
-             img.thumbhash = await getThumbHash(filePath);
-        }
-
-        res.json({
-            success: true,
-            data: paginatedImages,
-            dirName: path.basename(dir),
-            pagination: {
-                current: page,
-                pageSize: pageSize,
-                total: total,
-                totalPages: Math.ceil(total / pageSize),
-            }
-        });
-
+      const jsonStr = Buffer.from(token, "base64").toString("utf8");
+      decoded = JSON.parse(jsonStr);
     } catch (e) {
-        console.error("Share access error:", e);
-        res.status(500).json({ error: "Share access failed" });
+      return res.status(400).json({ error: "Invalid token format" });
     }
+
+    const { d: payload, s: signature } = decoded;
+    const expectedSig = crypto.createHmac("sha256", SHARE_SECRET).update(JSON.stringify(payload)).digest("hex");
+
+    if (signature !== expectedSig) {
+      return res.status(403).json({ error: "Invalid signature" });
+    }
+
+    // Check local config
+    const dir = payload.p;
+    const shares = await readShares(dir);
+    const shareRecord = shares.find(s => s.signature === signature);
+
+    if (!shareRecord) {
+      // If not found in local config (maybe old token or deleted), fallback to payload validation only?
+      // But user wants "manual revoke", so we MUST check record.
+      // If record missing, treat as invalid or revoked.
+      return res.status(403).json({ error: "分享记录不存在或已失效" });
+    }
+
+    if (shareRecord.status === "revoked") {
+      return res.status(410).json({ error: "链接已失效" });
+    }
+
+    if (shareRecord.status === "burned") {
+      return res.status(410).json({ error: "链接已失效（阅后即焚）" });
+    }
+
+    // Check expiry
+    // Priority: Record > Payload (though they should match)
+    if (payload.e && Date.now() > payload.e) {
+      return res.status(410).json({ error: "链接已过期" });
+    }
+
+    // Also check creation time based expiry from record just in case
+    if (shareRecord.expireSeconds && (shareRecord.createdAt + shareRecord.expireSeconds * 1000 < Date.now())) {
+      return res.status(410).json({ error: "链接已过期" });
+    }
+
+    if (payload.b) {
+      // Burn after reading
+      // Update status to burned
+      shareRecord.status = "burned";
+      // Update in array
+      const index = shares.findIndex(s => s.signature === signature);
+      if (index !== -1) shares[index] = shareRecord;
+      await writeShares(dir, shares);
+    }
+
+    // Token valid, return content
+    let images = await getAllImages(dir);
+
+    // Sort - 按上传时间倒序，filename 升序作为次要排序键保证稳定性
+    images.sort((a, b) => {
+      const timeDiff = new Date(b.uploadTime) - new Date(a.uploadTime);
+      if (timeDiff !== 0) return timeDiff;
+      return a.filename.localeCompare(b.filename);
+    });
+
+    // Pagination
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 20;
+    const total = images.length;
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedImages = images.slice(startIndex, endIndex);
+
+    // ThumbHash
+    for (const img of paginatedImages) {
+      const filePath = safeJoin(STORAGE_PATH, img.relPath);
+      img.thumbhash = await getThumbHash(filePath);
+    }
+
+    res.json({
+      success: true,
+      data: paginatedImages,
+      dirName: path.basename(dir),
+      pagination: {
+        current: page,
+        pageSize: pageSize,
+        total: total,
+        totalPages: Math.ceil(total / pageSize),
+      }
+    });
+
+  } catch (e) {
+    console.error("Share access error:", e);
+    res.status(500).json({ error: "Share access failed" });
+  }
 });
 
 // 7. 统计信息（递归统计所有目录）
@@ -2023,7 +2051,7 @@ app.post(
       // 获取目标尺寸参数
       const width = parseInt(req.body.width || req.query.width);
       const height = parseInt(req.body.height || req.query.height);
-      
+
       if (!width || !height || width <= 0 || height <= 0) {
         return res.status(400).json({ error: "请提供有效的宽度和高度参数" });
       }
@@ -2034,19 +2062,19 @@ app.post(
 
       // 读取上传的图片
       const inputBuffer = await fs.readFile(req.file.path);
-      
+
       // 获取原图片信息
       const metadata = await sharp(inputBuffer).metadata();
-      
+
       // 计算缩放比例，保持纵横比
       const scaleX = width / metadata.width;
       const scaleY = height / metadata.height;
       const scale = Math.min(scaleX, scaleY);
-      
+
       // 计算缩放后的尺寸
       const scaledWidth = Math.round(metadata.width * scale);
       const scaledHeight = Math.round(metadata.height * scale);
-      
+
       // 计算居中位置
       const left = Math.round((width - scaledWidth) / 2);
       const top = Math.round((height - scaledHeight) / 2);
@@ -2060,17 +2088,17 @@ app.post(
           background: { r: 0, g: 0, b: 0, alpha: 0 } // 透明背景
         }
       })
-      .composite([
-        {
-          input: await sharp(inputBuffer)
-            .resize(scaledWidth, scaledHeight)
-            .toBuffer(),
-          left: left,
-          top: top
-        }
-      ])
-      .png()
-      .toBuffer();
+        .composite([
+          {
+            input: await sharp(inputBuffer)
+              .resize(scaledWidth, scaledHeight)
+              .toBuffer(),
+            left: left,
+            top: top
+          }
+        ])
+        .png()
+        .toBuffer();
 
       // 处理中文文件名
       let originalName = req.file.originalname;
@@ -2078,24 +2106,24 @@ app.post(
       if (!/[^\u0000-\u00ff]/.test(originalName)) {
         try {
           originalName = Buffer.from(originalName, "latin1").toString("utf8");
-        } catch (e) {}
+        } catch (e) { }
       }
 
       // 生成处理后的文件名
       const ext = path.extname(originalName);
       const nameWithoutExt = path.basename(originalName, ext);
       let processedFilename = `${nameWithoutExt}_processed_${width}x${height}.png`;
-      
+
       processedFilename = sanitizeFilename(processedFilename);
-      
+
       // 处理文件名冲突
       const dest = safeJoin(STORAGE_PATH, dir);
       // 确保目标目录存在
       await fs.ensureDir(dest);
-      
+
       let finalFilename = processedFilename;
       let counter = 1;
-      
+
       if (!config.upload.allowDuplicateNames) {
         while (fs.existsSync(path.join(dest, finalFilename))) {
           if (config.upload.duplicateStrategy === "timestamp") {
@@ -2108,16 +2136,16 @@ app.post(
           counter++;
         }
       }
-      
+
       // 保存处理后的图片
       const processedFilePath = path.join(dest, finalFilename);
       await fs.writeFile(processedFilePath, processedBuffer);
-      
+
       // 删除临时上传文件
       await fs.remove(req.file.path);
-      
+
       const relPath = path.join(dir, finalFilename).replace(/\\/g, "/");
-      
+
       const fileInfo = {
         filename: finalFilename,
         originalName: originalName,
@@ -2130,7 +2158,7 @@ app.post(
         relPath,
         fullUrl: `${getBaseUrl(req)}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
       };
-      
+
       res.json({
         success: true,
         message: "图片处理成功",
@@ -2138,7 +2166,7 @@ app.post(
       });
     } catch (error) {
       console.error("图片处理错误:", error);
-      
+
       // 清理临时文件
       if (req.file && req.file.path) {
         try {
@@ -2147,7 +2175,7 @@ app.post(
           console.error("清理临时文件失败:", cleanupError);
         }
       }
-      
+
       res.status(500).json({ error: "图片处理失败" });
     }
   }
