@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { Spin, message, Button, Tooltip } from 'antd';
 import { ArrowLeftOutlined, EnvironmentOutlined } from '@ant-design/icons';
@@ -39,7 +39,7 @@ const createClusterCustomIcon = function (cluster) {
   let size = 'small';
   if (count > 10) size = 'medium';
   if (count > 50) size = 'large';
-  
+
   // Get first child's image to use as background (optional, but cool)
   // const children = cluster.getAllChildMarkers();
   // const firstChildHtml = children[0].options.icon.options.html;
@@ -79,7 +79,7 @@ const MarkerCluster = ({ markers, onMarkerClick }) => {
 
     const leafletMarkers = markers.map((marker, idx) => {
       if (!marker.lat || !marker.lng) return null;
-      
+
       const latLng = getDisplayCoordinates(marker.lat, marker.lng);
       const leafletMarker = L.marker(latLng, {
         icon: createPhotoIcon(marker.thumbUrl)
@@ -126,7 +126,7 @@ function MapPage() {
             error: null
           });
         } else {
-           throw new Error(res.data.error);
+          throw new Error(res.data.error);
         }
       } catch (err) {
         setState(prev => ({ ...prev, loading: false, error: err.message || "加载失败" }));
@@ -175,8 +175,8 @@ function MapPage() {
   const handleUpdate = (updatedFile) => {
     setState(prev => ({
       ...prev,
-      markers: prev.markers.map(m => 
-        m.relPath === updatedFile.relPath || m.relPath === updatedFile.oldRelPath 
+      markers: prev.markers.map(m =>
+        m.relPath === updatedFile.relPath || m.relPath === updatedFile.oldRelPath
           ? { ...m, ...updatedFile, date: updatedFile.uploadTime, thumbUrl: updatedFile.url + '?w=200' } // Ensure essential props
           : m
       )
@@ -295,10 +295,10 @@ function MapPage() {
 
   if (state.error) {
     return (
-        <div style={{ padding: 20, textAlign: 'center', paddingTop: 100 }}>
-            <h3>Error: {state.error}</h3>
-            <Button onClick={handleBack}>返回首页</Button>
-        </div>
+      <div style={{ padding: 20, textAlign: 'center', paddingTop: 100 }}>
+        <h3>Error: {state.error}</h3>
+        <Button onClick={handleBack}>返回首页</Button>
+      </div>
     );
   }
 
@@ -313,38 +313,38 @@ function MapPage() {
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
       <style>{styles}</style>
-      
+
       {/* Top Left Controls */}
       <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 1000, display: 'flex', gap: 12 }}>
         <Tooltip title="返回列表" placement="right">
-            <Button 
-              icon={<ArrowLeftOutlined />} 
-              className="map-control-btn"
-              onClick={handleBack}
-              size="large"
-              shape="circle"
-            />
+          <Button
+            icon={<ArrowLeftOutlined />}
+            className="map-control-btn"
+            onClick={handleBack}
+            size="large"
+            shape="circle"
+          />
         </Tooltip>
-        <div style={{ 
-            background: 'rgba(20, 20, 20, 0.75)', 
-            backdropFilter: 'blur(8px)',
-            padding: '0 16px',
-            borderRadius: 20,
-            display: 'flex', 
-            alignItems: 'center',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-            color: '#fff'
+        <div style={{
+          background: 'rgba(20, 20, 20, 0.75)',
+          backdropFilter: 'blur(8px)',
+          padding: '0 16px',
+          borderRadius: 20,
+          display: 'flex',
+          alignItems: 'center',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          color: '#fff'
         }}>
-           <EnvironmentOutlined style={{ marginRight: 8 }} />
-           <span style={{ fontWeight: 500 }}>{state.markers.length} 张照片</span>
+          <EnvironmentOutlined style={{ marginRight: 8 }} />
+          <span style={{ fontWeight: 500 }}>{state.markers.length} 张照片</span>
         </div>
       </div>
-      
-      <MapContainer 
-        center={[35, 108]} 
+
+      <MapContainer
+        center={[35, 108]}
         zoom={5}
-        style={{ height: '100%', width: '100%' }} 
+        style={{ height: '100%', width: '100%' }}
         zoomControl={false}
       >
         <TileLayer

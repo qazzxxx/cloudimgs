@@ -195,7 +195,7 @@ const mockAdapter = async (config) => {
         const body = JSON.parse(data);
         const originalRelPath = decodeURIComponent(cleanUrl.split("/images/")[1]);
         const newName = body.newName;
-        const newDir = body.newDir;
+        // const newDir = body.newDir;
 
         let updatedRelPath = originalRelPath;
         let updatedFilename = originalRelPath.split("/").pop();

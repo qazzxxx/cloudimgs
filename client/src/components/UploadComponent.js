@@ -31,17 +31,17 @@ function sanitizeDir(input) {
 
 const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
   const {
-    token: { colorBgContainer, colorBorder },
+    token: { colorBgContainer },
   } = theme.useToken();
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const isDarkMode = theme.useToken().theme?.id === 1 || colorBgContainer === "#141414" || colorBgContainer === "#000000" || colorBgContainer === "#1f1f1f";
-  
+
   const [uploadQueue, setUploadQueue] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   // Separate list for currently completed session uploads to show in overlay
-  const [sessionUploadedFiles, setSessionUploadedFiles] = useState([]); 
+  const [sessionUploadedFiles, setSessionUploadedFiles] = useState([]);
   const [dir, setDir] = useState("");
   const [config, setConfig] = useState({
     allowedExtensions: [
@@ -81,73 +81,11 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
     );
   };
 
-  // 处理粘贴事件
-  const handlePaste = async (event) => {
-    const items = event.clipboardData?.items;
-    if (!items) return;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith("image/")) {
-        // Clear previous queue for new paste action
-        setUploadQueue([]);
-        setSessionUploadedFiles([]);
-
-        event.preventDefault();
-        const file = item.getAsFile();
-        if (file) {
-          await handlePastedImage(file);
-        }
-        break;
-      }
-    }
-  };
-
-  // 处理粘贴的图片
-  const handlePastedImage = async (file) => {
-    // 验证文件类型
-    const isImage = file.type.startsWith("image/");
-    if (!isImage) {
-      message.error("只能上传图片文件！");
-      return;
-    }
-
-    // 验证文件大小
-    const isLtMax = file.size <= config.maxFileSize;
-    if (!isLtMax) {
-      message.error(`图片大小不能超过${config.maxFileSizeMB}MB！`);
-      return;
-    }
-
-    // 生成文件名
-    const timestamp = new Date().getTime();
-    const extension = file.type.split("/")[1] || "png";
-    const fileName = `pasted-image-${timestamp}.${extension}`;
-
-    // 创建新的File对象，设置文件名
-    const renamedFile = new File([file], fileName, { type: file.type });
-    // 添加uid
-    renamedFile.uid = `pasted-${timestamp}`;
-
-    // 添加到队列
-    setUploadQueue(prev => [...prev, { uid: renamedFile.uid, name: fileName, progress: 0, status: 'pending' }]);
-
-    // 上传文件
-    try {
-        await uploadFile(renamedFile, (progress) => {
-             updateQueueItem(renamedFile.uid, { progress, status: 'uploading' });
-        });
-        updateQueueItem(renamedFile.uid, { progress: 100, status: 'success' });
-    } catch (error) {
-        updateQueueItem(renamedFile.uid, { status: 'error', errorMsg: error.message });
-    }
-  };
-
   // 上传文件的通用方法
-  const uploadFile = async (file, onProgress) => {
+  const uploadFile = React.useCallback(async (file, onProgress) => {
     let safeDir = sanitizeDir(dir);
     if (safeDir.includes("..")) {
-        throw new Error("目录不能包含 .. 等非法字符");
+      throw new Error("目录不能包含 .. 等非法字符");
     }
 
     const formData = new FormData();
@@ -190,7 +128,69 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
       message.error(msg);
       throw new Error(msg);
     }
-  };
+  }, [dir, api, onUploadSuccess]);
+
+  // 处理粘贴的图片
+  const handlePastedImage = React.useCallback(async (file) => {
+    // 验证文件类型
+    const isImage = file.type.startsWith("image/");
+    if (!isImage) {
+      message.error("只能上传图片文件！");
+      return;
+    }
+
+    // 验证文件大小
+    const isLtMax = file.size <= config.maxFileSize;
+    if (!isLtMax) {
+      message.error(`图片大小不能超过${config.maxFileSizeMB}MB！`);
+      return;
+    }
+
+    // 生成文件名
+    const timestamp = new Date().getTime();
+    const extension = file.type.split("/")[1] || "png";
+    const fileName = `pasted-image-${timestamp}.${extension}`;
+
+    // 创建新的File对象，设置文件名
+    const renamedFile = new File([file], fileName, { type: file.type });
+    // 添加uid
+    renamedFile.uid = `pasted-${timestamp}`;
+
+    // 添加到队列
+    setUploadQueue(prev => [...prev, { uid: renamedFile.uid, name: fileName, progress: 0, status: 'pending' }]);
+
+    // 上传文件
+    try {
+      await uploadFile(renamedFile, (progress) => {
+        updateQueueItem(renamedFile.uid, { progress, status: 'uploading' });
+      });
+      updateQueueItem(renamedFile.uid, { progress: 100, status: 'success' });
+    } catch (error) {
+      updateQueueItem(renamedFile.uid, { status: 'error', errorMsg: error.message });
+    }
+  }, [config, uploadFile]);
+
+  // 处理粘贴事件
+  const handlePaste = React.useCallback(async (event) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        // Clear previous queue for new paste action
+        setUploadQueue([]);
+        setSessionUploadedFiles([]);
+
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await handlePastedImage(file);
+        }
+        break;
+      }
+    }
+  }, [handlePastedImage]);
 
   // 添加全局粘贴事件监听
   useEffect(() => {
@@ -213,7 +213,7 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
     return () => {
       document.removeEventListener("paste", handleGlobalPaste);
     };
-  }, [dir, config, api, onUploadSuccess]);
+  }, [handlePaste]);
 
   const uploadProps = {
     name: "image",
@@ -237,10 +237,10 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
     customRequest: async ({ file, onSuccess, onError }) => {
       const uid = file.uid;
       setUploadQueue(prev => [...prev, { uid, name: file.name, progress: 0, status: 'pending' }]);
-      
+
       try {
         await uploadFile(file, (progress) => {
-             updateQueueItem(uid, { progress, status: 'uploading' });
+          updateQueueItem(uid, { progress, status: 'uploading' });
         });
         updateQueueItem(uid, { progress: 100, status: 'success' });
         onSuccess();
@@ -282,63 +282,63 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
   };
 
   const generateLinks = (type) => {
-      return sessionUploadedFiles.map(file => {
-          const fullUrl = `${window.location.origin}${file.url}`;
-          switch (type) {
-              case 'markdown':
-                  return `![${file.originalName}](${fullUrl})`;
-              case 'html':
-                  return `<img src="${fullUrl}" alt="${file.originalName}" />`;
-              case 'url':
-              default:
-                  return fullUrl;
-          }
-      }).join('\n');
+    return sessionUploadedFiles.map(file => {
+      const fullUrl = `${window.location.origin}${file.url}`;
+      switch (type) {
+        case 'markdown':
+          return `![${file.originalName}](${fullUrl})`;
+        case 'html':
+          return `<img src="${fullUrl}" alt="${file.originalName}" />`;
+        case 'url':
+        default:
+          return fullUrl;
+      }
+    }).join('\n');
   };
 
   const UploadResult = () => {
-      const [activeTab, setActiveTab] = useState('url');
-      const content = generateLinks(activeTab);
+    const [activeTab, setActiveTab] = useState('url');
+    const content = generateLinks(activeTab);
 
-      const items = [
-          { key: 'url', label: 'URL' },
-          { key: 'markdown', label: 'Markdown' },
-          { key: 'html', label: 'HTML' },
-      ];
+    const items = [
+      { key: 'url', label: 'URL' },
+      { key: 'markdown', label: 'Markdown' },
+      { key: 'html', label: 'HTML' },
+    ];
 
-      return (
-          <div style={{ marginTop: 16, background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', padding: 12, borderRadius: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Tabs 
-                      activeKey={activeTab} 
-                      onChange={setActiveTab} 
-                      items={items} 
-                      size="small" 
-                      style={{ marginBottom: 0 }}
-                      tabBarStyle={{ marginBottom: 0, borderBottom: 'none' }}
-                  />
-                  <Button 
-                      type="primary" 
-                      size="small" 
-                      icon={<CopyOutlined />} 
-                      onClick={() => copyToClipboard(content)}
-                  >
-                      一键复制
-                  </Button>
-              </div>
-              <Input.TextArea 
-                  value={content} 
-                  autoSize={{ minRows: 3, maxRows: 6 }} 
-                  readOnly 
-                  style={{ 
-                      fontFamily: 'monospace', 
-                      fontSize: 12, 
-                      background: isDarkMode ? '#141414' : '#fff',
-                      color: isDarkMode ? 'rgba(255,255,255,0.85)' : undefined
-                  }} 
-              />
-          </div>
-      );
+    return (
+      <div style={{ marginTop: 16, background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', padding: 12, borderRadius: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={items}
+            size="small"
+            style={{ marginBottom: 0 }}
+            tabBarStyle={{ marginBottom: 0, borderBottom: 'none' }}
+          />
+          <Button
+            type="primary"
+            size="small"
+            icon={<CopyOutlined />}
+            onClick={() => copyToClipboard(content)}
+          >
+            一键复制
+          </Button>
+        </div>
+        <Input.TextArea
+          value={content}
+          autoSize={{ minRows: 3, maxRows: 6 }}
+          readOnly
+          style={{
+            fontFamily: 'monospace',
+            fontSize: 12,
+            background: isDarkMode ? '#141414' : '#fff',
+            color: isDarkMode ? 'rgba(255,255,255,0.85)' : undefined
+          }}
+        />
+      </div>
+    );
   };
 
   const formatFileSize = (bytes) => {
@@ -351,16 +351,16 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
 
   return (
     <div style={{ padding: isModal ? '24px' : 0 }}>
-      <Title 
-        level={isMobile ? 4 : 3} 
-        style={{ 
-            marginTop: 0, 
-            marginBottom: 16, 
-            textAlign: isModal ? 'center' : 'left',
-            color: isModal && !isDarkMode ? 'rgba(0,0,0,0.85)' : isModal ? '#fff' : undefined 
+      <Title
+        level={isMobile ? 4 : 3}
+        style={{
+          marginTop: 0,
+          marginBottom: 16,
+          textAlign: isModal ? 'center' : 'left',
+          color: isModal && !isDarkMode ? 'rgba(0,0,0,0.85)' : isModal ? '#fff' : undefined
         }}
       >
-          上传图片
+        上传图片
       </Title>
 
       <Space
@@ -373,18 +373,18 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
           onChange={setDir}
           placeholder="选择或输入子目录（可选）"
           api={api}
-          style={{ 
-              background: isModal ? (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : undefined,
-              color: isModal && !isDarkMode ? 'rgba(0,0,0,0.85)' : undefined
+          style={{
+            background: isModal ? (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : undefined,
+            color: isModal && !isDarkMode ? 'rgba(0,0,0,0.85)' : undefined
           }}
         />
       </Space>
 
-      <Card 
-        style={{ 
-            marginBottom: isMobile ? 16 : 24, 
-            background: isModal ? (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.4)') : undefined,
-            border: isModal ? (isDarkMode ? '1px dashed rgba(255,255,255,0.2)' : '1px dashed rgba(0,0,0,0.2)') : undefined
+      <Card
+        style={{
+          marginBottom: isMobile ? 16 : 24,
+          background: isModal ? (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.4)') : undefined,
+          border: isModal ? (isDarkMode ? '1px dashed rgba(255,255,255,0.2)' : '1px dashed rgba(0,0,0,0.2)') : undefined
         }}
         bordered={!isModal}
         styles={{ body: { padding: isModal ? '16px' : '24px' } }}
@@ -394,7 +394,7 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
             <InboxOutlined style={{ color: isModal ? (isDarkMode ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)') : undefined }} />
           </p>
           <p className="ant-upload-text" style={{ color: isModal ? (isDarkMode ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.85)') : undefined, fontSize: 14 }}>
-              点击或拖拽图片到此区域
+            点击或拖拽图片到此区域
           </p>
           <p
             style={{
@@ -412,65 +412,65 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
       {/* Full Page Upload Overlay */}
       {uploadQueue.length > 0 && (
         <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
-            zIndex: 1005, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '20px'
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+          zIndex: 1005, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
         }}>
-            <div style={{
-                width: '100%', maxWidth: '600px', 
-                background: isDarkMode ? '#1f1f1f' : '#fff',
-                borderRadius: '12px', padding: '24px', 
-                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                maxHeight: '80vh', display: 'flex', flexDirection: 'column'
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
-                    <Title level={4} style={{ margin: 0, color: isDarkMode ? '#fff' : undefined }}>
-                        正在上传 ({uploadQueue.filter(i => i.status === 'success').length}/{uploadQueue.length})
-                    </Title>
-                    <Button 
-                        type="text" 
-                        icon={<CloseOutlined style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }} />} 
-                        onClick={() => {
-                            setUploadQueue([]);
-                            setSessionUploadedFiles([]);
-                        }} 
-                    />
-                </div>
-                <div style={{ overflowY: 'auto', flex: 1, paddingRight: '8px' }}>
-                    {uploadQueue.map(item => (
-                        <div key={item.uid} style={{ marginBottom: 12 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                <Text ellipsis style={{ maxWidth: '70%', color: isDarkMode ? '#fff' : undefined }}>{item.name}</Text>
-                                <Text type="secondary" style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }}>
-                                    {item.status === 'error' ? '失败' : item.status === 'success' ? '完成' : `${item.progress}%`}
-                                </Text>
-                            </div>
-                            <Progress 
-                                percent={item.progress} 
-                                status={item.status === 'error' ? 'exception' : item.status === 'success' ? 'success' : 'active'} 
-                                showInfo={false}
-                                size="small"
-                                strokeColor={item.status === 'success' ? '#52c41a' : undefined}
-                            />
-                            {item.errorMsg && <Text type="danger" style={{ fontSize: 12 }}>{item.errorMsg}</Text>}
-                        </div>
-                    ))}
-                </div>
-                {!uploading && (
-                    <>
-                        {sessionUploadedFiles.length > 0 && <UploadResult />}
-                        <div style={{ textAlign: 'center', marginTop: '16px' }}>
-                            <Button type="primary" onClick={() => {
-                                setUploadQueue([]);
-                                setSessionUploadedFiles([]);
-                            }}>
-                                关闭
-                            </Button>
-                        </div>
-                    </>
-                )}
+          <div style={{
+            width: '100%', maxWidth: '600px',
+            background: isDarkMode ? '#1f1f1f' : '#fff',
+            borderRadius: '12px', padding: '24px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            maxHeight: '80vh', display: 'flex', flexDirection: 'column'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
+              <Title level={4} style={{ margin: 0, color: isDarkMode ? '#fff' : undefined }}>
+                正在上传 ({uploadQueue.filter(i => i.status === 'success').length}/{uploadQueue.length})
+              </Title>
+              <Button
+                type="text"
+                icon={<CloseOutlined style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }} />}
+                onClick={() => {
+                  setUploadQueue([]);
+                  setSessionUploadedFiles([]);
+                }}
+              />
             </div>
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '8px' }}>
+              {uploadQueue.map(item => (
+                <div key={item.uid} style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text ellipsis style={{ maxWidth: '70%', color: isDarkMode ? '#fff' : undefined }}>{item.name}</Text>
+                    <Text type="secondary" style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }}>
+                      {item.status === 'error' ? '失败' : item.status === 'success' ? '完成' : `${item.progress}%`}
+                    </Text>
+                  </div>
+                  <Progress
+                    percent={item.progress}
+                    status={item.status === 'error' ? 'exception' : item.status === 'success' ? 'success' : 'active'}
+                    showInfo={false}
+                    size="small"
+                    strokeColor={item.status === 'success' ? '#52c41a' : undefined}
+                  />
+                  {item.errorMsg && <Text type="danger" style={{ fontSize: 12 }}>{item.errorMsg}</Text>}
+                </div>
+              ))}
+            </div>
+            {!uploading && (
+              <>
+                {sessionUploadedFiles.length > 0 && <UploadResult />}
+                <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                  <Button type="primary" onClick={() => {
+                    setUploadQueue([]);
+                    setSessionUploadedFiles([]);
+                  }}>
+                    关闭
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 

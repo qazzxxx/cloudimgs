@@ -2,14 +2,12 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import {
   Masonry,
   Button,
-  Space,
   Typography,
   Modal,
   message,
   Popconfirm,
   Tabs,
   Input,
-  Tooltip,
   Empty,
   Spin,
   Grid,
@@ -26,9 +24,6 @@ import {
   MenuOutlined,
   ApiOutlined,
   CloudUploadOutlined,
-  LeftOutlined,
-  RightOutlined,
-  CameraOutlined,
   EnvironmentOutlined,
   CodeOutlined,
   CheckOutlined,
@@ -43,7 +38,6 @@ import ImageEditModal from "./ImageEditModal";
 import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
-const { Search } = Input;
 
 // Helper to convert base64 thumbhash to data URL
 const getThumbHashUrl = (hash) => {
@@ -371,24 +365,10 @@ const ImageItem = ({
   );
 };
 
-// Helper: Format aperture
-const formatFNumber = (val) => {
-  if (!val) return "";
-  const num = parseFloat(val);
-  return parseFloat(num.toFixed(1));
-};
-
-// Helper: Format exposure time
-const formatExposureTime = (val) => {
-  if (!val) return "";
-  const num = parseFloat(val);
-  if (num >= 1) return parseFloat(num.toFixed(1)) + "s";
-  return `1/${Math.round(1 / num)}s`;
-};
 
 const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigger, isBatchMode = false, selectedItems = new Set(), onSelectionChange = () => { } }) => {
   const {
-    token: { colorBgContainer, colorBorder, colorPrimary, colorTextSecondary, colorText },
+    token: { colorBgContainer, colorPrimary, colorTextSecondary, colorText },
   } = theme.useToken();
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();

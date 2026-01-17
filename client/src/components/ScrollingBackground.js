@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import api from "../utils/api";
 
 const ScrollingBackground = ({ usePicsum = false }) => {
@@ -8,11 +8,11 @@ const ScrollingBackground = ({ usePicsum = false }) => {
     // Fetch some random images to display in the background
     const fetchBackgroundImages = async () => {
       if (usePicsum) {
-          setImages(Array.from({ length: 32 }).map((_, i) => ({
-             url: `https://picsum.photos/seed/${i + 500}/300/450`,
-             key: i
-         })));
-         return;
+        setImages(Array.from({ length: 32 }).map((_, i) => ({
+          url: `https://picsum.photos/seed/${i + 500}/300/450`,
+          key: i
+        })));
+        return;
       }
 
       try {
@@ -21,21 +21,21 @@ const ScrollingBackground = ({ usePicsum = false }) => {
         if (res.data && res.data.success && res.data.data.length > 0) {
           setImages(res.data.data);
         } else {
-             // Fallback to placeholder if no images or empty
-             setImages(Array.from({ length: 24 }).map((_, i) => ({
-                 url: `https://picsum.photos/seed/${i + 200}/300/450`,
-                 key: i
-             })));
+          // Fallback to placeholder if no images or empty
+          setImages(Array.from({ length: 24 }).map((_, i) => ({
+            url: `https://picsum.photos/seed/${i + 200}/300/450`,
+            key: i
+          })));
         }
       } catch (e) {
-         setImages(Array.from({ length: 32 }).map((_, i) => ({
-             url: `https://picsum.photos/seed/${i + 100}/300/450`,
-             key: i
-         })));
+        setImages(Array.from({ length: 32 }).map((_, i) => ({
+          url: `https://picsum.photos/seed/${i + 100}/300/450`,
+          key: i
+        })));
       }
     };
     fetchBackgroundImages();
-  }, []);
+  }, [usePicsum]);
 
   // Prepare columns for masonry-like scroll
   const columns = [[], [], [], [], []];
