@@ -41,6 +41,11 @@ const getThumbHashUrl = (hash) => {
   }
 };
 
+const encodePath = (path) => {
+  if (!path) return "";
+  return path.split('/').map(encodeURIComponent).join('/');
+};
+
 const formatFileSize = (bytes) => {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -126,7 +131,7 @@ const ImageDetailModal = ({
       // Fetch Meta
       let active = true;
       api
-        .get(`/images/meta/${encodeURIComponent(file.relPath)}`)
+        .get(`/images/meta/${encodePath(file.relPath)}`)
         .then((res) => {
           if (active && res.data && res.data.success) {
             setImageMeta(res.data.data);
@@ -287,7 +292,7 @@ const ImageDetailModal = ({
     const newName = hasExt ? newNameRaw : `${newNameRaw}${ext}`;
     try {
       setRenaming(true);
-      const res = await api.put(`/images/${encodeURIComponent(oldRel)}`, {
+      const res = await api.put(`/images/${encodePath(oldRel)}`, {
         newName,
       });
       if (res.data?.success) {
@@ -306,7 +311,7 @@ const ImageDetailModal = ({
   const handleMove = async () => {
     const oldRel = file.relPath;
     try {
-      const res = await api.put(`/images/${encodeURIComponent(oldRel)}`, {
+      const res = await api.put(`/images/${encodePath(oldRel)}`, {
         newDir: dirValue || "",
       });
       if (res.data?.success) {
