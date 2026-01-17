@@ -84,7 +84,7 @@ const mockAdapter = async (config) => {
         const start = (page - 1) * pageSize;
         const end = start + pageSize;
         const pageData = mockImages.slice(start, end);
-        
+
         resolve({
           data: {
             success: true,
@@ -131,7 +131,8 @@ const mockAdapter = async (config) => {
       }
 
       // Directories
-      if (cleanUrl === "/directories" && method === "get") {
+      // Directories
+      if (cleanUrl.split("?")[0] === "/directories" && method === "get") {
         const previews = mockImages.slice(0, 3).map(img => img.url);
         resolve({
           data: {
@@ -151,30 +152,30 @@ const mockAdapter = async (config) => {
 
       // Share Generate
       if (cleanUrl === "/share/generate" && method === "post") {
-          resolve({
-              data: { success: true, token: "mock-token-" + Date.now() },
-              status: 200,
-              statusText: "OK",
-              headers: {},
-              config,
-          });
-          return;
+        resolve({
+          data: { success: true, token: "mock-token-" + Date.now() },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
       }
 
       // Share Access
       if (cleanUrl.startsWith("/share/access") && method === "get") {
-          resolve({
-              data: { 
-                  success: true, 
-                  data: mockImages.slice(0, 10), 
-                  dirName: "Mock Share Album" 
-              },
-              status: 200,
-              statusText: "OK",
-              headers: {},
-              config,
-          });
-          return;
+        resolve({
+          data: {
+            success: true,
+            data: mockImages.slice(0, 10),
+            dirName: "Mock Share Album"
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
       }
 
       // Delete Image
@@ -195,27 +196,27 @@ const mockAdapter = async (config) => {
         const originalRelPath = decodeURIComponent(cleanUrl.split("/images/")[1]);
         const newName = body.newName;
         const newDir = body.newDir;
-        
+
         let updatedRelPath = originalRelPath;
         let updatedFilename = originalRelPath.split("/").pop();
 
         if (newName) {
-            updatedFilename = newName;
-            const dir = originalRelPath.includes("/") ? originalRelPath.substring(0, originalRelPath.lastIndexOf("/")) : "";
-            updatedRelPath = dir ? `${dir}/${newName}` : newName;
+          updatedFilename = newName;
+          const dir = originalRelPath.includes("/") ? originalRelPath.substring(0, originalRelPath.lastIndexOf("/")) : "";
+          updatedRelPath = dir ? `${dir}/${newName}` : newName;
         }
-        
+
         resolve({
-          data: { 
-              success: true,
-              data: {
-                  relPath: updatedRelPath,
-                  filename: updatedFilename,
-                  url: `https://picsum.photos/800/600?random=${Math.random()}`, // Just return a valid obj
-                  size: 1024,
-                  uploadTime: Date.now(),
-                  thumbhash: null
-              }
+          data: {
+            success: true,
+            data: {
+              relPath: updatedRelPath,
+              filename: updatedFilename,
+              url: `https://picsum.photos/800/600?random=${Math.random()}`, // Just return a valid obj
+              size: 1024,
+              uploadTime: Date.now(),
+              thumbhash: null
+            }
           },
           status: 200,
           statusText: "OK",
@@ -225,16 +226,16 @@ const mockAdapter = async (config) => {
         return;
       }
 
-       // Upload
+      // Upload
       if (cleanUrl === "/upload" && method === "post") {
-         resolve({
-            data: { success: true, data: [] }, // Return empty or fake
-            status: 200,
-            statusText: "OK",
-            headers: {},
-            config,
-         });
-         return;
+        resolve({
+          data: { success: true, data: [] }, // Return empty or fake
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
       }
 
       // Default Success for others

@@ -30,7 +30,7 @@ const DirectorySelector = ({
     try {
       const response = await api.get("/directories?recursive=true");
       if (response.data.success) {
-        setDirectories(response.data.data);
+        setDirectories(response.data.data || []);
       }
     } catch (error) {
       console.error("获取相册列表失败:", error);
@@ -81,9 +81,9 @@ const DirectorySelector = ({
 
   const toggleExpand = (e, path) => {
     e.stopPropagation(); // Prevent selection
-    setExpandedPaths(prev => 
-      prev.includes(path) 
-        ? prev.filter(p => p !== path) 
+    setExpandedPaths(prev =>
+      prev.includes(path)
+        ? prev.filter(p => p !== path)
         : [...prev, path]
     );
   };
@@ -94,19 +94,19 @@ const DirectorySelector = ({
     if (!val) return;
 
     try {
-        const res = await api.post("/directories", { name: val });
-        if (res.data.success) {
-             message.success("相册创建成功");
-             await fetchDirectories();
-             if (onChange) {
-                // Use returned path if available, or input value
-                const newPath = res.data.data?.path || val;
-                onChange(newPath);
-             }
-             setCreateName("");
+      const res = await api.post("/directories", { name: val });
+      if (res.data.success) {
+        message.success("相册创建成功");
+        await fetchDirectories();
+        if (onChange) {
+          // Use returned path if available, or input value
+          const newPath = res.data.data?.path || val;
+          onChange(newPath);
         }
+        setCreateName("");
+      }
     } catch (e) {
-        message.error(e.response?.data?.error || "创建失败");
+      message.error(e.response?.data?.error || "创建失败");
     }
 
     setTimeout(() => {
@@ -174,7 +174,7 @@ const DirectorySelector = ({
           const depth = parts.length - 1;
           const isExpanded = expandedPaths.includes(dir.path);
           const hasChildren = directories.some(d => d.path !== dir.path && d.path.startsWith(dir.path + '/'));
-          
+
           // Visibility check
           let isVisible = true;
           if (parts.length > 1 && !isSearching) {
@@ -198,26 +198,26 @@ const DirectorySelector = ({
                   <Text>{dir.name}</Text>
                 </Space>
                 {hasChildren && !isSearching && (
-                   <div 
-                     onClick={(e) => toggleExpand(e, dir.path)}
-                     style={{ 
-                       padding: '0 4px', 
-                       cursor: 'pointer', 
-                       display: 'flex', 
-                       alignItems: 'center',
-                       height: '100%',
-                       marginLeft: '8px'
-                     }}
-                   >
-                     {isExpanded ? <DownOutlined style={{ fontSize: 10, color: '#999' }} /> : <RightOutlined style={{ fontSize: 10, color: '#999' }} />}
-                   </div>
+                  <div
+                    onClick={(e) => toggleExpand(e, dir.path)}
+                    style={{
+                      padding: '0 4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: '100%',
+                      marginLeft: '8px'
+                    }}
+                  >
+                    {isExpanded ? <DownOutlined style={{ fontSize: 10, color: '#999' }} /> : <RightOutlined style={{ fontSize: 10, color: '#999' }} />}
+                  </div>
                 )}
               </div>
             </Option>
           );
         })}
       </Select>
-      
+
     </Space>
   );
 };
