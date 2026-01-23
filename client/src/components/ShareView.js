@@ -33,7 +33,7 @@ const formatFileSize = (bytes) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
-const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, isMobile, handleDownload, copyToClipboard }) => {
+const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, isMobile, handleDownload, copyToClipboard, thumbnailWidth = 0 }) => {
     const [loaded, setLoaded] = useState(false);
     const { token: { colorBgContainer } } = theme.useToken();
 
@@ -66,7 +66,7 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, isMobile, hand
                 )}
                 <img
                     alt={image.filename}
-                    src={image.url}
+                    src={thumbnailWidth > 0 ? `${image.url}?w=${thumbnailWidth}` : image.url}
                     draggable={false}
                     loading="lazy"
                     onLoad={() => setLoaded(true)}
@@ -118,6 +118,22 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
     const [dirName, setDirName] = useState("");
     const [error, setError] = useState(null);
     const [hoverKey, setHoverKey] = useState(null);
+    const [thumbnailWidth, setThumbnailWidth] = useState(0);
+
+    // Fetch config
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const response = await api.get("/config");
+                if (response.data.success && response.data.data?.upload?.thumbnailWidth) {
+                    setThumbnailWidth(response.data.data.upload.thumbnailWidth);
+                }
+            } catch (error) {
+                console.warn("Failed to fetch config:", error);
+            }
+        };
+        fetchConfig();
+    }, []);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -424,6 +440,7 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
                                     isMobile={isMobile}
                                     handleDownload={handleDownload}
                                     copyToClipboard={copyToClipboard}
+                                    thumbnailWidth={thumbnailWidth}
                                 />
                             )}
                         />
