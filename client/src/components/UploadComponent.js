@@ -130,26 +130,27 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
     }
   }, [dir, api, onUploadSuccess]);
 
-  // 处理粘贴的图片
+  // 处理粘贴的图片/视频
   const handlePastedImage = React.useCallback(async (file) => {
     // 验证文件类型
-    const isImage = file.type.startsWith("image/");
-    if (!isImage) {
-      message.error("只能上传图片文件！");
+    const isAllowedType = file.type.startsWith("image/") || file.type.startsWith("video/");
+    if (!isAllowedType) {
+      const allowedExts = config.allowedExtensions.join(", ");
+      message.error(`不支持的文件类型！仅支持: ${allowedExts}`);
       return;
     }
 
     // 验证文件大小
     const isLtMax = file.size <= config.maxFileSize;
     if (!isLtMax) {
-      message.error(`图片大小不能超过${config.maxFileSizeMB}MB！`);
+      message.error(`文件大小不能超过${config.maxFileSizeMB}MB！`);
       return;
     }
 
     // 生成文件名
     const timestamp = new Date().getTime();
-    const extension = file.type.split("/")[1] || "png";
-    const fileName = `pasted-image-${timestamp}.${extension}`;
+    const extension = file.type.split("/")[1] || "unknown";
+    const fileName = `pasted-file-${timestamp}.${extension}`;
 
     // 创建新的File对象，设置文件名
     const renamedFile = new File([file], fileName, { type: file.type });
@@ -177,7 +178,7 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item.type.startsWith("image/")) {
+      if (item.type.startsWith("image/") || item.type.startsWith("video/")) {
         // Clear previous queue for new paste action
         setUploadQueue([]);
         setSessionUploadedFiles([]);
@@ -219,17 +220,23 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
     name: "image",
     multiple: true,
     accept: config.allowedExtensions
-      .map((ext) => `image/${ext.replace(".", "")}`)
+      .map((ext) => {
+        const extName = ext.replace(".", "");
+        if (['mp4', 'webm', 'ogg'].includes(extName)) {
+          return `video/${extName}`;
+        }
+        return `image/${extName}`;
+      })
       .join(","),
     beforeUpload: (file) => {
-      const isImage = file.type.startsWith("image/");
-      if (!isImage) {
-        message.error("只能上传图片文件！");
+      const isAllowed = file.type.startsWith("image/") || file.type.startsWith("video/");
+      if (!isAllowed) {
+        message.error("不支持的文件类型！");
         return false;
       }
       const isLtMax = file.size <= config.maxFileSize;
       if (!isLtMax) {
-        message.error(`图片大小不能超过${config.maxFileSizeMB}MB！`);
+        message.error(`文件大小不能超过${config.maxFileSizeMB}MB！`);
         return false;
       }
       return true;

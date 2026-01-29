@@ -75,9 +75,26 @@ const ImageItem = ({
   thumbnailWidth = 0
 }) => {
   const [loaded, setLoaded] = useState(false);
+  const videoRef = useRef(null);
   const {
     token: { colorBgContainer, colorPrimary },
   } = theme.useToken();
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    const key = image.relPath || image.url || image.filename;
+
+    if (hoverKey === key) {
+      videoRef.current.currentTime = 0;
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => { });
+      }
+    } else {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+  }, [hoverKey, image]);
 
   return (
     <div
@@ -92,10 +109,16 @@ const ImageItem = ({
         cursor: isBatchMode ? "default" : "zoom-in",
         transform: isBatchMode && isSelected ? "scale(0.95)" : "scale(1)",
       }}
-      onMouseEnter={() =>
-        !isBatchMode && setHoverKey(image.relPath || image.url || image.filename)
-      }
-      onMouseLeave={() => !isBatchMode && setHoverKey(null)}
+      onMouseEnter={() => {
+        if (!isBatchMode) {
+          setHoverKey(image.relPath || image.url || image.filename);
+        }
+      }}
+      onMouseLeave={() => {
+        if (!isBatchMode) {
+          setHoverKey(null);
+        }
+      }}
       onClick={(e) => {
         if (isBatchMode) {
           e.stopPropagation();
@@ -174,27 +197,59 @@ const ImageItem = ({
           />
         )}
 
-        {/* Real Image Layer */}
-        <img
-          alt={image.filename}
-          src={thumbnailWidth > 0 ? `${image.url}?w=${thumbnailWidth}` : image.url}
-          draggable={false}
-          loading="lazy"
-          onLoad={() => setLoaded(true)}
-          style={{
-            width: "100%",
-            display: "block",
-            transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease-in",
-            transform:
-              hoverKey ===
-                (image.relPath || image.url || image.filename)
-                ? "scale(1.05)"
-                : "scale(1)",
-            opacity: loaded ? 1 : 0, // Fade in when loaded
-            position: "relative",
-            zIndex: 2,
-          }}
-        />
+        {/* Real Image/Video Layer */}
+        {(() => {
+          const isVideo = /\.(mp4|webm)$/i.test(image.filename);
+          if (isVideo) {
+            return (
+              <video
+                ref={videoRef}
+                src={image.url}
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "block",
+                  objectFit: "cover",
+                  transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease-in",
+                  transform:
+                    hoverKey === (image.relPath || image.url || image.filename)
+                      ? "scale(1.05)"
+                      : "scale(1)",
+                  opacity: loaded ? 1 : 0,
+                  position: "relative",
+                  zIndex: 2,
+                }}
+                onLoadedData={() => setLoaded(true)}
+              />
+            );
+          }
+          return (
+            <img
+              alt={image.filename}
+              src={thumbnailWidth > 0 ? `${image.url}?w=${thumbnailWidth}` : image.url}
+              draggable={false}
+              loading="lazy"
+              onLoad={() => setLoaded(true)}
+              style={{
+                width: "100%",
+                display: "block",
+                transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease-in",
+                transform:
+                  hoverKey ===
+                    (image.relPath || image.url || image.filename)
+                    ? "scale(1.05)"
+                    : "scale(1)",
+                opacity: loaded ? 1 : 0, // Fade in when loaded
+                position: "relative",
+                zIndex: 2,
+              }}
+            />
+          );
+        })()}
       </div>
 
       {/* Advanced Hover Overlay */}
@@ -312,24 +367,26 @@ const ImageItem = ({
                 }}
               >
               </Button>
-              <Button
-                size="small"
-                type="text"
-                icon={<EditOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEdit(image);
-                }}
-                style={{
-                  color: "#fff",
-                  background: "rgba(255,255,255,0.2)",
-                  backdropFilter: "blur(4px)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "4px",
-                  fontSize: "12px",
-                }}
-              >
-              </Button>
+              {!(/\.(mp4|webm)$/i.test(image.filename)) && (
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<EditOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit(image);
+                  }}
+                  style={{
+                    color: "#fff",
+                    background: "rgba(255,255,255,0.2)",
+                    backdropFilter: "blur(4px)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                  }}
+                >
+                </Button>
+              )}
               <Popconfirm
                 title="确定删除?"
                 onConfirm={(e) => {
@@ -1183,11 +1240,13 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
     }
     if (!files || files.length === 0) return;
 
-    // Filter images
-    const imageFiles = Array.from(files).filter(file => file.type.startsWith("image/"));
+    // Filter images and videos
+    const imageFiles = Array.from(files).filter(file =>
+      file.type.startsWith("image/") || file.type.startsWith("video/")
+    );
 
     if (imageFiles.length === 0) {
-      message.warning("请选择图片文件");
+      message.warning("请选择图片或视频文件");
       return;
     }
 

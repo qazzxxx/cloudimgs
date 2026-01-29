@@ -35,7 +35,24 @@ const formatFileSize = (bytes) => {
 
 const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, isMobile, handleDownload, copyToClipboard, thumbnailWidth = 0 }) => {
     const [loaded, setLoaded] = useState(false);
+    const videoRef = useRef(null);
     const { token: { colorBgContainer } } = theme.useToken();
+
+    useEffect(() => {
+        if (!videoRef.current) return;
+        const key = image.relPath || image.url || image.filename;
+
+        if (hoverKey === key) {
+            videoRef.current.currentTime = 0;
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => { });
+            }
+        } else {
+            videoRef.current.pause();
+            videoRef.current.currentTime = 0;
+        }
+    }, [hoverKey, image]);
 
     return (
         <div
@@ -64,19 +81,43 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, isMobile, hand
                         }}
                     />
                 )}
-                <img
-                    alt={image.filename}
-                    src={thumbnailWidth > 0 ? `${image.url}?w=${thumbnailWidth}` : image.url}
-                    draggable={false}
-                    loading="lazy"
-                    onLoad={() => setLoaded(true)}
-                    style={{
-                        width: "100%", display: "block",
-                        transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease-in",
-                        transform: hoverKey === (image.relPath || image.url || image.filename) ? "scale(1.05)" : "scale(1)",
-                        opacity: loaded ? 1 : 0, position: "relative", zIndex: 2,
-                    }}
-                />
+                {(() => {
+                    const isVideo = /\.(mp4|webm)$/i.test(image.filename);
+                    if (isVideo) {
+                        return (
+                            <video
+                                ref={videoRef}
+                                src={image.url}
+                                muted
+                                loop
+                                playsInline
+                                preload="metadata"
+                                style={{
+                                    width: "100%", height: "100%", display: "block", objectFit: "cover",
+                                    transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease-in",
+                                    transform: hoverKey === (image.relPath || image.url || image.filename) ? "scale(1.05)" : "scale(1)",
+                                    opacity: loaded ? 1 : 0, position: "relative", zIndex: 2,
+                                }}
+                                onLoadedData={() => setLoaded(true)}
+                            />
+                        );
+                    }
+                    return (
+                        <img
+                            alt={image.filename}
+                            src={thumbnailWidth > 0 ? `${image.url}?w=${thumbnailWidth}` : image.url}
+                            draggable={false}
+                            loading="lazy"
+                            onLoad={() => setLoaded(true)}
+                            style={{
+                                width: "100%", display: "block",
+                                transition: "transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease-in",
+                                transform: hoverKey === (image.relPath || image.url || image.filename) ? "scale(1.05)" : "scale(1)",
+                                opacity: loaded ? 1 : 0, position: "relative", zIndex: 2,
+                            }}
+                        />
+                    );
+                })()}
             </div>
 
             {!isMobile && (
@@ -108,6 +149,32 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, isMobile, hand
                 </div>
             )}
         </div>
+    );
+};
+
+const ModalVideoPlayer = ({ url, visible }) => {
+    const videoRef = useRef(null);
+
+    useEffect(() => {
+        if (videoRef.current) {
+            if (visible) {
+                videoRef.current.currentTime = 0;
+                videoRef.current.play().catch(() => { });
+            } else {
+                videoRef.current.pause();
+                videoRef.current.currentTime = 0;
+            }
+        }
+    }, [visible]);
+
+    return (
+        <video
+            ref={videoRef}
+            controls
+            autoPlay
+            src={url}
+            style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", boxShadow: "0 20px 50px rgba(0,0,0,0.5)", zIndex: 2, outline: "none" }}
+        />
     );
 };
 
@@ -468,6 +535,7 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
                     content: { padding: 0, background: "#000", boxShadow: "none" },
                     container: { padding: 0 }
                 }}
+                destroyOnClose
                 closeIcon={null}
             >
                 {previewFile && (
@@ -505,7 +573,11 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
 
                             <div style={{ width: "100%", height: "100%", position: "relative", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundImage: `url(${previewFile.url})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(40px) brightness(0.5)", transform: "scale(1.2)", zIndex: 0 }} />
-                                <img alt="preview" style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", boxShadow: "0 20px 50px rgba(0,0,0,0.5)", zIndex: 2 }} src={previewFile.url} />
+                                {/\.(mp4|webm)$/i.test(previewFile.filename) ? (
+                                    <ModalVideoPlayer url={previewFile.url} visible={previewVisible} />
+                                ) : (
+                                    <img alt="preview" style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", boxShadow: "0 20px 50px rgba(0,0,0,0.5)", zIndex: 2 }} src={previewFile.url} />
+                                )}
                             </div>
                         </div>
 

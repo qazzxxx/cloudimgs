@@ -285,6 +285,13 @@ async function generateThumbHash(filePath) {
   try {
     const dir = path.dirname(filePath);
     const filename = path.basename(filePath);
+
+    // Skip video files for thumbhash generation
+    const ext = path.extname(filename).toLowerCase();
+    if (['.mp4', '.webm'].includes(ext)) {
+      return null;
+    }
+
     const cacheDir = path.join(dir, CACHE_DIR_NAME);
     const cacheFile = path.join(cacheDir, `${filename}.th`);
 

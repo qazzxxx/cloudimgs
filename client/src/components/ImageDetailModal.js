@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Modal,
   Button,
@@ -99,6 +99,7 @@ const ImageDetailModal = ({
   const [isEditingDir, setIsEditingDir] = useState(false);
   const [dirValue, setDirValue] = useState("");
   const [renaming, setRenaming] = useState(false);
+  const videoRef = useRef(null);
 
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -233,6 +234,21 @@ const ImageDetailModal = ({
       active = false;
     };
   }, [visible, imageMeta]);
+
+  // Video Playback Control
+  useEffect(() => {
+    if (videoRef.current) {
+      if (visible) {
+        // Optionally reset and play when opened
+        videoRef.current.currentTime = 0;
+        videoRef.current.play().catch(() => { });
+      } else {
+        // Pause and reset when closed
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+      }
+    }
+  }, [visible]);
 
   // Keyboard Navigation
   useEffect(() => {
@@ -529,23 +545,41 @@ const ImageDetailModal = ({
                 zIndex: 0,
               }}
             />
-            <img
-              alt="preview"
-              style={{
-                maxWidth: "100%",
-                maxHeight: "100%",
-                width: "auto",
-                height: "auto",
-                objectFit: "contain",
-                boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-                zIndex: 2,
-                transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-                transition: isDragging ? "none" : "transform 0.1s ease-out", // Smooth zoom, instant drag
-                pointerEvents: "none", // Let container handle events
-              }}
-              src={file.url}
-              draggable={false}
-            />
+            {/\.(mp4|webm)$/i.test(file.filename) ? (
+              <video
+                ref={videoRef}
+                controls
+                autoPlay
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  width: "auto",
+                  height: "auto",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+                  zIndex: 2,
+                  outline: "none",
+                }}
+                src={file.url}
+              />
+            ) : (
+              <img
+                alt="preview"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  width: "auto",
+                  height: "auto",
+                  objectFit: "contain",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+                  zIndex: 2,
+                  transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+                  transition: isDragging ? "none" : "transform 0.1s ease-out", // Smooth zoom, instant drag
+                  pointerEvents: "none", // Let container handle events
+                }}
+                src={file.url}
+                draggable={false}
+              />
+            )}
           </div>
         </div>
 
