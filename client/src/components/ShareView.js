@@ -611,7 +611,34 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
                                                     {previewLocation && (
                                                         <div style={{ gridColumn: 'span 2' }}>
                                                             <div style={{ color: tertiaryTextColor, fontSize: 12, marginBottom: 2 }}>拍摄地点</div>
-                                                            <div style={{ fontSize: 13, color: textColor, display: 'flex', alignItems: 'center', gap: 4 }}><EnvironmentOutlined /> {previewLocation}</div>
+                                                            <div style={{ fontSize: 13, color: textColor, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}><EnvironmentOutlined /> {previewLocation}</div>
+                                                            {previewFile.exif?.latitude && previewFile.exif?.longitude && (
+                                                                <div style={{ position: "relative", height: 150, borderRadius: 8, overflow: "hidden", border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}` }}>
+                                                                    <iframe
+                                                                        width="100%"
+                                                                        height="200"
+                                                                        frameBorder="0"
+                                                                        scrolling="no"
+                                                                        marginHeight="0"
+                                                                        marginWidth="0"
+                                                                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${previewFile.exif.longitude - 0.01}%2C${previewFile.exif.latitude - 0.01}%2C${previewFile.exif.longitude + 0.01}%2C${previewFile.exif.latitude + 0.01}&layer=mapnik&marker=${previewFile.exif.latitude}%2C${previewFile.exif.longitude}`}
+                                                                        style={{ border: 0 }}
+                                                                    />
+                                                                    <div style={{
+                                                                        position: "absolute",
+                                                                        bottom: 0,
+                                                                        right: 0,
+                                                                        background: "rgba(255, 255, 255, 0.7)",
+                                                                        padding: "1px 4px",
+                                                                        fontSize: "9px",
+                                                                        color: "#000",
+                                                                        pointerEvents: "none",
+                                                                        borderTopLeftRadius: 4
+                                                                    }}>
+                                                                        © OSM
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>

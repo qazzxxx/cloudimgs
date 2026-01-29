@@ -837,6 +837,7 @@ const ImageDetailModal = ({
                       >
                         拍摄地点
                       </div>
+
                       <div
                         style={{
                           fontSize: 13,
@@ -844,10 +845,39 @@ const ImageDetailModal = ({
                           display: "flex",
                           alignItems: "center",
                           gap: 4,
+                          marginBottom: 8,
                         }}
                       >
                         <EnvironmentOutlined /> {previewLocation}
                       </div>
+                      {imageMeta && imageMeta.exif && imageMeta.exif.latitude && imageMeta.exif.longitude && (
+                        <div style={{ position: "relative", height: 150, borderRadius: 8, overflow: "hidden", border: `1px solid ${isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)"}` }}>
+                          <iframe
+                            title="map-thumbnail"
+                            width="100%"
+                            height="200"
+                            frameBorder="0"
+                            scrolling="no"
+                            marginHeight="0"
+                            marginWidth="0"
+                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${imageMeta.exif.longitude - 0.01}%2C${imageMeta.exif.latitude - 0.01}%2C${imageMeta.exif.longitude + 0.01}%2C${imageMeta.exif.latitude + 0.01}&layer=mapnik&marker=${imageMeta.exif.latitude}%2C${imageMeta.exif.longitude}`}
+                            style={{ border: 0 }}
+                          />
+                          <div style={{
+                            position: "absolute",
+                            bottom: 0,
+                            right: 0,
+                            background: "rgba(255, 255, 255, 0.7)",
+                            padding: "1px 4px",
+                            fontSize: "9px",
+                            color: "#000",
+                            pointerEvents: "none",
+                            borderTopLeftRadius: 4
+                          }}>
+                            © OSM
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -999,8 +1029,8 @@ const ImageDetailModal = ({
             </Space>
           </div>
         </div>
-      </div>
-    </Modal>
+      </div >
+    </Modal >
   );
 };
 
