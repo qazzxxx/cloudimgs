@@ -38,9 +38,9 @@ const ImageEditModal = ({
       const full =
         raw.length === 3
           ? raw
-              .split("")
-              .map((c) => c + c)
-              .join("")
+            .split("")
+            .map((c) => c + c)
+            .join("")
           : raw;
       if (full.length !== 6) return undefined;
       const r = parseInt(full.slice(0, 2), 16);
@@ -68,15 +68,17 @@ const ImageEditModal = ({
       palette: {
         "accent-primary": primary,
         "accent-primary-active": primary,
+        "bg-primary": token?.colorBgContainer || "#141414",
         "bg-secondary": token?.colorBgContainer || "#141414",
         "bg-stateless": token?.colorFillSecondary || "#1f1f1f",
-        "bg-hover": token?.colorFillSecondary || "#1f1f1f",
+        "bg-hover": token?.colorBgLayout || "#1f1f1f",
         "bg-primary-active": primaryActiveBg,
         "txt-primary": token?.colorText || "rgba(255,255,255,0.85)",
         "txt-secondary": token?.colorTextSecondary || "rgba(255,255,255,0.45)",
         "icon-primary": token?.colorTextSecondary || "rgba(255,255,255,0.65)",
         "borders-secondary": token?.colorBorder || "rgba(255,255,255,0.12)",
         "borders-primary": token?.colorBorder || "rgba(255,255,255,0.12)",
+        "bg-active": token?.colorBgLayout || "#1f1f1f",
         "light-shadow": "rgba(0, 0, 0, 0.6)",
       },
       typography: { fontFamily: "Roboto, Arial" },

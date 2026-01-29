@@ -17,7 +17,7 @@ function App() {
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
+
   // Batch Mode State
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
@@ -31,7 +31,7 @@ function App() {
   const isApiDocs = window.location.pathname === "/opendocs";
   const isMapPage = window.location.pathname === "/map";
   const isShareView = window.location.pathname.startsWith("/share");
-  
+
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
   const isMobile = !screens.md;
@@ -99,18 +99,18 @@ function App() {
 
   const handleBatchDelete = async () => {
     if (selectedItems.size === 0) return;
-    
+
     try {
       const hide = message.loading("正在删除...", 0);
       // Execute deletions in parallel
-      const promises = Array.from(selectedItems).map(relPath => 
+      const promises = Array.from(selectedItems).map(relPath =>
         api.delete(`/images/${encodeURIComponent(relPath)}`)
       );
-      
+
       await Promise.all(promises);
       hide();
       message.success(`成功删除 ${selectedItems.size} 张图片`);
-      
+
       // Reset state
       setSelectedItems(new Set());
       setIsBatchMode(false);
@@ -130,27 +130,27 @@ function App() {
 
   const confirmBatchMove = async () => {
     if (selectedItems.size === 0) return;
-    
+
     setMoving(true);
     try {
-        const res = await api.post("/batch/move", {
-            files: Array.from(selectedItems),
-            targetDir: targetMoveDir
-        });
-        
-        if (res.data.success) {
-            message.success(res.data.message);
-            setMoveModalVisible(false);
-            setSelectedItems(new Set());
-            setIsBatchMode(false);
-            handleRefresh();
-        } else {
-            message.error(res.data.error || "移动失败");
-        }
+      const res = await api.post("/batch/move", {
+        files: Array.from(selectedItems),
+        targetDir: targetMoveDir
+      });
+
+      if (res.data.success) {
+        message.success(res.data.message);
+        setMoveModalVisible(false);
+        setSelectedItems(new Set());
+        setIsBatchMode(false);
+        handleRefresh();
+      } else {
+        message.error(res.data.error || "移动失败");
+      }
     } catch (e) {
-        message.error("移动失败，请重试");
+      message.error("移动失败，请重试");
     } finally {
-        setMoving(false);
+      setMoving(false);
     }
   };
 
@@ -185,6 +185,11 @@ function App() {
       overflow-y: auto !important;
       overscroll-behavior: contain;
     }
+
+    /* Force fix for Filerobot Image Editor Input Background */
+    .SfxInput-root {
+      background-color: ${currentTheme === 'dark' ? '#141414' : '#ffffff'} !important;
+    }
   `;
 
   return (
@@ -202,50 +207,50 @@ function App() {
       {/* Main Content */}
       <div style={{ position: "relative", minHeight: "100vh" }}>
         {isApiDocs ? (
-            <ApiDocs />
+          <ApiDocs />
         ) : isMapPage ? (
-            <MapPage />
+          <MapPage />
         ) : isShareView ? (
-            <ShareView currentTheme={currentTheme} onThemeChange={handleThemeChange} />
+          <ShareView currentTheme={currentTheme} onThemeChange={handleThemeChange} />
         ) : authLoading ? (
-           <div style={{ 
-               display: "flex", 
-               justifyContent: "center", 
-               alignItems: "center", 
-               height: "100vh",
-               flexDirection: "column",
-               gap: 20
-           }}>
-             <LogoWithText />
-             <Spin size="large" />
-           </div>
+          <div style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100vh",
+            flexDirection: "column",
+            gap: 20
+          }}>
+            <LogoWithText />
+            <Spin size="large" />
+          </div>
         ) : (
           <>
             {/* Waterfall Gallery */}
             {/* Only render gallery if authenticated or if no password required, 
                 OR render it but it might be empty if API blocks it. 
                 We'll render it but PasswordOverlay will cover it. */}
-             <ImageGallery 
-                api={api} 
-                onRefresh={handleRefresh}
-                refreshTrigger={refreshTrigger}
-                isAuthenticated={!passwordRequired || isAuthenticated}
-                isBatchMode={isBatchMode}
-                selectedItems={selectedItems}
-                onSelectionChange={handleSelectionChange}
-             />
+            <ImageGallery
+              api={api}
+              onRefresh={handleRefresh}
+              refreshTrigger={refreshTrigger}
+              isAuthenticated={!passwordRequired || isAuthenticated}
+              isBatchMode={isBatchMode}
+              selectedItems={selectedItems}
+              onSelectionChange={handleSelectionChange}
+            />
 
             {/* Password Overlay */}
             {passwordRequired && !isAuthenticated && (
-              <PasswordOverlay 
-                onLoginSuccess={handleLoginSuccess} 
+              <PasswordOverlay
+                onLoginSuccess={handleLoginSuccess}
                 isMobile={isMobile}
               />
             )}
 
             {/* Floating Toolbar - Only show when authenticated */}
             {(!passwordRequired || isAuthenticated) && (
-              <FloatingToolbar 
+              <FloatingToolbar
                 onThemeChange={handleThemeChange}
                 currentTheme={currentTheme}
                 onRefresh={handleRefresh}
@@ -261,25 +266,25 @@ function App() {
 
             {/* Batch Move Modal */}
             <Modal
-                open={moveModalVisible}
-                title="移动到..."
-                onCancel={() => setMoveModalVisible(false)}
-                onOk={confirmBatchMove}
-                confirmLoading={moving}
-                okText="确认移动"
-                cancelText="取消"
-                destroyOnClose
+              open={moveModalVisible}
+              title="移动到..."
+              onCancel={() => setMoveModalVisible(false)}
+              onOk={confirmBatchMove}
+              confirmLoading={moving}
+              okText="确认移动"
+              cancelText="取消"
+              destroyOnClose
             >
-                <div style={{ padding: "20px 0" }}>
-                    <p style={{ marginBottom: 12 }}>将选中的 {selectedItems.size} 张图片移动到：</p>
-                    <DirectorySelector 
-                        value={targetMoveDir}
-                        onChange={setTargetMoveDir}
-                        api={api}
-                        allowInput={true}
-                        placeholder="选择或输入目标相册"
-                    />
-                </div>
+              <div style={{ padding: "20px 0" }}>
+                <p style={{ marginBottom: 12 }}>将选中的 {selectedItems.size} 张图片移动到：</p>
+                <DirectorySelector
+                  value={targetMoveDir}
+                  onChange={setTargetMoveDir}
+                  api={api}
+                  allowInput={true}
+                  placeholder="选择或输入目标相册"
+                />
+              </div>
             </Modal>
           </>
         )}
