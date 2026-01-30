@@ -25,7 +25,7 @@ module.exports = {
     // 文件大小限制（字节）
     maxFileSize: process.env.MAX_FILE_SIZE
       ? parseInt(process.env.MAX_FILE_SIZE)
-      : 10 * 1024 * 1024, // 10MB
+      : 100 * 1024 * 1024, // 100MB
 
     // 是否允许重复文件名
     allowDuplicateNames: process.env.ALLOW_DUPLICATE_NAMES === "true",

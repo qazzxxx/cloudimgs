@@ -95,7 +95,7 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - STORAGE_PATH=/app/uploads
-      # - MAX_FILE_SIZE=10485760 # 最大文件大小，默认 10MB
+      # - MAX_FILE_SIZE=104857600 # 最大文件大小，默认 100MB
       # - THUMBNAIL_WIDTH=0 # 瀑布流缩略图宽度（像素），默认 0 表示使用原图
       # 密码保护配置（可选）
       # - PASSWORD=your_secure_password_here
