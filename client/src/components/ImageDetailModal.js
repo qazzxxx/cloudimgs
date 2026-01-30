@@ -10,6 +10,7 @@ import {
   Popconfirm,
   theme,
   Grid,
+  Spin,
 } from "antd";
 import {
   LeftOutlined,
@@ -93,6 +94,7 @@ const ImageDetailModal = ({
     colorBgContainer === "#1f1f1f";
 
   const [imageMeta, setImageMeta] = useState(null);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [previewLocation, setPreviewLocation] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
   const [renameValue, setRenameValue] = useState("");
@@ -111,6 +113,7 @@ const ImageDetailModal = ({
     if (file) {
       setZoom(1);
       setPosition({ x: 0, y: 0 });
+      setImgLoaded(false);
       // ... existing reset logic
       setImageMeta(null);
       setPreviewLocation("");
@@ -562,23 +565,41 @@ const ImageDetailModal = ({
                 src={file.url}
               />
             ) : (
-              <img
-                alt="preview"
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  width: "auto",
-                  height: "auto",
-                  objectFit: "contain",
-                  boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-                  zIndex: 2,
-                  transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-                  transition: isDragging ? "none" : "transform 0.1s ease-out", // Smooth zoom, instant drag
-                  pointerEvents: "none", // Let container handle events
-                }}
-                src={file.url}
-                draggable={false}
-              />
+              <>
+                {!imgLoaded && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      zIndex: 3,
+                    }}
+                  >
+                    <Spin size="large" />
+                  </div>
+                )}
+                <img
+                  key={file.url}
+                  alt="preview"
+                  onLoad={() => setImgLoaded(true)}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    width: "auto",
+                    height: "auto",
+                    objectFit: "contain",
+                    boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+                    zIndex: 2,
+                    transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+                    transition: isDragging ? "none" : "transform 0.1s ease-out", // Smooth zoom, instant drag
+                    pointerEvents: "none", // Let container handle events
+                    opacity: imgLoaded ? 1 : 0,
+                  }}
+                  src={file.url}
+                  draggable={false}
+                />
+              </>
             )}
           </div>
         </div>

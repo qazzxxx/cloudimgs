@@ -213,6 +213,7 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
     const [previewIndex, setPreviewIndex] = useState(-1);
     const [previewFile, setPreviewFile] = useState(null);
     const [previewLocation, setPreviewLocation] = useState("");
+    const [imgLoaded, setImgLoaded] = useState(false);
 
     const { token: themeToken } = theme.useToken();
     const { colorBgContainer, colorText, colorTextSecondary } = themeToken;
@@ -327,6 +328,7 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
         setPreviewFile(file);
         setPreviewVisible(true);
         setPreviewLocation(""); // Reset location
+        setImgLoaded(false);
     }, [images]);
 
     const showNext = React.useCallback(() => {
@@ -576,7 +578,24 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
                                 {/\.(mp4|webm)$/i.test(previewFile.filename) ? (
                                     <ModalVideoPlayer url={previewFile.url} visible={previewVisible} />
                                 ) : (
-                                    <img alt="preview" style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", boxShadow: "0 20px 50px rgba(0,0,0,0.5)", zIndex: 2 }} src={previewFile.url} />
+                                    <>
+                                        {!imgLoaded && (
+                                            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 3 }}>
+                                                <Spin size="large" />
+                                            </div>
+                                        )}
+                                        <img
+                                            key={previewFile.url}
+                                            alt="preview"
+                                            onLoad={() => setImgLoaded(true)}
+                                            style={{
+                                                maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain",
+                                                boxShadow: "0 20px 50px rgba(0,0,0,0.5)", zIndex: 2,
+                                                opacity: imgLoaded ? 1 : 0, transition: "opacity 0.3s ease"
+                                            }}
+                                            src={previewFile.url}
+                                        />
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -666,9 +685,10 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
                             );
                         })()}
                     </div>
-                )}
-            </Modal>
-        </div>
+                )
+                }
+            </Modal >
+        </div >
     );
 };
 
