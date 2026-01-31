@@ -29,6 +29,7 @@ import {
   CheckOutlined,
   CloseOutlined,
   AreaChartOutlined,
+  ThunderboltOutlined,
 } from "@ant-design/icons";
 import { thumbHashToDataURL } from "thumbhash";
 import DirectorySelector from "./DirectorySelector";
@@ -474,15 +475,26 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [pendingDir, setPendingDir] = useState(null); // The directory that required password
 
   // Thumbnail width from config (0 = use original)
+  // Thumbnail width from config (0 = use original)
   const [thumbnailWidth, setThumbnailWidth] = useState(0);
+
+  // Magic Search
+  const [magicSearch, setMagicSearch] = useState(false);
+  const [magicSearchAvailable, setMagicSearchAvailable] = useState(false);
 
   // Fetch config to get thumbnailWidth
   useEffect(() => {
     const fetchConfig = async () => {
       try {
         const response = await api.get("/config");
-        if (response.data.success && response.data.data?.upload?.thumbnailWidth) {
-          setThumbnailWidth(response.data.data.upload.thumbnailWidth);
+        if (response.data.success) {
+          if (response.data.data?.upload?.thumbnailWidth) {
+            setThumbnailWidth(response.data.data.upload.thumbnailWidth);
+          }
+          if (response.data.data?.magicSearch?.enabled) {
+            setMagicSearchAvailable(true);
+            setMagicSearch(true); // Default to enabled
+          }
         }
       } catch (error) {
         console.warn("获取配置失败:", error);
@@ -978,6 +990,26 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         ...(targetSearch && { search: targetSearch }),
         ...(targetDir && { dir: targetDir }),
       };
+
+      // Magic Search Branch
+      if (magicSearchAvailable && magicSearch && targetSearch && !targetDir) {
+        // Only allow global search for now, or filter by dir in backend? 
+        // Backend implementation of 'search' currently searches ALL vectors.
+        // If we want to support directory filter, we need to update searchRoutes/ClipService.
+        // For now, let's assume global search.
+        if (append) {
+          setLoadingMore(false);
+          return; // No pagination for magic search yet
+        }
+
+        const searchRes = await api.post("/search/semantic", { query: targetSearch, limit: 50 });
+        if (searchRes.data.success) {
+          setImages(searchRes.data.data);
+          setPagination({ current: 1, pageSize: 50, total: searchRes.data.data.length, totalPages: 1 });
+          setHasMore(false);
+          return;
+        }
+      }
 
       const headers = {};
       if (targetDir && albumPasswords[targetDir]) {
@@ -1823,8 +1855,28 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           />
           <div style={{ width: 200, transition: "width 0.3s ease" }}>
             <Input
-              placeholder="拖拽图片到页面即可上传..."
-              prefix={<SearchOutlined style={{ color: capsuleStyle.iconColor }} />}
+              placeholder={magicSearch ? "描述图片内容..." : "拖拽图片到页面即可上传..."}
+              prefix={
+                magicSearchAvailable ? (
+                  <div
+                    onClick={() => {
+                      setMagicSearch(!magicSearch);
+                      // If clearing, maybe trigger refresh?
+                      // Let existing effects handle it (searchText dependency)
+                    }}
+                    style={{ cursor: 'pointer', marginRight: 4, display: 'flex' }}
+                    title="Magic Search"
+                  >
+                    <ThunderboltOutlined style={{
+                      color: magicSearch ? '#faad14' : capsuleStyle.iconColor,
+                      fontSize: 16,
+                      transition: 'color 0.3s'
+                    }} />
+                  </div>
+                ) : (
+                  <SearchOutlined style={{ color: capsuleStyle.iconColor }} />
+                )
+              }
               bordered={false}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}

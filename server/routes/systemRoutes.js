@@ -30,6 +30,9 @@ router.get('/config', (req, res) => {
             },
             storage: {
                 filename: config.storage.filename
+            },
+            magicSearch: {
+                enabled: config.magicSearch.enabled
             }
         }
     });

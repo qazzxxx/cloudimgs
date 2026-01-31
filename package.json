@@ -20,6 +20,7 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
     "axios": "^1.10.0",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.5",
@@ -33,6 +34,7 @@
     "music-metadata": "^7.14.0",
     "path": "^0.12.7",
     "sharp": "^0.34.2",
+    "sqlite-vec": "^0.1.7-alpha.2",
     "thumbhash": "^0.1.1",
     "uuid": "^9.0.1"
   },

@@ -7,6 +7,7 @@ const { requirePassword } = require('../middleware/auth');
 const { saveBase64Image, safeJoin, sanitizeFilename, generateThumbHash } = require('../utils/fileUtils');
 const imageRepository = require('../db/imageRepository');
 const { getFileMetadata, parseAudioDuration } = require('../services/metadataService');
+const clipService = require('../services/clipService'); // 引入 ClipService
 
 const router = express.Router();
 const STORAGE_PATH = config.storage.path;
@@ -44,13 +45,41 @@ router.post('/upload-base64', requirePassword, async (req, res) => {
 
         // 确保文件名在 DB 对象中设置（getFileMetadata 返回带有 size, mtime 等的对象）
         // imageRepository 期望：filename, rel_path, ...metadata
-        imageRepository.add({
+        const dbResult = imageRepository.add({
             filename: sanitizeFilename(originalName),
             rel_path: relPath,
             ...metadata
         });
 
-        // Record Upload Stats
+        // 添加到魔法搜图队列
+        try {
+            let imageId = dbResult.lastInsertRowid;
+            if (!imageId || imageId.toString() === '0') {
+                const existing = imageRepository.getByPath(relPath);
+                if (existing) imageId = existing.id;
+            }
+            if (imageId) {
+                clipService.addToQueue({ id: imageId, rel_path, filename: fileInfo.filename });
+            }
+        } catch (queueErr) {
+            console.error("Queue error:", queueErr);
+        }
+
+        // 添加到魔法搜图队列
+        try {
+            let imageId = dbResult.lastInsertRowid;
+            if (!imageId || imageId.toString() === '0') {
+                const existing = imageRepository.getByPath(relPath);
+                if (existing) imageId = existing.id;
+            }
+            if (imageId) {
+                clipService.addToQueue({ id: imageId, rel_path, filename: fileInfo.filename });
+            }
+        } catch (queueErr) {
+            console.error("Queue error:", queueErr);
+        }
+
+        // 记录上传统计信息
         imageRepository.recordUpload(size);
 
         res.json({
@@ -98,13 +127,27 @@ router.post('/upload', requirePassword, upload.any(), handleMulterError, async (
             try { originalName = Buffer.from(originalName, "latin1").toString("utf8"); } catch (e) { }
         }
 
-        imageRepository.add({
+        const dbResult = imageRepository.add({
             filename: req.file.filename, // 这是磁盘上的保存文件名
             rel_path: relPath,
             ...metadata
         });
 
-        // Record Upload Stats
+        // 添加到魔法搜图队列
+        try {
+            let imageId = dbResult.lastInsertRowid;
+            if (!imageId || imageId.toString() === '0') {
+                const existing = imageRepository.getByPath(relPath);
+                if (existing) imageId = existing.id;
+            }
+            if (imageId) {
+                clipService.addToQueue({ id: imageId, rel_path: relPath, filename: req.file.filename }, 'high');
+            }
+        } catch (queueErr) {
+            console.error("Queue error:", queueErr);
+        }
+
+        // 记录上传统计信息
         imageRepository.recordUpload(req.file.size);
 
         res.json({
@@ -165,23 +208,23 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
         let dir = req.body.dir || req.query.dir || "";
         dir = dir.replace(/\\/g, "/");
 
-        // ... (Renaming logic from original index.js) ...
-        // I will implement the renaming logic here or just rely on multer?
-        // Multer handled basic naming. `upload-file` had custom "manual rename" logic.
-        // I need to port that logic manually.
+        // ... (来自原始 index.js 的重命名逻辑) ...
+        // 我将在此处实现重命名逻辑，还是仅依赖 multer？
+        // Multer 处理了基本命名。`upload-file` 具有自定义的“手动重命名”逻辑。
+        // 我需要手动移植该逻辑。
 
         const customFilename = req.body.filename || req.query.filename;
         let finalFilename = req.file.filename;
         let displayName = req.file.originalname;
 
         if (customFilename) {
-            // Logic for renaming...
+            // 重命名逻辑...
             const safeCustom = sanitizeFilename(customFilename);
             const targetDir = safeJoin(STORAGE_PATH, dir);
             const oldPath = req.file.path;
             let newPath = path.join(targetDir, safeCustom);
 
-            // Duplicate check
+            // 重复检查
             let counter = 1;
             const ext = path.extname(safeCustom);
             const nameBase = path.basename(safeCustom, ext);
@@ -206,11 +249,11 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
         const relPath = path.join(dir, finalFilename).replace(/\\/g, "/");
         const filePath = safeJoin(STORAGE_PATH, relPath);
 
-        // Check if we should index it
+        // 检查我们是否应该索引它
         const ext = path.extname(finalFilename).toLowerCase();
-        // Only index if it matches allowable extensions for the "Image List"
-        // If the user uploads a generic file that isn't 'allowed' for images, we just leave it on disk
-        // but don't add to DB.
+        // 仅在匹配“图片列表”的允许扩展名时索引
+        // 如果用户上传了允许图片之外的通用文件，我们将其保留在磁盘上
+        // 但不添加到 DB。
         if (config.upload.allowedExtensions.includes(ext)) {
             const metadata = await getFileMetadata(filePath, relPath);
             imageRepository.add({
@@ -220,17 +263,17 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
             });
         }
 
-        // Duration logic
+        // 时长逻辑
         let duration = null;
         if (req.file.mimetype === 'audio/mpeg' || (customFilename && customFilename.toLowerCase().endsWith('.mp3'))) {
             try {
-                // We can use the logic from metadataService!
+                // 我们可以使用 metadataService 中的逻辑！
                 const d = await parseAudioDuration(filePath);
                 if (d) duration = parseFloat((Math.ceil(d * 1000) / 1000).toFixed(2));
             } catch (e) { }
         }
 
-        // Record Upload Stats
+        // 记录上传统计信息
         imageRepository.recordUpload(req.file.size);
 
         res.json({

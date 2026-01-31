@@ -4,13 +4,14 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs-extra");
 const config = require("../config"); // config.js is in root usually? checking old index.js: require("../config")
-// Wait, index.js is in server/, so ../config is in root. Correct.
+// 等等，index.js 在 server/ 中，所以 ../config 在根目录。正确。
 
 const uploadRoutes = require("./routes/uploadRoutes");
 const imageRoutes = require("./routes/imageRoutes");
 const manageRoutes = require("./routes/manageRoutes");
 const systemRoutes = require("./routes/systemRoutes");
 const statsRoutes = require("./routes/statsRoutes");
+const searchRoutes = require("./routes/searchRoutes");
 const shareRoutes = require("./routes/shareRoutes");
 const { migrateFromLegacyJson, syncFileSystem } = require("./services/syncService");
 
@@ -32,6 +33,9 @@ app.use("/api", systemRoutes);
 // 流量统计
 app.use("/api/stats", statsRoutes);
 
+// 魔法搜图
+app.use("/api/search", searchRoutes);
+
 // 上传
 app.use("/api", uploadRoutes); // /upload, /upload-base64
 
@@ -50,6 +54,13 @@ app.use("/api", imageRoutes); // /images, /images/*, /files/*
     console.log("Initializing database...");
     await migrateFromLegacyJson();
     await syncFileSystem();
+
+    if (config.magicSearch.enabled) {
+      // 触发后台扫描任何丢失的嵌入 (低优先级)
+      // 这里没有 await，以便让服务器立即启动
+      const clipService = require('./services/clipService');
+      clipService.scanAll().catch(e => console.error("Background scan failed:", e));
+    }
   } catch (e) {
     console.error("Initialization failed:", e);
   }

@@ -9,6 +9,17 @@ fs.ensureDirSync(path.dirname(dbPath));
 
 const db = new Database(dbPath, { verbose: process.env.NODE_ENV === 'development' ? console.log : null });
 
+// Load sqlite-vec extension if Magic Search is enabled
+if (config.magicSearch.enabled) {
+  try {
+    const sqliteVec = require('sqlite-vec');
+    db.loadExtension(sqliteVec.getLoadablePath());
+    console.log("sqlite-vec extension loaded successfully");
+  } catch (err) {
+    console.error("Failed to load sqlite-vec extension:", err);
+  }
+}
+
 // 初始化 Schema
 function init() {
   db.exec(`
@@ -50,6 +61,15 @@ function init() {
         views_size INTEGER DEFAULT 0
     );
   `);
+
+  if (config.magicSearch.enabled) {
+    db.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS vec_images USING vec0(
+        image_id INTEGER PRIMARY KEY,
+        embedding float[512]
+      );
+    `);
+  }
 
   // Migration for existing tables
   try {

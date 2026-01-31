@@ -44,46 +44,45 @@ async function getFileMetadata(filePath, relPath, existingStat = null) {
     let metaJson = {};
     let duration = null;
 
-    // 图片元数据 (Sharp for reliable stats + Exifr for details)
+    // 图片元数据 (Sharp 用于获取可靠的统计信息 + Exifr 用于获取详细信息)
     const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif', '.heif', '.heic', '.avif', '.gif', '.svg'];
 
     if (IMAGE_EXTS.includes(ext)) {
-        // 1. Sharp Extraction (Reliable Dimensions & Space)
+        // 1. Sharp 提取 (可靠的尺寸和空间信息)
         try {
             const sharpMeta = await sharp(filePath).metadata();
             width = sharpMeta.width;
             height = sharpMeta.height;
-            metaJson.space = sharpMeta.space; // srgb, cmyk, etc.
+            metaJson.space = sharpMeta.space; // srgb, cmyk, 等
             metaJson.channels = sharpMeta.channels;
             metaJson.density = sharpMeta.density;
             metaJson.format = sharpMeta.format;
             metaJson.hasAlpha = sharpMeta.hasAlpha;
-            orientation = sharpMeta.orientation; // Sharp usually normalizes, but let's keep it
+            orientation = sharpMeta.orientation; // Sharp 通常会标准化，但我们保留它
         } catch (e) {
             // console.log("Sharp metadata failed:", e.message);
         }
 
-        // 2. EXIF Extraction (Photo Details)
-        // Only for formats that typically support EXIF
+        // 2. EXIF 提取 (照片详细信息)
+        // 仅适用于通常支持 EXIF 的格式
         if (['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.heif', '.heic'].includes(ext)) {
             const exif = await parseImageMetadata(filePath);
             if (exif) {
                 metaJson.exif = {};
 
-                // GPS
                 if (exif.latitude && exif.longitude) {
                     metaJson.gps = { lat: exif.latitude, lng: exif.longitude };
                     metaJson.exif.latitude = exif.latitude;
                     metaJson.exif.longitude = exif.longitude;
                 }
 
-                // Date
+                // 日期
                 if (exif.DateTimeOriginal || exif.CreateDate) {
                     metaJson.date = exif.DateTimeOriginal || exif.CreateDate;
                     metaJson.exif.dateTimeOriginal = metaJson.date;
                 }
 
-                // Camera Specs
+                // 相机规格
                 if (exif.Make) metaJson.exif.make = exif.Make;
                 if (exif.Model) metaJson.exif.model = exif.Model;
                 if (exif.LensModel) metaJson.exif.lensModel = exif.LensModel;
@@ -91,7 +90,7 @@ async function getFileMetadata(filePath, relPath, existingStat = null) {
                 if (exif.ExposureTime) metaJson.exif.exposureTime = exif.ExposureTime;
                 if (exif.ISO) metaJson.exif.iso = exif.ISO;
 
-                // If sharp failed, fallback to exif dimensions
+                // 如果 sharp 失败，回退到 exif 尺寸
                 if (!width && exif.ExifImageWidth) width = exif.ExifImageWidth;
                 if (!height && exif.ExifImageHeight) height = exif.ExifImageHeight;
                 if (!orientation && exif.Orientation) orientation = exif.Orientation;
@@ -114,10 +113,17 @@ async function getFileMetadata(filePath, relPath, existingStat = null) {
         } catch (e) { }
     }
 
+    // 优先使用 EXIF 日期作为 upload_time (用户请求: 智能日期提取)
+    // 如果我们有实际的照片拍摄日期，请使用它而不是文件创建时间 (复制/移动时会重置)
+    let uploadTime = stat.birthtime;
+    if (metaJson.date) {
+        uploadTime = metaJson.date;
+    }
+
     return {
         size: stat.size,
         mtime: stat.mtime.getTime(),
-        upload_time: stat.birthtime.toISOString(),
+        upload_time: uploadTime instanceof Date ? uploadTime.toISOString() : new Date(uploadTime).toISOString(),
         width,
         height,
         orientation,

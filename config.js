@@ -90,4 +90,11 @@ module.exports = {
       enabled: !!process.env.PASSWORD,
     },
   },
+
+  // 魔法搜图配置
+  magicSearch: {
+    enabled: process.env.ENABLE_MAGIC_SEARCH === "true",
+    modelName: "Xenova/clip-vit-base-patch32", // @huggingface/transformers 默认量化
+    concurrency: 1, // N100 优化：严格串行处理
+  },
 };
