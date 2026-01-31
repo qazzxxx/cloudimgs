@@ -106,20 +106,34 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
   const fetchAlbums = React.useCallback(async (abortSignal) => {
     setLoading(true);
     try {
-      const res = await api.get("/directories", { signal: abortSignal });
-      if (res.data.success) {
-        const allAlbums = res.data.data || [];
+      const [dirRes, imgRes] = await Promise.all([
+        api.get("/directories", { signal: abortSignal }),
+        api.get("/images?pageSize=3", { signal: abortSignal }) // Fetch latest 3 images globally
+      ]);
+
+      if (dirRes.data.success) {
+        const allAlbums = dirRes.data.data || [];
+
+        // Use the actual global latest images for the "All Images" cover
+        // Fallback to empty if image fetch failed (though Promise.all would fail commonly, but we can handle it)
+        const globalPreviews = imgRes.data?.success
+          ? imgRes.data.data.map(img => img.url)
+          : [];
+
         const allImagesAlbum = {
           name: "全部图片",
           path: "",
-          previews: allAlbums.flatMap(a => a.previews || []).slice(0, 3),
+          previews: globalPreviews,
           mtime: new Date().toISOString(),
           isSystem: true
         };
 
-        // Combine: [All Images, ...Real Albums]
-        // Wait, user said: "全部图片 相册固定放在新建相册后面"
-        // So order: [New Album Card (UI), All Images, ...Real Albums]
+        // Order: [All Images, ...Real Albums]
+        // The "New Album" is rendered separately in the grid as the first item visually if we want,
+        // or we just prepend it here?
+        // In the render method: {albums.map...} matches `albums`.
+        // The render method ALSO renders a static "New Album" div BEFORE mapping albums.
+        // So `albums` should start with "All Images".
         setAlbums([allImagesAlbum, ...allAlbums]);
       }
     } catch (e) {
@@ -127,6 +141,7 @@ const AlbumManager = ({ visible, onClose, api, onSelectAlbum }) => {
       if (e.name === 'AbortError' || e.name === 'CanceledError') {
         return;
       }
+      console.error(e);
       message.error("获取相册列表失败");
     } finally {
       setLoading(false);

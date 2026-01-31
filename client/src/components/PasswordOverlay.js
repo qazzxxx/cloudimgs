@@ -14,7 +14,7 @@ const PasswordOverlay = ({ onLoginSuccess, isMobile }) => {
     setLoading(true);
     try {
       setPassword(values.password);
-      await api.post("/auth/verify", { password: values.password });
+      await api.post("/auth/login", { password: values.password });
       onLoginSuccess();
     } catch (error) {
       console.error("验证失败:", error);
@@ -97,7 +97,7 @@ const PasswordOverlay = ({ onLoginSuccess, isMobile }) => {
             }}
           />
         </div>
-        
+
         <Title level={3} style={{ color: "#fff", marginBottom: 8, marginTop: 0 }}>
           云图 - 云端一隅，拾光深藏
         </Title>

@@ -55,12 +55,12 @@ function App() {
         const response = await api.get("/auth/status");
         const data = response.data;
 
-        if (data.requiresPassword) {
+        if (data.data?.enabled || data.requiresPassword) {
           setPasswordRequired(true);
           const savedPassword = getPassword();
           if (savedPassword) {
             try {
-              await api.post("/auth/verify", { password: savedPassword });
+              await api.post("/auth/login", { password: savedPassword });
               setIsAuthenticated(true);
             } catch (e) {
               clearPassword();
@@ -139,7 +139,7 @@ function App() {
       });
 
       if (res.data.success) {
-        message.success(res.data.message);
+        message.success(res.data.message || "移动成功");
         setMoveModalVisible(false);
         setSelectedItems(new Set());
         setIsBatchMode(false);

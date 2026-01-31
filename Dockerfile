@@ -75,6 +75,9 @@ RUN cd client && \
     echo "=== Running build command ===" && \
     CI=false npm run build || (echo "Build failed with exit code $?" && echo "=== Build error details ===" && cat npm-debug.log* 2>/dev/null || echo "No npm debug log found" && exit 1)
 
+# 清理开发依赖（优化镜像大小）
+RUN npm prune --production
+
 # 验证构建结果
 RUN echo "=== Build Result ===" && \
     ls -la client/build/ && \

@@ -48,6 +48,9 @@ RUN cd client && \
     echo "=== Starting build ===" && \
     npm run build
 
+# 清理开发依赖（优化镜像大小）
+RUN npm prune --production
+
 # 验证构建结果
 RUN echo "=== Build verification ===" && \
     ls -la client/build/ && \

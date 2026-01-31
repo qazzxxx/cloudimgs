@@ -46,7 +46,7 @@ const mockAdapter = async (config) => {
       // Auth Status
       if (cleanUrl === "/auth/status" && method === "get") {
         resolve({
-          data: { requiresPassword: true },
+          data: { success: true, data: { enabled: true } },
           status: 200,
           statusText: "OK",
           headers: {},
@@ -56,7 +56,7 @@ const mockAdapter = async (config) => {
       }
 
       // Auth Verify
-      if (cleanUrl === "/auth/verify" && method === "post") {
+      if (cleanUrl === "/auth/login" && method === "post") {
         const body = JSON.parse(data);
         if (body.password === "123456") {
           resolve({
@@ -142,6 +142,18 @@ const mockAdapter = async (config) => {
               { name: "mock-dir-2", path: "mock-dir-2", fullPath: "mock-dir-2", previews, imageCount: 5, mtime: new Date() },
             ],
           },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // Create Directory
+      if (cleanUrl.split("?")[0] === "/directories" && method === "post") {
+        resolve({
+          data: { success: true, message: "Directory created (mock)" },
           status: 200,
           statusText: "OK",
           headers: {},

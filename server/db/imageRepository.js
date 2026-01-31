@@ -1,0 +1,60 @@
+const db = require('./database');
+
+const insertImage = db.prepare(`
+  INSERT INTO images (filename, rel_path, size, mtime, upload_time, width, height, orientation, thumbhash, meta_json)
+  VALUES (@filename, @rel_path, @size, @mtime, @upload_time, @width, @height, @orientation, @thumbhash, @meta_json)
+`);
+
+const updateImage = db.prepare(`
+  UPDATE images 
+  SET filename = @filename, size = @size, mtime = @mtime, upload_time = @upload_time, 
+      width = @width, height = @height, orientation = @orientation, thumbhash = @thumbhash, meta_json = @meta_json
+  WHERE rel_path = @rel_path
+`);
+
+const getImageByPath = db.prepare('SELECT * FROM images WHERE rel_path = ?');
+const getAllImagesQuery = db.prepare('SELECT * FROM images ORDER BY upload_time DESC');
+const deleteImageByPath = db.prepare('DELETE FROM images WHERE rel_path = ?');
+const countImages = db.prepare('SELECT COUNT(*) as count FROM images');
+const getImagesByDir = db.prepare("SELECT * FROM images WHERE rel_path LIKE ? || '/%' ORDER BY upload_time DESC");
+const getPreviewsQuery = db.prepare("SELECT * FROM images WHERE rel_path LIKE ? || '/%' ORDER BY upload_time DESC LIMIT ?");
+const countImagesByDirQuery = db.prepare("SELECT COUNT(*) as count FROM images WHERE rel_path LIKE ? || '/%'");
+
+// 批量操作
+const insertMany = db.transaction((images) => {
+    for (const img of images) insertImage.run(img);
+});
+
+module.exports = {
+    add: (image) => {
+        try {
+            return insertImage.run(image);
+        } catch (e) {
+            if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+                // 如果已存在，尝试更新
+                // 目前仅记录日志或重新抛出，或者可以使用 INSERT OR REPLACE
+                console.warn(`Image ${image.relPath} already exists in DB. Attempting update.`);
+                return updateImage.run(image);
+            }
+            throw e;
+        }
+    },
+    update: (image) => updateImage.run(image),
+    getByPath: (relPath) => getImageByPath.get(relPath),
+    getAll: () => getAllImagesQuery.all(),
+    delete: (relPath) => deleteImageByPath.run(relPath),
+    count: () => countImages.get().count,
+    getByDir: (dir) => {
+        // 处理根目录特殊情况，通常 dir 为空字符串表示根
+        // 如果 dir 为空，返回所有？还是仅根目录项？
+        // getAllImagesQuery 返回所有
+        // 如果提供了 dir，使用 LIKE 匹配
+        if (!dir) return getAllImagesQuery.all();
+        return getImagesByDir.all(dir);
+    },
+    getPreviews: (dir, limit = 3) => getPreviewsQuery.all(dir, limit),
+    countByDir: (dir) => countImagesByDirQuery.get(dir).count,
+    insertMany,
+    // 事务辅助函数
+    transaction: (fn) => db.transaction(fn),
+};

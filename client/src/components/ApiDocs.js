@@ -1,12 +1,13 @@
 import React from 'react';
 import { Typography, Card, Collapse, Tag, Divider, theme, Button, message, Tooltip } from 'antd';
 import {
-  FileImageOutlined, 
-  FolderOutlined, 
+  FileImageOutlined,
+  FolderOutlined,
   InfoCircleOutlined,
   CopyOutlined,
   CodeOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  LockOutlined
 } from '@ant-design/icons';
 import { getPassword } from "../utils/secureStorage";
 
@@ -68,49 +69,49 @@ const ApiDocs = () => {
     let cmd = `curl -X ${method} "${fullUrl}"${pwdHeader}${albumPwdHeader}`;
 
     if (method === 'POST') {
-        if (options.isMultipart) {
-             cmd += ` \\\n  -F "${options.fileParam || 'image'}=@/path/to/file"`;
-             if (options.extraParams) {
-                 options.extraParams.forEach(p => {
-                     cmd += ` \\\n  -F "${p.key}=${p.value}"`;
-                 });
-             }
-        } else if (options.isJson) {
-            cmd += ` \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(options.body)}'`;
+      if (options.isMultipart) {
+        cmd += ` \\\n  -F "${options.fileParam || 'image'}=@/path/to/file"`;
+        if (options.extraParams) {
+          options.extraParams.forEach(p => {
+            cmd += ` \\\n  -F "${p.key}=${p.value}"`;
+          });
         }
+      } else if (options.isJson) {
+        cmd += ` \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(options.body)}'`;
+      }
     }
-    
+
     return cmd;
   };
 
   const CurlButton = ({ endpoint, method, options }) => (
-      <Tooltip title="复制 CURL 命令">
-        <Button 
-            size="small" 
-            icon={<CopyOutlined />} 
-            onClick={(e) => {
-                e.stopPropagation();
-                copyText(buildCurl(endpoint, method, options));
-            }}
-        >
-            CURL
-        </Button>
-      </Tooltip>
+    <Tooltip title="复制 CURL 命令">
+      <Button
+        size="small"
+        icon={<CopyOutlined />}
+        onClick={(e) => {
+          e.stopPropagation();
+          copyText(buildCurl(endpoint, method, options));
+        }}
+      >
+        CURL
+      </Button>
+    </Tooltip>
   );
 
   return (
     <div style={containerStyle}>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <Title level={1} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <img 
-            src="/favicon.svg" 
-            alt="Logo" 
-            style={{ 
-                width: 48, 
-                height: 48, 
-                objectFit: 'contain',
-                filter: theme.useToken().token.colorBgContainer === '#141414' ? 'brightness(1.2)' : 'none'
-            }} 
+          <img
+            src="/favicon.svg"
+            alt="Logo"
+            style={{
+              width: 48,
+              height: 48,
+              objectFit: 'contain',
+              filter: theme.useToken().token.colorBgContainer === '#141414' ? 'brightness(1.2)' : 'none'
+            }}
           />
           云图 - 开放接口文档
         </Title>
@@ -118,17 +119,58 @@ const ApiDocs = () => {
           云图提供了一系列 RESTful API，方便您进行图片的上传、管理与检索。
         </Paragraph>
         {savedPassword && (
-            <Tag color="success" icon={<CodeOutlined />}>
-                已自动在 CURL 示例中包含您的访问密码
-            </Tag>
+          <Tag color="success" icon={<CodeOutlined />}>
+            已自动在 CURL 示例中包含您的访问密码
+          </Tag>
         )}
       </div>
 
       <Collapse defaultActiveKey={['1', '2', '3']} size="large">
-        <Panel 
-            header={<div style={{ fontWeight: 600, fontSize: 16 }}>图片管理 (Images)</div>} 
-            key="1"
-            extra={<FileImageOutlined />}
+        <Panel
+          header={<div style={{ fontWeight: 600, fontSize: 16 }}>认证管理 (Authentication)</div>}
+          key="0"
+          extra={<LockOutlined />}
+        >
+          <Card type="inner" title="检查认证状态" bordered={false}>
+            <div style={endpointStyle}>
+              <Tag color="blue" style={methodTagStyle('GET')}>GET</Tag>
+              <Text code copyable>/api/auth/status</Text>
+              <CurlButton endpoint="/api/auth/status" method="GET" />
+            </div>
+            <Paragraph>
+              检查当前系统是否开启了密码保护。
+            </Paragraph>
+          </Card>
+
+          <Divider />
+
+          <Card type="inner" title="验证访问密码" bordered={false}>
+            <div style={endpointStyle}>
+              <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
+              <Text code copyable>/api/auth/login</Text>
+              <CurlButton
+                endpoint="/api/auth/login"
+                method="POST"
+                options={{
+                  isJson: true,
+                  body: { password: "your_password" }
+                }}
+              />
+            </div>
+            <Paragraph>
+              验证系统访问密码。验证成功后，请在后续请求 Header 中携带 <Text code>X-Access-Password</Text>。
+            </Paragraph>
+            <Divider orientation="left" plain>Body (JSON)</Divider>
+            <ul>
+              <li><Text code>password</Text>: 访问密码</li>
+            </ul>
+          </Card>
+        </Panel>
+
+        <Panel
+          header={<div style={{ fontWeight: 600, fontSize: 16 }}>图片管理 (Images)</div>}
+          key="1"
+          extra={<FileImageOutlined />}
         >
           <Card type="inner" title="获取图片列表" bordered={false}>
             <div style={endpointStyle}>
@@ -141,42 +183,42 @@ const ApiDocs = () => {
             </Paragraph>
             <Divider orientation="left" plain>参数</Divider>
             <ul>
-                <li><Text code>page</Text>: 页码 (默认 1)</li>
-                <li><Text code>pageSize</Text>: 每页数量 (默认 50)</li>
-                <li><Text code>dir</Text>: 目录路径 (可选)</li>
-                <li><Text code>search</Text>: 搜索关键词 (可选)</li>
+              <li><Text code>page</Text>: 页码 (默认 1)</li>
+              <li><Text code>pageSize</Text>: 每页数量 (默认 50)</li>
+              <li><Text code>dir</Text>: 目录路径 (可选)</li>
+              <li><Text code>search</Text>: 搜索关键词 (可选)</li>
             </ul>
             <Divider orientation="left" plain>Headers</Divider>
             <ul>
-                <li><Text code>X-Album-Password</Text>: 相册访问密码 (如果访问的目录已加密)</li>
+              <li><Text code>X-Album-Password</Text>: 相册访问密码 (如果访问的目录已加密)</li>
             </ul>
           </Card>
-          
+
           <Divider />
 
           <Card type="inner" title="上传图片" bordered={false}>
-             <div style={endpointStyle}>
+            <div style={endpointStyle}>
               <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
               <Text code copyable>/api/upload</Text>
-              <CurlButton 
-                endpoint="/api/upload" 
-                method="POST" 
-                options={{ isMultipart: true, extraParams: [{key: 'dir', value: 'uploads'}] }} 
+              <CurlButton
+                endpoint="/api/upload"
+                method="POST"
+                options={{ isMultipart: true, extraParams: [{ key: 'dir', value: 'uploads' }] }}
               />
             </div>
             <Paragraph>
               上传单张或多张图片到指定目录。
             </Paragraph>
-             <Divider orientation="left" plain>Body (FormData)</Divider>
+            <Divider orientation="left" plain>Body (FormData)</Divider>
             <ul>
-                <li><Text code>image</Text>: 图片文件 (支持多文件)</li>
-                <li><Text code>dir</Text>: 目标目录 (可选，默认为根目录)</li>
+              <li><Text code>image</Text>: 图片文件 (支持多文件)</li>
+              <li><Text code>dir</Text>: 目标目录 (可选，默认为根目录)</li>
             </ul>
           </Card>
 
-           <Divider />
+          <Divider />
 
-           <Card type="inner" title="获取随机图片" bordered={false}>
+          <Card type="inner" title="获取随机图片" bordered={false}>
             <div style={endpointStyle}>
               <Tag color="blue" style={methodTagStyle('GET')}>GET</Tag>
               <Text code copyable>/api/random</Text>
@@ -187,12 +229,12 @@ const ApiDocs = () => {
             </Paragraph>
             <Divider orientation="left" plain>参数</Divider>
             <ul>
-                <li><Text code>dir</Text>: 目录路径 (可选)</li>
-                <li><Text code>format</Text>: 返回格式，<Text code>json</Text> 返回元数据（包含 <Text code>fullPath</Text>），否则直接返回图片流</li>
-                <li><Text code>w</Text>: 目标宽度 (可选)</li>
-                <li><Text code>h</Text>: 目标高度 (可选)</li>
-                <li><Text code>q</Text>: 图片质量，1-100 (可选)</li>
-                <li><Text code>fmt</Text>: 目标格式，支持 <Text code>webp</Text>, <Text code>avif</Text>, <Text code>jpg</Text>, <Text code>png</Text> (可选)</li>
+              <li><Text code>dir</Text>: 目录路径 (可选)</li>
+              <li><Text code>format</Text>: 返回格式，<Text code>json</Text> 返回元数据（包含 <Text code>fullPath</Text>），否则直接返回图片流</li>
+              <li><Text code>w</Text>: 目标宽度 (可选)</li>
+              <li><Text code>h</Text>: 目标高度 (可选)</li>
+              <li><Text code>q</Text>: 图片质量，1-100 (可选)</li>
+              <li><Text code>fmt</Text>: 目标格式，支持 <Text code>webp</Text>, <Text code>avif</Text>, <Text code>jpg</Text>, <Text code>png</Text> (可选)</li>
             </ul>
           </Card>
 
@@ -202,13 +244,13 @@ const ApiDocs = () => {
             <div style={endpointStyle}>
               <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
               <Text code copyable>/api/upload-base64</Text>
-              <CurlButton 
-                endpoint="/api/upload-base64" 
-                method="POST" 
-                options={{ 
-                    isJson: true, 
-                    body: { base64Image: "data:image/png;base64,iVBORw0KGgo...", dir: "uploads", originalName: "test.png" } 
-                }} 
+              <CurlButton
+                endpoint="/api/upload-base64"
+                method="POST"
+                options={{
+                  isJson: true,
+                  body: { base64Image: "data:image/png;base64,iVBORw0KGgo...", dir: "uploads", originalName: "test.png" }
+                }}
               />
             </div>
             <Paragraph>
@@ -216,44 +258,44 @@ const ApiDocs = () => {
             </Paragraph>
             <Divider orientation="left" plain>Body (JSON)</Divider>
             <ul>
-                <li><Text code>base64Image</Text>: Base64 图片字符串 (包含 data URI scheme)</li>
-                <li><Text code>dir</Text>: 目标目录 (可选)</li>
-                <li><Text code>originalName</Text>: 原始文件名 (可选，用于保留扩展名)</li>
+              <li><Text code>base64Image</Text>: Base64 图片字符串 (包含 data URI scheme)</li>
+              <li><Text code>dir</Text>: 目标目录 (可选)</li>
+              <li><Text code>originalName</Text>: 原始文件名 (可选，用于保留扩展名)</li>
             </ul>
           </Card>
 
-           <Divider />
+          <Divider />
 
-           <Card type="inner" title="重命名/移动图片" bordered={false}>
-             <div style={endpointStyle}>
+          <Card type="inner" title="重命名/移动图片" bordered={false}>
+            <div style={endpointStyle}>
               <Tag color="orange" style={methodTagStyle('PUT')}>PUT</Tag>
               <Text code copyable>/api/images/:path</Text>
-               <CurlButton 
-                    endpoint="/api/images/example.jpg" 
-                    method="PUT" 
-                    options={{
-                        isJson: true,
-                        body: { newName: "new-name.jpg", newDir: "new/path" }
-                    }}
-                />
+              <CurlButton
+                endpoint="/api/images/example.jpg"
+                method="PUT"
+                options={{
+                  isJson: true,
+                  body: { newName: "new-name.jpg", newDir: "new/path" }
+                }}
+              />
             </div>
             <Paragraph>
               对图片进行重命名或移动到其他目录。
             </Paragraph>
             <Divider orientation="left" plain>Body (JSON)</Divider>
             <ul>
-                <li><Text code>newName</Text>: 新文件名 (可选)</li>
-                <li><Text code>newDir</Text>: 新目录路径 (可选)</li>
+              <li><Text code>newName</Text>: 新文件名 (可选)</li>
+              <li><Text code>newDir</Text>: 新目录路径 (可选)</li>
             </ul>
           </Card>
 
-           <Divider />
+          <Divider />
 
-           <Card type="inner" title="删除图片" bordered={false}>
-             <div style={endpointStyle}>
+          <Card type="inner" title="删除图片" bordered={false}>
+            <div style={endpointStyle}>
               <Tag color="red" style={methodTagStyle('DELETE')}>DELETE</Tag>
               <Text code copyable>/api/images/:path</Text>
-               <CurlButton endpoint="/api/images/example.jpg" method="DELETE" />
+              <CurlButton endpoint="/api/images/example.jpg" method="DELETE" />
             </div>
             <Paragraph>
               删除指定路径的图片。
@@ -261,43 +303,43 @@ const ApiDocs = () => {
           </Card>
         </Panel>
 
-        <Panel 
-            header={<div style={{ fontWeight: 600, fontSize: 16 }}>文件操作 (Files)</div>} 
-            key="2"
-            extra={<FileTextOutlined />}
+        <Panel
+          header={<div style={{ fontWeight: 600, fontSize: 16 }}>文件操作 (Files)</div>}
+          key="2"
+          extra={<FileTextOutlined />}
         >
-             <Card type="inner" title="上传任意文件" bordered={false}>
-             <div style={endpointStyle}>
+          <Card type="inner" title="上传任意文件" bordered={false}>
+            <div style={endpointStyle}>
               <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
               <Text code copyable>/api/upload-file</Text>
-              <CurlButton 
-                endpoint="/api/upload-file" 
-                method="POST" 
-                options={{ 
-                    isMultipart: true, 
-                    fileParam: 'file',
-                    extraParams: [{key: 'dir', value: 'files'}, {key: 'filename', value: 'custom.ext'}] 
-                }} 
+              <CurlButton
+                endpoint="/api/upload-file"
+                method="POST"
+                options={{
+                  isMultipart: true,
+                  fileParam: 'file',
+                  extraParams: [{ key: 'dir', value: 'files' }, { key: 'filename', value: 'custom.ext' }]
+                }}
               />
             </div>
             <Paragraph>
               上传任意类型文件，支持自动解析音视频时长。
             </Paragraph>
-             <Divider orientation="left" plain>Body (FormData)</Divider>
+            <Divider orientation="left" plain>Body (FormData)</Divider>
             <ul>
-                <li><Text code>file</Text>: 文件对象</li>
-                <li><Text code>dir</Text>: 目标目录</li>
-                <li><Text code>filename</Text>: 自定义文件名 (可选)</li>
+              <li><Text code>file</Text>: 文件对象</li>
+              <li><Text code>dir</Text>: 目标目录</li>
+              <li><Text code>filename</Text>: 自定义文件名 (可选)</li>
             </ul>
           </Card>
         </Panel>
 
-        <Panel 
-            header={<div style={{ fontWeight: 600, fontSize: 16 }}>目录管理 (Directories)</div>} 
-            key="3"
-            extra={<FolderOutlined />}
+        <Panel
+          header={<div style={{ fontWeight: 600, fontSize: 16 }}>目录管理 (Directories)</div>}
+          key="3"
+          extra={<FolderOutlined />}
         >
-           <Card type="inner" title="获取目录列表" bordered={false}>
+          <Card type="inner" title="获取目录列表" bordered={false}>
             <div style={endpointStyle}>
               <Tag color="blue" style={methodTagStyle('GET')}>GET</Tag>
               <Text code copyable>/api/dirs</Text>
@@ -314,13 +356,13 @@ const ApiDocs = () => {
             <div style={endpointStyle}>
               <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
               <Text code copyable>/api/album/password</Text>
-              <CurlButton 
-                endpoint="/api/album/password" 
-                method="POST" 
-                options={{ 
-                    isJson: true, 
-                    body: { dir: "private-album", password: "123" } 
-                }} 
+              <CurlButton
+                endpoint="/api/album/password"
+                method="POST"
+                options={{
+                  isJson: true,
+                  body: { dir: "private-album", password: "123" }
+                }}
               />
             </div>
             <Paragraph>
@@ -328,8 +370,8 @@ const ApiDocs = () => {
             </Paragraph>
             <Divider orientation="left" plain>Body (JSON)</Divider>
             <ul>
-                <li><Text code>dir</Text>: 目录路径</li>
-                <li><Text code>password</Text>: 新密码 (留空则移除密码)</li>
+              <li><Text code>dir</Text>: 目录路径</li>
+              <li><Text code>password</Text>: 新密码 (留空则移除密码)</li>
             </ul>
           </Card>
 
@@ -339,13 +381,13 @@ const ApiDocs = () => {
             <div style={endpointStyle}>
               <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
               <Text code copyable>/api/album/verify</Text>
-              <CurlButton 
-                endpoint="/api/album/verify" 
-                method="POST" 
-                options={{ 
-                    isJson: true, 
-                    body: { dir: "private-album", password: "123" } 
-                }} 
+              <CurlButton
+                endpoint="/api/album/verify"
+                method="POST"
+                options={{
+                  isJson: true,
+                  body: { dir: "private-album", password: "123" }
+                }}
               />
             </div>
             <Paragraph>
@@ -353,18 +395,18 @@ const ApiDocs = () => {
             </Paragraph>
             <Divider orientation="left" plain>Body (JSON)</Divider>
             <ul>
-                <li><Text code>dir</Text>: 目录路径</li>
-                <li><Text code>password</Text>: 待验证的密码</li>
+              <li><Text code>dir</Text>: 目录路径</li>
+              <li><Text code>password</Text>: 待验证的密码</li>
             </ul>
           </Card>
         </Panel>
 
-        <Panel 
-            header={<div style={{ fontWeight: 600, fontSize: 16 }}>系统信息 (System)</div>} 
-            key="4"
-            extra={<InfoCircleOutlined />}
+        <Panel
+          header={<div style={{ fontWeight: 600, fontSize: 16 }}>系统信息 (System)</div>}
+          key="4"
+          extra={<InfoCircleOutlined />}
         >
-           <Card type="inner" title="获取存储状态" bordered={false}>
+          <Card type="inner" title="获取存储状态" bordered={false}>
             <div style={endpointStyle}>
               <Tag color="blue" style={methodTagStyle('GET')}>GET</Tag>
               <Text code copyable>/api/stats</Text>
@@ -375,26 +417,26 @@ const ApiDocs = () => {
             </Paragraph>
           </Card>
         </Panel>
-        <Panel 
-            header={<div style={{ fontWeight: 600, fontSize: 16 }}>工具接口 (Tools)</div>} 
-            key="5"
-            extra={<CodeOutlined />}
+        <Panel
+          header={<div style={{ fontWeight: 600, fontSize: 16 }}>工具接口 (Tools)</div>}
+          key="5"
+          extra={<CodeOutlined />}
         >
-           <Card type="inner" title="图片处理" bordered={false}>
+          <Card type="inner" title="图片处理" bordered={false}>
             <div style={endpointStyle}>
               <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
               <Text code copyable>/api/process-image</Text>
-              <CurlButton 
-                endpoint="/api/process-image" 
-                method="POST" 
-                options={{ 
-                    isMultipart: true, 
-                    extraParams: [
-                        {key: 'width', value: '300'}, 
-                        {key: 'height', value: '300'},
-                        {key: 'dir', value: 'processed'}
-                    ] 
-                }} 
+              <CurlButton
+                endpoint="/api/process-image"
+                method="POST"
+                options={{
+                  isMultipart: true,
+                  extraParams: [
+                    { key: 'width', value: '300' },
+                    { key: 'height', value: '300' },
+                    { key: 'dir', value: 'processed' }
+                  ]
+                }}
               />
             </div>
             <Paragraph>
@@ -402,10 +444,10 @@ const ApiDocs = () => {
             </Paragraph>
             <Divider orientation="left" plain>Body (FormData)</Divider>
             <ul>
-                <li><Text code>image</Text>: 图片文件</li>
-                <li><Text code>width</Text>: 目标宽度</li>
-                <li><Text code>height</Text>: 目标高度</li>
-                <li><Text code>dir</Text>: 存储目录 (可选)</li>
+              <li><Text code>image</Text>: 图片文件</li>
+              <li><Text code>width</Text>: 目标宽度</li>
+              <li><Text code>height</Text>: 目标高度</li>
+              <li><Text code>dir</Text>: 存储目录 (可选)</li>
             </ul>
           </Card>
 
@@ -415,13 +457,13 @@ const ApiDocs = () => {
             <div style={endpointStyle}>
               <Tag color="green" style={methodTagStyle('POST')}>POST</Tag>
               <Text code copyable>/api/svg2png</Text>
-              <CurlButton 
-                endpoint="/api/svg2png" 
-                method="POST" 
-                options={{ 
-                    isJson: true, 
-                    body: { svgCode: "<svg>...</svg>" } 
-                }} 
+              <CurlButton
+                endpoint="/api/svg2png"
+                method="POST"
+                options={{
+                  isJson: true,
+                  body: { svgCode: "<svg>...</svg>" }
+                }}
               />
             </div>
             <Paragraph>
@@ -429,12 +471,12 @@ const ApiDocs = () => {
             </Paragraph>
             <Divider orientation="left" plain>Body (JSON)</Divider>
             <ul>
-                <li><Text code>svgCode</Text>: SVG 源代码字符串</li>
+              <li><Text code>svgCode</Text>: SVG 源代码字符串</li>
             </ul>
           </Card>
         </Panel>
       </Collapse>
-      
+
       <div style={{ marginTop: 40, textAlign: 'center', color: token.colorTextSecondary }}>
         <Text type="secondary">© 2025 Cloud Gallery API. All rights reserved.</Text>
       </div>
