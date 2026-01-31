@@ -86,6 +86,15 @@ cleanTrash();
 setInterval(cleanTrash, 24 * 60 * 60 * 1000);
 
 
+// 所有其他 GET 请求都返回 React 应用 (SPA 支持)
+app.get('*', (req, res) => {
+  // 避免 API 请求返回 HTML
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: "Not Found" });
+  }
+  res.sendFile(path.join(__dirname, "../client/build", "index.html"));
+});
+
 // 启动服务器
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
