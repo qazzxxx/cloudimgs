@@ -13,7 +13,15 @@ const db = new Database(dbPath, { verbose: process.env.NODE_ENV === 'development
 if (config.magicSearch.enabled) {
   try {
     const sqliteVec = require('sqlite-vec');
-    db.loadExtension(sqliteVec.getLoadablePath());
+    let extensionPath = sqliteVec.getLoadablePath();
+    console.log(`[MagicSearch] sqlite-vec path: ${extensionPath}`);
+
+    // Fix for Docker/Linux where underlying sqlite might append .so automatically (causing .so.so)
+    if (process.platform === 'linux' && extensionPath.endsWith('.so')) {
+      extensionPath = extensionPath.slice(0, -3);
+    }
+
+    db.loadExtension(extensionPath);
     console.log("sqlite-vec extension loaded successfully");
   } catch (err) {
     console.error("Failed to load sqlite-vec extension:", err);
