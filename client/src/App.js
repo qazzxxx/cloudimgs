@@ -9,6 +9,7 @@ import ApiDocs from "./components/ApiDocs";
 import MapPage from "./components/MapPage";
 import ShareView from "./components/ShareView";
 import DirectorySelector from "./components/DirectorySelector";
+import TrafficDashboard from './components/TrafficDashboard';
 import { getPassword, clearPassword } from "./utils/secureStorage";
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
   // Simple router check
   const isApiDocs = window.location.pathname === "/opendocs";
   const isMapPage = window.location.pathname === "/map";
+  const isTrafficDashboard = window.location.pathname === "/traffic";
   const isShareView = window.location.pathname.startsWith("/share");
 
   const { useBreakpoint } = Grid;
@@ -210,6 +212,8 @@ function App() {
           <ApiDocs />
         ) : isMapPage ? (
           <MapPage />
+        ) : isTrafficDashboard ? (
+          <TrafficDashboard />
         ) : isShareView ? (
           <ShareView currentTheme={currentTheme} onThemeChange={handleThemeChange} />
         ) : authLoading ? (

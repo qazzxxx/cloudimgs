@@ -11,7 +11,7 @@ const db = new Database(dbPath, { verbose: process.env.NODE_ENV === 'development
 
 // 初始化 Schema
 function init() {
-    db.exec(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS images (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       filename TEXT NOT NULL,
@@ -23,7 +23,9 @@ function init() {
       height INTEGER,
       orientation INTEGER,
       thumbhash TEXT,
-      meta_json TEXT
+      meta_json TEXT,
+      views INTEGER DEFAULT 0,
+      last_viewed INTEGER
     );
     
     CREATE INDEX IF NOT EXISTS idx_rel_path ON images(rel_path);
@@ -39,7 +41,31 @@ function init() {
         is_revoked INTEGER DEFAULT 0,
         views INTEGER DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS daily_stats (
+        date TEXT PRIMARY KEY, 
+        uploads_count INTEGER DEFAULT 0,
+        uploads_size INTEGER DEFAULT 0,
+        views_count INTEGER DEFAULT 0,
+        views_size INTEGER DEFAULT 0
+    );
   `);
+
+  // Migration for existing tables
+  try {
+    const columns = db.prepare("PRAGMA table_info(images)").all();
+    if (!columns.find(c => c.name === 'views')) {
+      console.log("Migrating: Adding views column to images");
+      db.prepare("ALTER TABLE images ADD COLUMN views INTEGER DEFAULT 0").run();
+      db.prepare("ALTER TABLE images ADD COLUMN last_viewed INTEGER").run();
+    }
+
+    // Create index safely after ensuring columns exist
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_views ON images(views DESC)").run();
+
+  } catch (e) {
+    console.error("Migration failed:", e);
+  }
 }
 
 init();

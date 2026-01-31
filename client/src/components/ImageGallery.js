@@ -28,6 +28,7 @@ import {
   CodeOutlined,
   CheckOutlined,
   CloseOutlined,
+  AreaChartOutlined,
 } from "@ant-design/icons";
 import { thumbHashToDataURL } from "thumbhash";
 import DirectorySelector from "./DirectorySelector";
@@ -1860,6 +1861,24 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                   }}
                 >
                   相册管理
+                </Button>
+                <Button
+                  type="text"
+                  icon={<AreaChartOutlined />}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    window.open("/traffic", "_blank");
+                  }}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    display: "flex",
+                    alignItems: "center",
+                    height: 40,
+                    fontSize: 14
+                  }}
+                >
+                  流量看板
                 </Button>
                 <Button
                   type="text"

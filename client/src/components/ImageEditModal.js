@@ -91,6 +91,7 @@ const ImageEditModal = ({
     token?.colorText,
     token?.colorTextSecondary,
     token?.colorBorder,
+    token?.colorBgLayout,
   ]);
 
 

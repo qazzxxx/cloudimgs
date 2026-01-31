@@ -874,7 +874,7 @@ const ImageDetailModal = ({
                       {imageMeta && imageMeta.exif && imageMeta.exif.latitude && imageMeta.exif.longitude && (
                         <div style={{ position: "relative", height: 150, borderRadius: 8, overflow: "hidden", border: `1px solid ${isDarkMode ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)"}` }}>
                           <iframe
-                            title="map-thumbnail"
+                            title="Map Thumbnail"
                             width="100%"
                             height="200"
                             frameBorder="0"

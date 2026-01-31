@@ -333,12 +333,28 @@ router.get('/images/*', async (req, res) => {
             }
 
             const buffer = await img.toBuffer();
+
+            // Record Stats (Fire and forget)
+            try {
+                imageRepository.recordView(buffer.length);
+                imageRepository.incrementViews(relPath);
+            } catch (e) {
+                console.error("Stats error", e);
+            }
+
             res.setHeader("Content-Type", outMime);
             res.setHeader("Cache-Control", "public, max-age=31536000");
             res.send(buffer);
         } catch (e) {
             // 对非图像文件或 sharp 错误的回退
             if (!w && !h && !q && !fmt) {
+                // Record Stats for raw file
+                try {
+                    const stats = await fs.stat(filePath);
+                    imageRepository.recordView(stats.size);
+                    imageRepository.incrementViews(relPath);
+                } catch (e) { }
+
                 res.setHeader("Content-Type", mime.lookup(filePath) || 'application/octet-stream');
                 return res.sendFile(filePath);
             }

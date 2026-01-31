@@ -10,6 +10,7 @@ const uploadRoutes = require("./routes/uploadRoutes");
 const imageRoutes = require("./routes/imageRoutes");
 const manageRoutes = require("./routes/manageRoutes");
 const systemRoutes = require("./routes/systemRoutes");
+const statsRoutes = require("./routes/statsRoutes");
 const shareRoutes = require("./routes/shareRoutes");
 const { migrateFromLegacyJson, syncFileSystem } = require("./services/syncService");
 
@@ -27,6 +28,9 @@ app.enable("trust proxy");
 // 顺序很重要！
 // /api/health 可能最先
 app.use("/api", systemRoutes);
+
+// 流量统计
+app.use("/api/stats", statsRoutes);
 
 // 上传
 app.use("/api", uploadRoutes); // /upload, /upload-base64

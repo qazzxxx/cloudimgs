@@ -50,6 +50,9 @@ router.post('/upload-base64', requirePassword, async (req, res) => {
             ...metadata
         });
 
+        // Record Upload Stats
+        imageRepository.recordUpload(size);
+
         res.json({
             success: true,
             message: "base64 图片上传成功",
@@ -100,6 +103,9 @@ router.post('/upload', requirePassword, upload.any(), handleMulterError, async (
             rel_path: relPath,
             ...metadata
         });
+
+        // Record Upload Stats
+        imageRepository.recordUpload(req.file.size);
 
         res.json({
             success: true,
@@ -223,6 +229,9 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
                 if (d) duration = parseFloat((Math.ceil(d * 1000) / 1000).toFixed(2));
             } catch (e) { }
         }
+
+        // Record Upload Stats
+        imageRepository.recordUpload(req.file.size);
 
         res.json({
             success: true,

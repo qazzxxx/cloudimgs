@@ -25,6 +25,28 @@ const insertMany = db.transaction((images) => {
     for (const img of images) insertImage.run(img);
 });
 
+// 统计数据 SQL
+const incrementViewQuery = db.prepare('UPDATE images SET views = views + 1, last_viewed = @now WHERE rel_path = @relPath');
+
+const recordDailyUploadQuery = db.prepare(`
+  INSERT INTO daily_stats (date, uploads_count, uploads_size)
+  VALUES (@date, 1, @size)
+  ON CONFLICT(date) DO UPDATE SET
+  uploads_count = uploads_count + 1,
+  uploads_size = uploads_size + @size
+`);
+
+const recordDailyViewQuery = db.prepare(`
+  INSERT INTO daily_stats (date, views_count, views_size)
+  VALUES (@date, 1, @size)
+  ON CONFLICT(date) DO UPDATE SET
+  views_count = views_count + 1,
+  views_size = views_size + @size
+`);
+
+const getDailyStatsQuery = db.prepare('SELECT * FROM daily_stats ORDER BY date DESC LIMIT ?');
+const getTopImagesQuery = db.prepare('SELECT * FROM images ORDER BY views DESC LIMIT ?');
+
 module.exports = {
     add: (image) => {
         try {
@@ -57,4 +79,17 @@ module.exports = {
     insertMany,
     // 事务辅助函数
     transaction: (fn) => db.transaction(fn),
+
+    // Stats Methods
+    incrementViews: (relPath) => incrementViewQuery.run({ relPath, now: Date.now() }),
+    recordUpload: (size) => {
+        const date = new Date().toISOString().split('T')[0];
+        recordDailyUploadQuery.run({ date, size });
+    },
+    recordView: (size) => {
+        const date = new Date().toISOString().split('T')[0];
+        recordDailyViewQuery.run({ date, size });
+    },
+    getDailyStats: (limit = 30) => getDailyStatsQuery.all(limit),
+    getTopImages: (limit = 10) => getTopImagesQuery.all(limit),
 };
