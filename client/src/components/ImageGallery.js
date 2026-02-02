@@ -425,6 +425,115 @@ const ImageItem = ({
 };
 
 
+const MagicIcon = ({ active }) => (
+  <div style={{ position: 'relative', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{
+        filter: active ? "drop-shadow(0 0 8px rgba(139, 92, 246, 0.5))" : "none",
+        transition: "all 0.5s ease"
+      }}
+    >
+      <defs>
+        <linearGradient id="star-gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={active ? "#8B5CF6" : "#888"} />
+          <stop offset="100%" stopColor={active ? "#3B82F6" : "#888"} />
+        </linearGradient>
+      </defs>
+
+      {/* Main Star (Center-Left) */}
+      <path
+        d="M10 2L12 8L18 10L12 12L10 18L8 12L2 10L8 8L10 2Z"
+        fill="url(#star-gradient)"
+        className={active ? "gemini-star-main" : ""}
+        style={{ transformOrigin: "10px 10px", opacity: active ? 1 : 0.6 }}
+      />
+
+      {/* Medium Star (Top-Right) */}
+      <path
+        d="M19 2L20 5L23 6L20 7L19 10L18 7L15 6L18 5L19 2Z"
+        fill="url(#star-gradient)"
+        className={active ? "gemini-star-medium" : ""}
+        style={{ transformOrigin: "19px 6px", opacity: active ? 0.9 : 0 }}
+      />
+
+      {/* Small Star (Bottom-Right) */}
+      <path
+        d="M18 14L18.5 15.5L20 16L18.5 16.5L18 18L17.5 16.5L16 16L17.5 15.5L18 14Z"
+        fill="url(#star-gradient)"
+        className={active ? "gemini-star-small" : ""}
+        style={{ transformOrigin: "18px 16px", opacity: active ? 0.8 : 0 }}
+      />
+
+      <style>
+        {`
+          @keyframes star-pulse {
+             0%, 100% { transform: scale(1); opacity: 1; }
+             50% { transform: scale(0.85); opacity: 0.85; }
+          }
+          @keyframes star-twinkle {
+             0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+             50% { transform: scale(0.6) rotate(15deg); opacity: 0.7; }
+          }
+           @keyframes star-float {
+             0%, 100% { transform: translateY(0); }
+             50% { transform: translateY(-1px); }
+          }
+
+          .gemini-star-main {
+             animation: ${active ? "star-pulse 3s ease-in-out infinite" : "none"};
+          }
+          .gemini-star-medium {
+             animation: ${active ? "star-twinkle 4s ease-in-out infinite" : "none"};
+          }
+          .gemini-star-small {
+             animation: ${active ? "star-twinkle 2.5s ease-in-out infinite 0.5s" : "none"};
+          }
+          
+          /* Rotating Border Gradient Definition */
+          @property --angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+          }
+          
+          @keyframes spin-border {
+            from { --angle: 0deg; }
+            to { --angle: 360deg; }
+          }
+          
+          .gemini-capsule-container {
+            position: relative;
+            z-index: 0;
+            /* Ensure no jumps: border is expanding OUTSIDE */
+          }
+          
+          .gemini-capsule-container.active::before {
+            content: "";
+            position: absolute;
+            inset: -1.5px; /* 1.5px Border Thickness */
+            z-index: -1;
+            border-radius: 100px;
+            padding: 1.5px; 
+            background: conic-gradient(from 180deg, #4285F4, #9B72CB, #D96570, #F49CBB, #FBBC05, #34A853, #4285F4) border-box;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+          }
+          
+          /* Fallback for browsers not supporting @property for smooth conic rotation */
+          /* We can use a simpler background rotation if needed, but modern browsers support this */
+        `}
+      </style>
+    </svg>
+  </div>
+);
+
 const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigger, isBatchMode = false, selectedItems = new Set(), onSelectionChange = () => { } }) => {
   const {
     token: { colorBgContainer, colorPrimary, colorTextSecondary, colorText },
@@ -1797,14 +1906,14 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
       >
         <div
           style={{
-            pointerEvents: "auto", // Re-enable pointer events for the capsule
+            pointerEvents: "auto",
             background: capsuleStyle.background,
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
             padding: "6px",
             borderRadius: "100px",
-            boxShadow: capsuleStyle.boxShadow,
             border: capsuleStyle.border,
+            boxShadow: capsuleStyle.boxShadow,
             display: "flex",
             alignItems: "center",
             gap: 8,
@@ -1867,11 +1976,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
                     style={{ cursor: 'pointer', marginRight: 4, display: 'flex' }}
                     title="Magic Search"
                   >
-                    <ThunderboltOutlined style={{
-                      color: magicSearch ? '#faad14' : capsuleStyle.iconColor,
-                      fontSize: 16,
-                      transition: 'color 0.3s'
-                    }} />
+                    <MagicIcon active={magicSearch} />
                   </div>
                 ) : (
                   <SearchOutlined style={{ color: capsuleStyle.iconColor }} />
