@@ -70,7 +70,7 @@ const mockAdapter = async (config) => {
           reject({
             response: {
               status: 401,
-              data: { success: false, error: "Password incorrect" },
+              data: { success: false, error: "密码错误" },
             },
           });
         }
