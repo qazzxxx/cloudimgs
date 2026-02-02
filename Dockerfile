@@ -1,11 +1,16 @@
 # 多阶段构建 - 构建阶段
-FROM node:18-alpine AS builder
+FROM node:18-bookworm-slim AS builder
 
 # 设置工作目录
 WORKDIR /app
 
 # 安装构建工具和依赖
-RUN apk add --no-cache git python3 make g++
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # 设置Node.js内存限制（避免OOM）
 ENV NODE_OPTIONS="--max-old-space-size=4096"
@@ -88,13 +93,15 @@ RUN echo "=== Build Result ===" && \
     echo "=== Build successful ==="
 
 # 生产阶段
-FROM node:18-alpine AS production
+FROM node:18-bookworm-slim AS production
 
 # 设置工作目录
 WORKDIR /app
 
-# 安装 su-exec 和基础依赖
-RUN apk add --no-cache su-exec
+# 安装 gosu 和基础依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gosu \
+    && rm -rf /var/lib/apt/lists/*
 
 # 从构建阶段复制node_modules和应用文件
 COPY --from=builder /app/node_modules ./node_modules
@@ -133,4 +140,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # 使用入口脚本启动
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["npm", "start"] 
+CMD ["npm", "start"]
+ 
