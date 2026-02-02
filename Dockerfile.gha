@@ -98,6 +98,8 @@ ENV STORAGE_PATH=/app/uploads
 ENV PUID=1000
 ENV PGID=1000
 ENV UMASK=002
+# 设置 HuggingFace 镜像地址，解决国内下载模型超时问题
+ENV HF_ENDPOINT=https://hf-mirror.com
 
 # 复制入口脚本
 COPY docker-entrypoint.sh /usr/local/bin/

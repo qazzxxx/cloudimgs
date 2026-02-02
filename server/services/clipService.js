@@ -58,6 +58,12 @@ class ClipService {
             env.allowLocalModels = false;
             env.useBrowserCache = false;
 
+            // 允许自定义 HuggingFace 端点 (用于国内镜像，如 https://hf-mirror.com)
+            if (process.env.HF_ENDPOINT) {
+                env.remoteHost = process.env.HF_ENDPOINT;
+                console.log(`[MagicSearch] Using custom HF endpoint: ${env.remoteHost}`);
+            }
+
             // 加载组件
             this.processor = await AutoProcessor.from_pretrained(this.modelName);
             this.tokenizer = await AutoTokenizer.from_pretrained(this.modelName);
@@ -285,6 +291,10 @@ class ClipService {
         try {
             const { pipeline, env } = await import('@huggingface/transformers');
             env.cacheDir = path.resolve(__dirname, '../../.cache/huggingface');
+
+            if (process.env.HF_ENDPOINT) {
+                env.remoteHost = process.env.HF_ENDPOINT;
+            }
 
             this.translator = await pipeline('translation', 'Xenova/opus-mt-zh-en', {
                 // 开启量化，显著降低 N100 的内存压力和 CPU 占用
