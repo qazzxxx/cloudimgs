@@ -287,11 +287,56 @@ router.get('/images/*', async (req, res) => {
         // Thumbhash 触发器
         getThumbHash(filePath).then(h => { if (!h) generateThumbHash(filePath); });
 
-        const { w, h, q, fmt } = req.query;
+        const { w, h, q, fmt, rows, cols, idx, trim } = req.query;
 
         // Sharp 逻辑
         try {
             let img = sharp(filePath).rotate();
+
+            // 1. 处理裁切 (Trim)
+            // 如果需要去黑边，必须先进行去边操作，然后重建实例，以便后续的切分是基于去边后的尺寸
+            if (trim === 'true') {
+                const buffer = await img.trim({ threshold: 10 }).toBuffer();
+                img = sharp(buffer);
+            }
+
+            // 2. 处理网格切分 (Slicing)
+            if (rows && cols && idx !== undefined) {
+                const r = parseInt(rows);
+                const c = parseInt(cols);
+                const i = parseInt(idx);
+
+                if (r > 0 && c > 0 && i >= 0 && i < r * c) {
+                    const meta = await img.metadata();
+                    const width = meta.width;
+                    const height = meta.height;
+
+                    const subW = Math.floor(width / c);
+                    const subH = Math.floor(height / r);
+
+                    const row = Math.floor(i / c);
+                    const col = i % c;
+
+                    const left = col * subW;
+                    const top = row * subH;
+
+                    // 防止舍入误差导致溢出
+                    const extractW = Math.min(subW, width - left);
+                    const extractH = Math.min(subH, height - top);
+
+                    img.extract({ left, top, width: extractW, height: extractH });
+
+                    // 再次裁切 (Post-Slice Trim)
+                    // 用户需求：网格切分后的图片也可能有黑边，需要再次处理
+                    if (trim === 'true') {
+                        // 使用 buffer 中转以确保管道顺序和正确的元数据更新
+                        const subBuffer = await img.trim({ threshold: 10 }).toBuffer();
+                        img = sharp(subBuffer);
+                    }
+                }
+            }
+
+            // 3. 处理缩放 (Resize) - 针对切分后的图（或者原图）
             if (w || h) {
                 img = img.resize({
                     width: w ? parseInt(w) : null,
