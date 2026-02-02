@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置Node.js内存限制（避免OOM）
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 # 禁用 Source Map 以减少内存占用和加快构建速度
 ENV GENERATE_SOURCEMAP=false
 # 禁用 ESLint 插件以避免构建期间的 Lint 错误中断
