@@ -250,6 +250,106 @@ const mockAdapter = async (config) => {
         return;
       }
 
+      // System Health
+      if (cleanUrl === "/health" && method === "get") {
+        resolve({
+          data: { status: "ok" },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // System Config
+      if (cleanUrl === "/config" && method === "get") {
+        resolve({
+          data: {
+            success: true,
+            data: {
+              upload: { maxFileSize: 104857600, allowedExtensions: [".jpg", ".png", ".gif", ".mp4"] },
+              storage: { filename: { keepOriginalName: true } },
+              magicSearch: { enabled: true }
+            }
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // Stats Traffic
+      if (cleanUrl.startsWith("/stats/traffic") && method === "get") {
+        const days = params?.days || 30;
+        const data = [];
+        for (let i = 0; i < days; i++) {
+          data.push({
+            date: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
+            views: Math.floor(Math.random() * 1000),
+            traffic: Math.floor(Math.random() * 50000000)
+          });
+        }
+        resolve({
+          data: { success: true, data: data.reverse() },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // Stats Top
+      if (cleanUrl.startsWith("/stats/top") && method === "get") {
+        resolve({
+          data: {
+            success: true,
+            data: mockImages.slice(0, 10).map(img => ({
+              ...img,
+              views: Math.floor(Math.random() * 5000)
+            }))
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // Semantic Search
+      if (cleanUrl === "/search/semantic" && method === "post") {
+        resolve({
+          data: {
+            success: true,
+            data: mockImages.slice(0, 8).map(img => ({
+              ...img,
+              score: Math.random()
+            }))
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
+      // Batch Move
+      if (cleanUrl === "/batch/move" && method === "post") {
+        resolve({
+          data: { success: true, successCount: 1, failCount: 0 },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
       // Default Success for others
       resolve({
         data: { success: true },
