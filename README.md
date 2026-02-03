@@ -1,7 +1,7 @@
 # 云图 - CloudImgs
 
 > ☁️ **云端一隅，拾光深藏**  
-> A simple, open, and powerful self-hosted image hosting solution.
+> 一个简单、开放且强大的自托管图像托管解决方案。
 
 [![Stars](https://img.shields.io/github/stars/qazzxxx/cloudimgs?style=flat-square&logo=github&label=Stars)](https://github.com/qazzxxx/cloudimgs/stargazers)
 [![Forks](https://img.shields.io/github/forks/qazzxxx/cloudimgs?style=flat-square&logo=github&label=Forks)](https://github.com/qazzxxx/cloudimgs/network/members)
@@ -131,7 +131,7 @@ services:
 | `PASSWORD` | 设置访问密码，留空则无需密码 | `123456` |
 | `ENABLE_MAGIC_SEARCH`| 是否开启 AI 魔法搜索 | `true` / `false` |
 | `MAX_FILE_SIZE` | 最大上传文件限制 (Byte) | `104857600` (100MB) |
-| `THUMBNAIL_WIDTH` | 列表缩略图宽度 (px) | `0` (原图) / `300` |
+| `THUMBNAIL_WIDTH` | 列表缩略图宽度 (px) | `0` (原图) / `500` |
 
 > **注意**：
 > 1. 设置 `PASSWORD` 后，系统会自动启用登录保护。
