@@ -1,126 +1,144 @@
-## 云图 - 云端一隅，拾光深藏
+# 云图 - CloudImgs
 
-[![云图 GitHub's stars](https://img.shields.io/github/stars/qazzxxx/cloudimgs?style=flat-square&logo=github&label=Stars)](https://github.com/qazzxxx/cloudimgs/stargazers)
-[![云图 GitHub's forks](https://img.shields.io/github/forks/qazzxxx/cloudimgs?style=flat-square&logo=github&label=Forks)](https://github.com/qazzxxx/cloudimgs/network/members)
+> ☁️ **云端一隅，拾光深藏**  
+> A simple, open, and powerful self-hosted image hosting solution.
+
+[![Stars](https://img.shields.io/github/stars/qazzxxx/cloudimgs?style=flat-square&logo=github&label=Stars)](https://github.com/qazzxxx/cloudimgs/stargazers)
+[![Forks](https://img.shields.io/github/forks/qazzxxx/cloudimgs?style=flat-square&logo=github&label=Forks)](https://github.com/qazzxxx/cloudimgs/network/members)
 [![Release](https://img.shields.io/github/v/release/qazzxxx/cloudimgs?style=flat-square&color=blue)](https://github.com/qazzxxx/cloudimgs/releases)
 
-> 项目的开始是用 **N8N处理相关流程** 时有很多图片处理的需求，找了很多开源项目有的比较老无人维护，有的需要购买PRO版本才能有更多的功能。以上种种原因吧，再加上自己也有NAS，所以写了一个比较自由开放的图床项目。
+---
 
-### 🖥️ 在线演示
+## 📖 简介 | Introduction
 
-**演示地址**：[https://yt.qazz.site](https://yt.qazz.site)
-**文档地址**：[https://ytdoc.qazz.site/](https://ytdoc.qazz.site/)
+项目的开始是用 **N8N处理相关流程** 时有很多图片处理的需求，找了很多开源项目有的比较老无人维护，有的需要购买PRO版本才能有更多的功能。以上种种原因吧，再加上自己也有NAS，所以写了一个比较自由开放的图床项目。
 
-> 此演示为**纯静态 Mock 模式**部署，图片数据随机加载，不涉及真实后端调用。
+---
+
+## 🖥️ 在线演示 | Demo
+
+- **演示地址**：[https://yt.qazz.site](https://yt.qazz.site)
+- **文档地址**：[https://ytdoc.qazz.site/](https://ytdoc.qazz.site/)
+
+> [!NOTE]
+> 此演示为 **纯静态 Mock 模式** 部署，图片数据随机加载，不涉及真实后端调用。
 > - **访问密码**：`123456`
-> - **说明**：上传、删除等操作仅演示UI交互，数据不会保存，部分功能不可用。演示的加载图片列表体验比真实环境下体验差很多，真实环境下通过thumbhash生成缩略图优化加载。
+> - **说明**：上传、删除等操作仅演示UI交互，数据不会保存，部分功能不可用。真实环境下通过 `thumbhash` 生成缩略图，体验会更流畅。
 
-## 🚀 功能特点
+---
 
-- [x] 支持各种灵活开放API
-  - [x] 图片上传接口-支持base64
-  - [x] 随机图片接口
-  - [x] 获取指定图片（支持尺寸/质量/格式处理）
-  - [x] SVG 转 PNG接口
-  - [x] 图片列表接口
-  - [x] 图片删除接口
-- [x] 魔法搜索功能（例如:搜索描述的图片“蓝天白云”返回所有蓝天白云的图片，通过部署字段控制是否开启）
-- [x] 图片上传，多图拖拽一键上传
-- [x] 流量看板
-- [x] 照片轨迹地图
-- [x] 图片编辑
-- [x] 支持压缩图片大小
-- [x] 支持URL参数实时处理图片 （如：image.jpg?w=500&h=300&q=80&fmt=webp 自动将原图转换为WebP 、宽500px，高300px，图片质量压缩到80% 返回）
-- [x] 支持PicGo插件直接安装使用[PicGo插件](https://github.com/qazzxxx/picgo-plugin-cloudimgs-uploader)
-- [x] 支持上传其他文件格式，全局上传
-- [x] 在线管理图片，瀑布流展示，批量圈选删除
-- [x] 相册分享
-- [x] 集成thumbhash无感生成缩略图加载图片列表优化
-- [x] 支持设置密钥，保护图片安全
-- [x] 支持多级子目录管理
-- [x] 支持 SVG 图片转换为 PNG 格式
-- [x] 支持图片压缩工具，可自定义压缩质量和尺寸
-- [x] 支持图片分享，一键复制图片链接
-- [x] 支持多主题样式切换
-- [x] 移动端适配
-- [x] 更多功能，等你来发现
+## 🚀 功能特点 | Features
 
-## 软件预览
-（NEW）魔法搜索功能（基于CLIP本地小模型，搜索描述的图片“蓝天白云”返回所有蓝天白云的图片）
-![云图 桌面端预览](client/public/magicsearch.jpeg)
+### 🛠️ 核心功能
+- [x] **多格式支持**：支持上传各种格式图片及其他文件，支持全局上传。
+- [x] **图片管理**：在线管理图片，瀑布流展示，批量圈选删除。
+- [x] **相册分享**：支持相册分享功能。
+- [x] **安全保护**：支持设置密钥，保护图片安全。
+- [x] **目录管理**：支持多级子目录管理。
+- [x] **移动适配**：完美适配移动端。
 
-登录页面
-![云图 桌面端预览](client/public/login.jpg)
+### ⚡️ 高级特性
+- [x] **魔法搜索**：基于CLIP本地小模型，支持自然语言搜索（如搜“蓝天白云”）。
+- [x] **流量看板**：直观展示流量使用情况。
+- [x] **照片轨迹**：在地图上展示照片拍摄轨迹。
+- [x] **性能优化**：集成 `thumbhash` 无感生成缩略图，大幅优化加载体验。
 
-图片管理页面
-![云图 桌面端预览](client/public/cloudimgs.jpg)
+### 🔌 开放接口 (API)
+- [x] **上传/管理**：支持Base64上传、SVG转PNG、拖拽上传、图片删除/列表等。
+- [x] **图片处理**：支持实时 URL 参数处理（尺寸、质量、格式转换）。
+  - *示例*：`image.jpg?w=500&h=300&q=80&fmt=webp`
+- [x] **随机图/指定图**：支持获取随机图片或指定参数的图片。
+- [x] **生态集成**：支持 [PicGo 插件](https://github.com/qazzxxx/picgo-plugin-cloudimgs-uploader) 直接安装使用。
 
-批量圈选操作
-![云图 桌面端预览](client/public/batch.jpg)
+### 🎨 图片工具
+- [x] **在线编辑**：内置图片编辑功能。
+- [x] **格式转换**：支持 SVG 转 PNG。
+- [x] **压缩工具**：自定义压缩质量和尺寸。
+- [x] **一键分享**：支持一键复制图片链接。
 
-相册分享
-![云图 桌面端预览](client/public/share.jpg)
+---
 
-整页上传
-![云图 桌面端预览](client/public/upload.jpg)
+## 🖼️ 软件预览 | Preview
 
-照片轨迹地图
-![云图 桌面端预览](client/public/map.jpg)
+<details open>
+<summary><b>✨ 点击收起/展开截图</b></summary>
+<br>
 
-图片编辑
-![云图 桌面端预览](client/public/edit.jpg)
+### 魔法搜索 & 主要界面
+| 魔法搜索 (Magic Search) | 登录页面 (Login) |
+| :---: | :---: |
+| ![魔法搜索](client/public/magicsearch.jpeg) | ![登录页面](client/public/login.jpg) |
 
+| 图片管理 (Management) | 批量操作 (Batch Actions) |
+| :---: | :---: |
+| ![图片管理](client/public/cloudimgs.jpg) | ![批量操作](client/public/batch.jpg) |
 
-开放接口页面
-![云图 桌面端预览](client/public/api.jpg)
+### 功能展示
+| 相册分享 (Share) | 整页上传 (Upload) |
+| :---: | :---: |
+| ![相册分享](client/public/share.jpg) | ![整页上传](client/public/upload.jpg) |
 
-移动端页面
-![云图 移动端预览](client/public/mobile.jpg)
+| 轨迹地图 (Map) | 图片编辑 (Editor) |
+| :---: | :---: |
+| ![照片轨迹](client/public/map.jpg) | ![图片编辑](client/public/edit.jpg) |
 
+| 开放接口 (API) | 移动端 (Mobile) |
+| :---: | :---: |
+| ![开放接口](client/public/api.jpg) | ![移动端](client/public/mobile.jpg) |
 
+</details>
 
-## 快速开始
+---
 
-### 快速部署 - docker-compose.yml
+## 🛠️ 快速部署 | Quick Start
+
+推荐使用 **Docker Compose** 进行快速部署。
+
+### `docker-compose.yml`
 
 ```yaml
 services:
   cloudimgs:
     image: qazzxxx/cloudimgs:latest
+    container_name: cloudimgs-app
+    restart: unless-stopped
     ports:
       - "3001:3001"
     volumes:
       - ./uploads:/app/uploads:rw # 上传目录配置，明确读写权限
-    restart: unless-stopped
-    container_name: cloudimgs-app
     environment:
-      - PUID=1000  # 替换为您 NAS 用户的实际 ID (id -u)
-      - PGID=1000   # 替换为您 NAS 用户组的实际 ID (id -g)
+      # 权限配置 (建议填写 NAS 用户真实 ID)
+      - PUID=1000  # id -u
+      - PGID=1000   # id -g
       - UMASK=002
+      
+      # 基础配置
       - NODE_ENV=production
       - PORT=3001
       - STORAGE_PATH=/app/uploads
+      
+      # 可选配置
       # - MAX_FILE_SIZE=104857600 # 最大文件大小，默认 100MB
       # - THUMBNAIL_WIDTH=0 # 瀑布流缩略图宽度（像素），默认 0 表示使用原图
-      # - PASSWORD=your_secure_password_here # 密码保护配置
-      # - ENABLE_MAGIC_SEARCH=true # 开启魔法搜索（例如:搜索“蓝天白云”返回所有蓝天白云的图片，使用本地CLIP小模型较为占用内存）
+      # - PASSWORD=your_secure_password_here # 🔐 密码保护配置
+      # - ENABLE_MAGIC_SEARCH=true # ✨ 开启魔法搜索（使用本地CLIP小模型，占用内存较高）
 ```
 
-### 密码保护配置
+### 🔐 环境变量说明
 
-如需启用密码保护，请在环境变量中设置 `PASSWORD`：
+| 变量名 | 说明 | 示例 / 默认值 |
+| :--- | :--- | :--- |
+| `PASSWORD` | 设置访问密码，留空则无需密码 | `123456` |
+| `ENABLE_MAGIC_SEARCH`| 是否开启 AI 魔法搜索 | `true` / `false` |
+| `MAX_FILE_SIZE` | 最大上传文件限制 (Byte) | `104857600` (100MB) |
+| `THUMBNAIL_WIDTH` | 列表缩略图宽度 (px) | `0` (原图) / `300` |
 
-```bash
-environment:
-  - PASSWORD=your_secure_password_here
-```
+> **注意**：
+> 1. 设置 `PASSWORD` 后，系统会自动启用登录保护。
+> 2. 登录状态会保存在浏览器本地存储中。
 
-**注意事项：**
+---
 
-- 设置 `PASSWORD` 环境变量后，系统将自动启用密码保护
-- 未设置 `PASSWORD` 时，系统无需密码即可访问
-- 密码验证成功后，登录状态会保存在浏览器本地存储中
-
-## 历史Star
+## 📈 历史 Star | Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=qazzxxx/cloudimgs&type=date&legend=top-left)](https://www.star-history.com/#qazzxxx/cloudimgs&type=date&legend=top-left)
