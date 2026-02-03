@@ -119,7 +119,8 @@ function MapPage() {
         const res = await api.get('/map-data');
         if (res.data.success) {
           // Filter out invalid coordinates just in case
-          const validMarkers = res.data.data.filter(m => m.lat && m.lng);
+          const markersData = Array.isArray(res.data.data) ? res.data.data : [];
+          const validMarkers = markersData.filter(m => m.lat && m.lng);
           setState({
             loading: false,
             markers: validMarkers,
@@ -183,11 +184,16 @@ function MapPage() {
     }));
   };
 
-  const currentFile = selectedIndex >= 0 && state.markers[selectedIndex] ? {
-    ...state.markers[selectedIndex],
-    url: `/api/images/${state.markers[selectedIndex].relPath.split('/').map(encodeURIComponent).join('/')}`,
-    uploadTime: state.markers[selectedIndex].date, // Map date to uploadTime
-    size: 0 // Size might be unknown here
+  const marker = selectedIndex >= 0 ? state.markers[selectedIndex] : null;
+
+  const currentFile = marker ? {
+    ...marker,
+    // Use existing URL if it's absolute (Mock mode), otherwise construct API URL
+    url: marker.url && (marker.url.startsWith('http') || marker.url.startsWith('blob'))
+      ? marker.url
+      : `/api/images/${marker.relPath.split('/').map(encodeURIComponent).join('/')}`,
+    uploadTime: marker.date || marker.uploadTime,
+    size: marker.size || 0
   } : null;
 
   // CSS Styles for Glassmorphism

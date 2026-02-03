@@ -350,6 +350,31 @@ const mockAdapter = async (config) => {
         return;
       }
 
+      // Map Data
+      if (cleanUrl === "/map-data" && method === "get") {
+        const mapImages = mockImages
+          .slice(0, 20)
+          .map((img, index) => ({
+            ...img,
+            // Random coordinates around central China for demo
+            lat: 30 + Math.random() * 10 - 5,
+            lng: 110 + Math.random() * 10 - 5,
+            thumbUrl: img.url,
+          }));
+
+        resolve({
+          data: {
+            success: true,
+            data: mapImages,
+          },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        });
+        return;
+      }
+
       // Default Success for others
       resolve({
         data: { success: true },
