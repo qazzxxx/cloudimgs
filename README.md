@@ -1,14 +1,15 @@
 ## 云图 - 云端一隅，拾光深藏
 
-[![云图 GitHub's stars](https://img.shields.io/github/stars/qazzxxx/cloudimgs?style=social)](https://github.com/qazzxxx/cloudimgs/stargazers)
-[![云图 GitHub's forks](https://img.shields.io/github/forks/qazzxxx/cloudimgs?style=social)](https://github.com/qazzxxx/cloudimgs/network/members)
-[![Release](https://img.shields.io/github/v/release/qazzxxx/cloudimgs)](https://github.com/qazzxxx/cloudimgs/releases)
+[![云图 GitHub's stars](https://img.shields.io/github/stars/qazzxxx/cloudimgs?style=flat-square&logo=github&label=Stars)](https://github.com/qazzxxx/cloudimgs/stargazers)
+[![云图 GitHub's forks](https://img.shields.io/github/forks/qazzxxx/cloudimgs?style=flat-square&logo=github&label=Forks)](https://github.com/qazzxxx/cloudimgs/network/members)
+[![Release](https://img.shields.io/github/v/release/qazzxxx/cloudimgs?style=flat-square&color=blue)](https://github.com/qazzxxx/cloudimgs/releases)
 
 > 项目的开始是用 **N8N处理相关流程** 时有很多图片处理的需求，找了很多开源项目有的比较老无人维护，有的需要购买PRO版本才能有更多的功能。以上种种原因吧，再加上自己也有NAS，所以写了一个比较自由开放的图床项目。
 
 ### 🖥️ 在线演示
 
 **演示地址**：[https://yt.qazz.site](https://yt.qazz.site)
+**文档地址**：[https://ytdoc.qazz.site/](https://ytdoc.qazz.site/)
 
 > 此演示为**纯静态 Mock 模式**部署，图片数据随机加载，不涉及真实后端调用。
 > - **访问密码**：`123456`
@@ -101,8 +102,7 @@ services:
       - STORAGE_PATH=/app/uploads
       # - MAX_FILE_SIZE=104857600 # 最大文件大小，默认 100MB
       # - THUMBNAIL_WIDTH=0 # 瀑布流缩略图宽度（像素），默认 0 表示使用原图
-      # 密码保护配置（可选）
-      # - PASSWORD=your_secure_password_here
+      # - PASSWORD=your_secure_password_here # 密码保护配置
       # - ENABLE_MAGIC_SEARCH=true # 开启魔法搜索（例如:搜索“蓝天白云”返回所有蓝天白云的图片，使用本地CLIP小模型较为占用内存）
 ```
 
