@@ -138,8 +138,8 @@ const mockAdapter = async (config) => {
           data: {
             success: true,
             data: [
-              { name: "mock-dir-1", path: "mock-dir-1", fullPath: "mock-dir-1", previews, imageCount: 10, mtime: new Date() },
-              { name: "mock-dir-2", path: "mock-dir-2", fullPath: "mock-dir-2", previews, imageCount: 5, mtime: new Date() },
+              { name: "mock-dir-1", path: "mock-dir-1", fullUrl: "mock-dir-1", previews, imageCount: 10, mtime: new Date() },
+              { name: "mock-dir-2", path: "mock-dir-2", fullUrl: "mock-dir-2", previews, imageCount: 5, mtime: new Date() },
             ],
           },
           status: 200,

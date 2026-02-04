@@ -1,7 +1,7 @@
 const path = require('path');
 
 /**
- * Formats an image object for JSON response, ensuring fullPath is an absolute URL.
+ * Formats an image object for JSON response, ensuring fullUrl is an absolute URL.
  * @param {Object} req - Express request object
  * @param {Object} image - Image object (must have rel_path)
  * @returns {Object} Formatted image object
@@ -12,7 +12,7 @@ function formatImageResponse(req, image) {
 
     const relPathStr = image.rel_path.split("/").map(encodeURIComponent).join("/");
     const url = `/api/images/${relPathStr}`;
-    const fullPath = `${req.protocol}://${req.get('host')}${url}`;
+    const fullUrl = `${req.protocol}://${req.get('host')}${url}`;
 
     // Parse meta_json if it exists and is a string
     let meta = {};
@@ -28,7 +28,7 @@ function formatImageResponse(req, image) {
         // Standard fields
         filename: image.filename,
         relPath: image.rel_path,
-        fullPath: fullPath, // Absolute URL
+        fullUrl: fullUrl, // Absolute URL
         url: url,           // Relative API URL
         width: image.width,
         height: image.height,

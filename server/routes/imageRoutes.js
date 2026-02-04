@@ -63,7 +63,7 @@ router.get('/map-data', requirePassword, async (req, res) => {
             date: img.upload_time,
             thumbUrl: `${formatted.url}?w=200`,
             thumbhash: img.thumbhash,
-            fullPath: formatted.fullPath,
+            fullUrl: formatted.fullUrl,
             url: formatted.url
         };
     });
@@ -100,7 +100,7 @@ router.get('/directories', requirePassword, async (req, res) => {
                         results.push({
                             name: file,
                             path: relPath,
-                            fullPath: relPath, // alias
+                            fullUrl: relPath, // alias
                             previews,
                             imageCount: count,
                             mtime: stats.mtime // 文件夹本身的最后修改时间

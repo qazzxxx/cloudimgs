@@ -266,7 +266,7 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
         const relPathStr = relPath.split("/").map(encodeURIComponent).join("/");
         const endpoint = isImage ? 'images' : 'files';
         const url = `/api/${endpoint}/${relPathStr}`;
-        const fullPath = `${req.protocol}://${req.get('host')}${url}`;
+        const fullUrl = `${req.protocol}://${req.get('host')}${url}`;
 
         res.json({
             success: true,
@@ -279,7 +279,7 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
                 uploadTime: new Date().toISOString(),
                 url: url,
                 relPath,
-                fullPath: fullPath, // Standardized field
+                fullUrl: fullUrl, // Standardized field
                 ...(duration && { duration })
             }
         });
