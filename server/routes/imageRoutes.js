@@ -7,6 +7,7 @@ const config = require('../../config');
 const imageRepository = require('../db/imageRepository');
 const { requirePassword } = require('../middleware/auth');
 const { safeJoin, getThumbHash, generateThumbHash } = require('../utils/fileUtils');
+const { formatImageResponse } = require('../utils/urlUtils');
 
 const router = express.Router();
 const STORAGE_PATH = config.storage.path;
@@ -52,6 +53,7 @@ router.get('/map-data', requirePassword, async (req, res) => {
         const meta = JSON.parse(img.meta_json || '{}');
         return meta.gps;
     }).map(img => {
+        const formatted = formatImageResponse(req, img);
         const meta = JSON.parse(img.meta_json || '{}');
         return {
             filename: img.filename,
@@ -59,9 +61,10 @@ router.get('/map-data', requirePassword, async (req, res) => {
             lat: meta.gps.lat,
             lng: meta.gps.lng,
             date: img.upload_time,
-            thumbUrl: `/api/images/${img.rel_path.split("/").map(encodeURIComponent).join("/")}?w=200`,
+            thumbUrl: `${formatted.url}?w=200`,
             thumbhash: img.thumbhash,
-            // ... other fields
+            fullPath: formatted.fullPath,
+            url: formatted.url
         };
     });
     res.json({ success: true, data: mapData });
@@ -177,14 +180,7 @@ router.get('/images', requirePassword, async (req, res) => {
         const startIndex = (page - 1) * pageSize;
         const paginated = allImages.slice(startIndex, startIndex + pageSize);
 
-        const result = paginated.map(img => ({
-            filename: img.filename,
-            relPath: img.rel_path,
-            size: img.size,
-            uploadTime: img.upload_time,
-            url: `/api/images/${img.rel_path.split("/").map(encodeURIComponent).join("/")}`,
-            thumbhash: img.thumbhash
-        }));
+        const result = paginated.map(img => formatImageResponse(req, img));
 
         res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
         res.json({
@@ -258,17 +254,20 @@ router.get('/images/meta/*', requirePassword, async (req, res) => {
             // Let's just return it for now.
         }
 
+        const rawInfo = {
+            filename: path.basename(relPath),
+            rel_path: relPath, // helper expects rel_path
+            size: fstats.size,
+            upload_time: fstats.mtime.toISOString(), // helper expects upload_time
+            mime_type: mimeType,
+            width: fileInfo.width,
+            height: fileInfo.height,
+            meta_json: fileInfo // helper can take object
+        };
+
         res.json({
             success: true,
-            data: {
-                filename: path.basename(relPath),
-                relPath,
-                size: fstats.size,
-                uploadTime: fstats.mtime.toISOString(),
-                mime: mimeType,
-                ...fileInfo
-                // spread fileInfo puts width, height, space, exif, etc at top level
-            }
+            data: formatImageResponse(req, rawInfo)
         });
 
     } catch (e) {
@@ -277,9 +276,8 @@ router.get('/images/meta/*', requirePassword, async (req, res) => {
     }
 });
 
-// 服务图片内容
-router.get('/images/*', async (req, res) => {
-    const relPath = decodeURIComponent(req.params[0]);
+// 辅助函数：处理并发送图片
+async function serveImage(req, res, relPath) {
     try {
         const filePath = safeJoin(STORAGE_PATH, relPath);
         if (!await fs.pathExists(filePath)) return res.status(404).json({ error: "Not found" });
@@ -395,6 +393,49 @@ router.get('/images/*', async (req, res) => {
     } catch (e) {
         res.status(400).json({ error: "Error" });
     }
+}
+
+// 随机图片 (GET)
+// 支持 ?dir=xxx 参数来限定目录
+router.get('/random', async (req, res) => {
+    try {
+        let dir = req.query.dir || "";
+        dir = dir.replace(/\\/g, "/");
+
+        let allImages = imageRepository.getAll();
+
+        if (dir) {
+            allImages = allImages.filter(img => img.rel_path.startsWith(dir !== "" ? (dir + "/") : ""));
+        }
+
+        if (allImages.length === 0) {
+            return res.status(404).json({ error: "Not Found" });
+        }
+
+        const randomIndex = Math.floor(Math.random() * allImages.length);
+        const randomImage = allImages[randomIndex];
+
+        // START CHANGE: Support format=json
+        // START CHANGE: Support format=json
+        if (req.query.format === 'json') {
+            return res.json(formatImageResponse(req, randomImage));
+        }
+        // END CHANGE
+        // END CHANGE
+
+        // 复用 serveImage
+        await serveImage(req, res, randomImage.rel_path);
+
+    } catch (e) {
+        console.error("Random image error:", e);
+        res.status(500).json({ error: "Failed to get random image" });
+    }
+});
+
+// 服务图片内容
+router.get('/images/*', async (req, res) => {
+    const relPath = decodeURIComponent(req.params[0]);
+    await serveImage(req, res, relPath);
 });
 
 // 服务原始文件（无处理）

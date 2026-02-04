@@ -5,6 +5,7 @@ const config = require('../../config');
 const { upload, uploadAny, handleMulterError } = require('../middleware/upload');
 const { requirePassword } = require('../middleware/auth');
 const { saveBase64Image, safeJoin, sanitizeFilename, generateThumbHash } = require('../utils/fileUtils');
+const { formatImageResponse } = require('../utils/urlUtils');
 const imageRepository = require('../db/imageRepository');
 const { getFileMetadata, parseAudioDuration } = require('../services/metadataService');
 const clipService = require('../services/clipService'); // 引入 ClipService
@@ -82,19 +83,25 @@ router.post('/upload-base64', requirePassword, async (req, res) => {
         // 记录上传统计信息
         imageRepository.recordUpload(size);
 
+        // 使用 helper 格式化
+        const formatted = formatImageResponse(req, imageRepository.getByPath(relPath) || {
+            filename: fileInfo.filename,
+            rel_path: relPath,
+            width: metadata.width,
+            height: metadata.height,
+            size: size,
+            upload_time: fileInfo.upload_time,
+            mime_type: mimetype,
+            thumbhash: metadata.thumbhash
+        });
+
         res.json({
             success: true,
             message: "base64 图片上传成功",
             data: {
-                filename: fileInfo.filename,
+                ...formatted,
                 originalName: originalName,
-                size: size,
-                mimetype: mimetype,
-                uploadTime: fileInfo.upload_time, // 注意：DB 使用下划线，API 通常期望驼峰式？旧 API 使用 uploadTime。
-                url: `/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
-                relPath,
-                thumbhash: metadata.thumbhash,
-                fullUrl: `${getBaseUrl(req)}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
+                mimetype: mimetype
             }
         });
     } catch (error) {
@@ -150,19 +157,25 @@ router.post('/upload', requirePassword, upload.any(), handleMulterError, async (
         // 记录上传统计信息
         imageRepository.recordUpload(req.file.size);
 
+        // Helper
+        const formatted = formatImageResponse(req, {
+            filename: req.file.filename,
+            rel_path: relPath,
+            width: metadata.width,
+            height: metadata.height,
+            size: req.file.size,
+            upload_time: metadata.upload_time,
+            mime_type: req.file.mimetype,
+            thumbhash: metadata.thumbhash
+        });
+
         res.json({
             success: true,
             message: "图片上传成功",
             data: {
-                filename: req.file.filename,
+                ...formatted,
                 originalName: originalName,
-                size: req.file.size,
-                mimetype: req.file.mimetype,
-                uploadTime: metadata.upload_time,
-                url: `/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
-                relPath,
-                fullUrl: `${getBaseUrl(req)}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
-                thumbhash: metadata.thumbhash,
+                mimetype: req.file.mimetype
             }
         });
 
@@ -174,33 +187,6 @@ router.post('/upload', requirePassword, upload.any(), handleMulterError, async (
 
 // 1.2 上传文件 (任意)
 router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMulterError, async (req, res) => {
-    // 类似于 index.js 中的 upload-file，但需要添加到 DB 吗？
-    // 用户要求“读取图片列表也扫描所有图片”，暗示 DB 用于图片。
-    // 但是，如果我们上传非图片，它们应该在 DB 中吗？
-    // Schema 有 `images` 表。
-    // 以前的系统使用 `img_metadata.json`，似乎只跟踪...图片？
-    // 辅助函数 `getAllImages` 按扩展名过滤。
-    // 但可能需要 `getAllFiles`。
-    // 现在假设我们只索引符合“允许的扩展名”的图片项，
-    // 或者我们索引所有内容但表名为 'files'？
-    // 提示文本：“读取图片列表也需要扫描所有图片”。
-    // 我将表命名为 `images`。
-    // 如果我上传一个 .txt 文件，并且用户想要列出“文件”，则使用了 `upload-file` 端点。
-    // `getAllImages` 由 `config.upload.allowedExtensions` 过滤。
-    // 所以 `upload-file` 可能会上传非图片内容。
-    // 如果它们不是图片，也许我们暂不将它们索引到 `images` 表中？
-    // 或者我们将 `images` 表扩展为 `files`。
-    // 鉴于请求“升级后端...优化大文件处理...读取图片列表”，
-    // 我将坚持索引配置中被视为“图片”的内容。
-    // 如果 `upload-file` 上传 mp3，我们可能尚未将其索引到 `images` 表中，或者我们应该索引所有内容。
-    // 让我们检查 `config.upload.allowedExtensions`。
-    // 以前的 `getAllImages` 只返回 `allowedExtensions` 中的内容。
-    // 所以如果我上传 MP3（可能不在 *images* 的 allowedExtensions 中？），它无论如何都不会显示在图片列表中。
-    // 但等等，用户历史记录中有“parseMp3Duration”。
-    // 如果 `upload-file` 用于 mp3，`getAllImages` 会返回吗？
-    // 检查 `isAllowedFile`... `config.upload.allowedExtensions`。
-    // 如果 mp3 在 allowedExtensions 中，它将被索引。
-    // 我将假设严格遵循 `allowedExtensions` 进行索引。
 
     try {
         if (!req.file) return res.status(400).json({ success: false, error: "没有选择文件" });
@@ -276,6 +262,12 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
         // 记录上传统计信息
         imageRepository.recordUpload(req.file.size);
 
+        const isImage = config.upload.allowedExtensions.includes(path.extname(finalFilename).toLowerCase());
+        const relPathStr = relPath.split("/").map(encodeURIComponent).join("/");
+        const endpoint = isImage ? 'images' : 'files';
+        const url = `/api/${endpoint}/${relPathStr}`;
+        const fullPath = `${req.protocol}://${req.get('host')}${url}`;
+
         res.json({
             success: true,
             message: "文件上传成功",
@@ -285,9 +277,9 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
                 size: req.file.size,
                 mimetype: req.file.mimetype,
                 uploadTime: new Date().toISOString(),
-                url: `/api/files/${relPath.split("/").map(encodeURIComponent).join("/")}`,
+                url: url,
                 relPath,
-                fullUrl: `${getBaseUrl(req)}/api/files/${relPath.split("/").map(encodeURIComponent).join("/")}`,
+                fullPath: fullPath, // Standardized field
                 ...(duration && { duration })
             }
         });

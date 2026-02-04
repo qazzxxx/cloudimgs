@@ -3,6 +3,7 @@ const router = express.Router();
 const shareRepository = require('../db/shareRepository');
 const imageRepository = require('../db/imageRepository');
 const { requirePassword } = require('../middleware/auth');
+const { formatImageResponse } = require('../utils/urlUtils');
 const path = require('path');
 
 // List Share Links for a path
@@ -134,10 +135,7 @@ router.get('/access', (req, res) => {
 
         res.json({
             success: true,
-            data: sliced.map(img => ({
-                ...img,
-                url: `/api/images/${img.rel_path}` // Adjust URL to point to image serving endpoint
-            })),
+            data: sliced.map(img => formatImageResponse(req, img)),
             dirName,
             pagination: {
                 current: p,

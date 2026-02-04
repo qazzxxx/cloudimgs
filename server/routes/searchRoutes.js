@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const clipService = require('../services/clipService');
+const { formatImageResponse } = require('../utils/urlUtils');
 
 // 语义搜索
 router.post('/semantic', async (req, res) => {
@@ -10,17 +11,14 @@ router.post('/semantic', async (req, res) => {
 
         const results = await clipService.search(query, limit || 50);
 
-        // 如果需要，映射结果以匹配标准图片对象结构，
-        // 但来自联接的 `i.*` 应该足够了。
-        // 我们可能想要构建完整的 URL。
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        const finalResults = results.map(r => ({
-            ...r,
-            uploadTime: r.upload_time, // 映射 snake_case 到 camelCase 以供前端使用
-            url: `/api/images/${r.rel_path.split("/").map(encodeURIComponent).join("/")}`,
-            fullUrl: `${baseUrl}/api/images/${r.rel_path.split("/").map(encodeURIComponent).join("/")}`,
-            score: r.distance
-        }));
+        // 使用 formatImageResponse 标准化输出
+        const finalResults = results.map(r => {
+            const formatted = formatImageResponse(req, r);
+            return {
+                ...formatted,
+                score: r.distance
+            };
+        });
 
         res.json({ success: true, data: finalResults });
     } catch (error) {
