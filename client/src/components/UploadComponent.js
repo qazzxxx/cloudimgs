@@ -29,6 +29,34 @@ function sanitizeDir(input) {
   return dir;
 }
 
+// 并发请求限制器
+class ConcurrencyLimiter {
+  constructor(limit) {
+    this.limit = limit;
+    this.active = 0;
+    this.queue = [];
+  }
+
+  add(task) {
+    return new Promise((resolve, reject) => {
+      this.queue.push(() => task().then(resolve).catch(reject));
+      this.next();
+    });
+  }
+
+  next() {
+    if (this.active < this.limit && this.queue.length > 0) {
+      const task = this.queue.shift();
+      this.active++;
+      task().finally(() => {
+        this.active--;
+        this.next();
+      });
+    }
+  }
+}
+const uploadLimiter = new ConcurrencyLimiter(5); // 限制并发数为5
+
 const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
   const {
     token: { colorBgContainer },
@@ -100,6 +128,7 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
 
     try {
       const response = await api.post(url, formData, {
+        timeout: 0, // 取消单次上传超时限制，防止大文件长连接断开
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -162,8 +191,11 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
 
     // 上传文件
     try {
-      await uploadFile(renamedFile, (progress) => {
-        updateQueueItem(renamedFile.uid, { progress, status: 'uploading' });
+      await uploadLimiter.add(async () => {
+        updateQueueItem(renamedFile.uid, { status: 'uploading' });
+        await uploadFile(renamedFile, (progress) => {
+          updateQueueItem(renamedFile.uid, { progress, status: 'uploading' });
+        });
       });
       updateQueueItem(renamedFile.uid, { progress: 100, status: 'success' });
     } catch (error) {
@@ -246,8 +278,11 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
       setUploadQueue(prev => [...prev, { uid, name: file.name, progress: 0, status: 'pending' }]);
 
       try {
-        await uploadFile(file, (progress) => {
-          updateQueueItem(uid, { progress, status: 'uploading' });
+        await uploadLimiter.add(async () => {
+          updateQueueItem(uid, { status: 'uploading' });
+          await uploadFile(file, (progress) => {
+            updateQueueItem(uid, { progress, status: 'uploading' });
+          });
         });
         updateQueueItem(uid, { progress: 100, status: 'success' });
         onSuccess();
@@ -450,7 +485,7 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                     <Text ellipsis style={{ maxWidth: '70%', color: isDarkMode ? '#fff' : undefined }}>{item.name}</Text>
                     <Text type="secondary" style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }}>
-                      {item.status === 'error' ? '失败' : item.status === 'success' ? '完成' : `${item.progress}%`}
+                      {item.status === 'error' ? '失败' : item.status === 'success' ? '完成' : item.status === 'pending' ? '排队中...' : `${item.progress}%`}
                     </Text>
                   </div>
                   <Progress
