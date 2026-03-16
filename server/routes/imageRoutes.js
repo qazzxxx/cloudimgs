@@ -42,14 +42,43 @@ async function isAlbumLocked(dirPath) {
     return false;
 }
 
+async function getAllLockedDirectories() {
+    const { CACHE_DIR_NAME, CONFIG_DIR_NAME, TRASH_DIR_NAME } = require('../utils/fileUtils');
+    const lockedDirs = [];
+    async function scan(dir) {
+        const absDir = safeJoin(STORAGE_PATH, dir);
+        try {
+            const files = await fs.readdir(absDir);
+            for (const file of files) {
+                if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME) continue;
+                if (file.startsWith('.')) continue;
+
+                const filePath = path.join(absDir, file);
+                const stats = await fs.stat(filePath);
+                if (stats.isDirectory()) {
+                    const relPath = path.join(dir, file).replace(/\\/g, "/");
+                    if (await isAlbumLocked(relPath)) {
+                        lockedDirs.push(relPath);
+                    }
+                    await scan(relPath);
+                }
+            }
+        } catch (e) { }
+    }
+    await scan("");
+    return lockedDirs;
+}
+
 // 地图数据 (旧端点支持，现在仅返回 DB 中的所有图像？)
 // 原始 updateMapCache 返回所有图像。
 router.get('/map-data', requirePassword, async (req, res) => {
     // 返回所有带 GPS 数据的图像
     // 我们可以在 SQL 或 JS 中过滤。
     // 目前获取所有并返回所需字段。
+    const lockedDirs = await getAllLockedDirectories();
     const images = imageRepository.getAll();
     const mapData = images.filter(img => {
+        if (lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/"))) return false;
         const meta = JSON.parse(img.meta_json || '{}');
         return meta.gps;
     }).map(img => {
@@ -92,9 +121,13 @@ router.get('/directories', requirePassword, async (req, res) => {
 
                         // 从 DB 获取预览图和计数
                         // 注意：这会递归获取计数/预览，这通常是用户期望的“相册”封面
-                        const previews = imageRepository.getPreviews(relPath, 3).map(img =>
-                            `/api/images/${img.rel_path.split("/").map(encodeURIComponent).join("/")}?w=400`
-                        );
+                        const isLocked = await isAlbumLocked(relPath);
+                        let previews = [];
+                        if (!isLocked) {
+                            previews = imageRepository.getPreviews(relPath, 3).map(img =>
+                                `/api/images/${img.rel_path.split("/").map(encodeURIComponent).join("/")}?w=400`
+                            );
+                        }
                         const count = imageRepository.countByDir(relPath);
 
                         results.push({
@@ -102,6 +135,7 @@ router.get('/directories', requirePassword, async (req, res) => {
                             path: relPath,
                             fullUrl: relPath, // alias
                             previews,
+                            locked: isLocked, // 标记为锁定隐私状态
                             imageCount: count,
                             mtime: stats.mtime // 文件夹本身的最后修改时间
                         });
@@ -170,6 +204,9 @@ router.get('/images', requirePassword, async (req, res) => {
 
         if (dir) {
             allImages = allImages.filter(img => img.rel_path.startsWith(dir !== "" ? (dir + "/") : ""));
+        } else {
+            const lockedDirs = await getAllLockedDirectories();
+            allImages = allImages.filter(img => !lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/")));
         }
 
         if (search) {
@@ -406,6 +443,9 @@ router.get('/random', async (req, res) => {
 
         if (dir) {
             allImages = allImages.filter(img => img.rel_path.startsWith(dir !== "" ? (dir + "/") : ""));
+        } else {
+            const lockedDirs = await getAllLockedDirectories();
+            allImages = allImages.filter(img => !lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/")));
         }
 
         if (allImages.length === 0) {
