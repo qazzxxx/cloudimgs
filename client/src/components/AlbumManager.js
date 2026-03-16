@@ -659,7 +659,21 @@ const AlbumCard = React.memo(({ album, token, onOpen, onShare, onRename, onDelet
 
       {/* Stacked Images */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 60, contain: "layout style" }}>
-        {displayPreviews.length > 0 ? (
+        {album.locked ? (
+          <div style={{
+            height: "100%",
+            background: token.colorFillAlter,
+            borderRadius: 12,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            border: `1px dashed ${token.colorBorder}`
+          }}>
+            <LockOutlined style={{ fontSize: 32, color: token.colorTextQuaternary, marginBottom: 8 }} />
+            <div style={{ color: token.colorTextQuaternary, fontSize: 13, fontWeight: 500 }}>私密相册</div>
+          </div>
+        ) : displayPreviews.length > 0 ? (
           displayPreviews.map((src, index) => {
             // index 0 is bottom, index 2 is top
             // We want top one to be index 0 in map if we reversed? 
