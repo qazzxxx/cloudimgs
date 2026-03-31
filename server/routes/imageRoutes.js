@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs-extra');
 const mime = require('mime-types');
 const sharp = require('sharp');
+sharp.cache(false);
 const config = require('../../config');
 const imageRepository = require('../db/imageRepository');
 const { requirePassword } = require('../middleware/auth');

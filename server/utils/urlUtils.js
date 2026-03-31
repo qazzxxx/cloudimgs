@@ -34,6 +34,7 @@ function formatImageResponse(req, image) {
         height: image.height,
         size: image.size,
         uploadTime: image.upload_time,
+        mtime: image.mtime,
         mime: image.mime_type, // Some places user mime_type
 
         // Merge extra fields if present

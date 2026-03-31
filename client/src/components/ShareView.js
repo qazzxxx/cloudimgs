@@ -13,6 +13,23 @@ import ScrollingBackground from "./ScrollingBackground";
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
+const getCacheBustedUrl = (img, width = 0) => {
+    if (!img) return "";
+    let u = img.url || img; // Handle passing just URL string if needed, although we prefer the whole object
+    if (typeof u !== 'string') return "";
+    
+    // Check if we passed the full image object to get mtime
+    const mtime = img.mtime || (img.uploadTime ? new Date(img.uploadTime).getTime() : 0);
+    
+    if (mtime) {
+        u += u.includes('?') ? `&t=${mtime}` : `?t=${mtime}`;
+    }
+    if (width > 0) {
+        u += u.includes('?') ? `&w=${width}` : `?w=${width}`;
+    }
+    return u;
+};
+
 // Helper to convert base64 thumbhash to data URL
 const getThumbHashUrl = (hash) => {
     if (!hash) return null;
@@ -87,7 +104,7 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, isMobile, hand
                         return (
                             <video
                                 ref={videoRef}
-                                src={image.url}
+                                src={getCacheBustedUrl(image)}
                                 muted
                                 loop
                                 playsInline
@@ -105,7 +122,7 @@ const ImageItem = ({ image, hoverKey, setHoverKey, handlePreview, isMobile, hand
                     return (
                         <img
                             alt={image.filename}
-                            src={thumbnailWidth > 0 ? `${image.url}?w=${thumbnailWidth}` : image.url}
+                            src={getCacheBustedUrl(image, thumbnailWidth)}
                             draggable={false}
                             loading="lazy"
                             onLoad={() => setLoaded(true)}
@@ -380,7 +397,7 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
 
     const handleDownload = (file) => {
         const link = document.createElement("a");
-        link.href = file.url;
+        link.href = getCacheBustedUrl(file);
         link.download = file.filename;
         document.body.appendChild(link);
         link.click();
@@ -576,7 +593,7 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
                             <div style={{ width: "100%", height: "100%", position: "relative", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundImage: `url(${previewFile.url})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(40px) brightness(0.5)", transform: "scale(1.2)", zIndex: 0 }} />
                                 {/\.(mp4|webm)$/i.test(previewFile.filename) ? (
-                                    <ModalVideoPlayer url={previewFile.url} visible={previewVisible} />
+                                    <ModalVideoPlayer url={getCacheBustedUrl(previewFile)} visible={previewVisible} />
                                 ) : (
                                     <>
                                         {!imgLoaded && (
@@ -593,7 +610,7 @@ const ShareView = ({ currentTheme, onThemeChange }) => {
                                                 boxShadow: "0 20px 50px rgba(0,0,0,0.5)", zIndex: 2,
                                                 opacity: imgLoaded ? 1 : 0, transition: "opacity 0.3s ease"
                                             }}
-                                            src={previewFile.url}
+                                            src={getCacheBustedUrl(previewFile)}
                                         />
                                     </>
                                 )}

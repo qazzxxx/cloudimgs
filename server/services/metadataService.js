@@ -3,6 +3,7 @@ const mm = require("music-metadata");
 const fs = require("fs-extra");
 const path = require("path");
 const sharp = require('sharp');
+sharp.cache(false);
 const { getThumbHash, generateThumbHash } = require("../utils/fileUtils");
 
 async function parseImageMetadata(filePath) {
