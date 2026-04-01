@@ -10,23 +10,7 @@ const { safeJoin, TRASH_DIR_NAME, CACHE_DIR_NAME } = require('../utils/fileUtils
 const router = express.Router();
 const STORAGE_PATH = config.storage.path;
 
-async function getAlbumPasswordPath(dirPath) {
-    const absDir = safeJoin(STORAGE_PATH, dirPath);
-    return path.join(absDir, "config", "album_password.json");
-}
-
-async function verifyAlbumPassword(dirPath, password) {
-    try {
-        const configPath = await getAlbumPasswordPath(dirPath);
-        if (await fs.pathExists(configPath)) {
-            const data = await fs.readJson(configPath);
-            return data.password === password;
-        }
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
+const { getAlbumPasswordPath, verifyAlbumPassword } = require('../utils/albumUtils');
 
 // 0. 手动同步
 router.post('/sync', requirePassword, async (req, res) => {

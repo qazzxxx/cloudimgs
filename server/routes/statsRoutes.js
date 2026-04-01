@@ -21,7 +21,15 @@ router.get('/traffic', requirePassword, async (req, res) => {
 router.get('/top', requirePassword, async (req, res) => {
     try {
         const limit = req.query.limit ? parseInt(req.query.limit) : 10;
-        const topImages = imageRepository.getTopImages(limit);
+        
+        const { getAllLockedDirectories } = require('../utils/albumUtils');
+        const lockedDirs = await getAllLockedDirectories();
+        
+        const allImagesSorted = imageRepository.getAllByViews();
+        const filteredImages = allImagesSorted.filter(img => 
+            !lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/"))
+        );
+        const topImages = filteredImages.slice(0, limit);
 
         // Map to standard response format if needed, or just return DB rows
         const data = topImages.map(img => ({

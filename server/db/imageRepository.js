@@ -19,6 +19,7 @@ const countImages = db.prepare('SELECT COUNT(*) as count FROM images');
 const getImagesByDir = db.prepare("SELECT * FROM images WHERE rel_path LIKE ? || '/%' ORDER BY upload_time DESC");
 const getPreviewsQuery = db.prepare("SELECT * FROM images WHERE rel_path LIKE ? || '/%' ORDER BY upload_time DESC LIMIT ?");
 const countImagesByDirQuery = db.prepare("SELECT COUNT(*) as count FROM images WHERE rel_path LIKE ? || '/%'");
+const getAllImagesByViewsQuery = db.prepare('SELECT * FROM images ORDER BY views DESC');
 
 // 批量操作
 const insertMany = db.transaction((images) => {
@@ -64,6 +65,7 @@ module.exports = {
     update: (image) => updateImage.run(image),
     getByPath: (relPath) => getImageByPath.get(relPath),
     getAll: () => getAllImagesQuery.all(),
+    getAllByViews: () => getAllImagesByViewsQuery.all(),
     delete: (relPath) => deleteImageByPath.run(relPath),
     count: () => countImages.get().count,
     getByDir: (dir) => {
