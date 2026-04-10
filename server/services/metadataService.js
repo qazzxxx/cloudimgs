@@ -118,7 +118,19 @@ async function getFileMetadata(filePath, relPath, existingStat = null) {
     // 如果我们有实际的照片拍摄日期，请使用它而不是文件创建时间 (复制/移动时会重置)
     let uploadTime = stat.birthtime;
     if (metaJson.date) {
-        uploadTime = metaJson.date;
+        const exifDate = new Date(metaJson.date);
+        const exifTime = exifDate.getTime();
+        
+        // 检查 EXIF 日期是否有效
+        // 如果日期是 1970年附近（epoch 0）或之前，说明没有有效的拍照时间，使用文件创建时间
+        const minValidDate = new Date('1980-01-01').getTime(); // 假设照片不会早于1980年
+        
+        if (exifTime > minValidDate) {
+            uploadTime = metaJson.date;
+        } else {
+            // EXIF 日期无效，使用文件创建时间替代
+            console.log(`Invalid EXIF date detected (${exifDate.toISOString()}), using file birthtime instead`);
+        }
     }
 
     return {
