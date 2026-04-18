@@ -15,7 +15,7 @@ import {
   Tabs,
   Input,
 } from "antd";
-import { InboxOutlined, CheckCircleOutlined, CloseOutlined, CopyOutlined } from "@ant-design/icons";
+import { InboxOutlined, CheckCircleOutlined, CloseOutlined, CopyOutlined, LinkOutlined } from "@ant-design/icons";
 import DirectorySelector from "./DirectorySelector";
 
 const { Dragger } = Upload;
@@ -71,6 +71,7 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
   // Separate list for currently completed session uploads to show in overlay
   const [sessionUploadedFiles, setSessionUploadedFiles] = useState([]);
   const [dir, setDir] = useState("");
+  const [urlInput, setUrlInput] = useState("");
   const [config, setConfig] = useState({
     allowedExtensions: [
       ".jpg",
@@ -224,6 +225,55 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
       }
     }
   }, [handlePastedImage]);
+
+  // Handle URL upload
+  const handleUrlUpload = React.useCallback(async () => {
+    const url = urlInput.trim();
+    if (!url) {
+      message.warning("请输入图片 URL");
+      return;
+    }
+
+    const imageExtPattern = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i;
+    if (!imageExtPattern.test(url)) {
+      message.warning("URL 必须指向图片文件");
+      return;
+    }
+
+    if (!url.match(/^https?:\/\//)) {
+      message.warning("请输入有效的 HTTP/HTTPS URL");
+      return;
+    }
+
+    // Clear previous queue
+    setUploadQueue([]);
+    setSessionUploadedFiles([]);
+
+    // Add to queue for UI feedback
+    const uid = `url-upload-${Date.now()}`;
+    const filename = url.split('/').pop() || 'url-image';
+    setUploadQueue([{ uid, name: filename, progress: 0, status: 'uploading' }]);
+
+    try {
+      const response = await api.post('/upload-url', { url, dir });
+      if (response.data?.success) {
+        setUploadQueue([{ uid, name: filename, progress: 100, status: 'success' }]);
+        setSessionUploadedFiles([response.data.data]);
+        message.success("上传成功");
+        if (onUploadSuccess) {
+          onUploadSuccess();
+        }
+      } else {
+        throw new Error(response.data?.error || '上传失败');
+      }
+    } catch (error) {
+      console.error('URL upload error:', error);
+      setUploadQueue([{ uid, name: filename, status: 'error', errorMsg: error.message || '上传出错' }]);
+      message.error(error?.response?.data?.error || error.message || 'URL 上传失败');
+    }
+
+    setUrlInput("");
+  }, [urlInput, dir, api, onUploadSuccess]);
 
   // 添加全局粘贴事件监听
   useEffect(() => {
@@ -421,6 +471,39 @@ const UploadComponent = ({ onUploadSuccess, api, isModal }) => {
           }}
         />
       </Space>
+
+      {/* URL Upload Input */}
+      <Card
+        style={{
+          marginBottom: isMobile ? 16 : 16,
+          background: isModal ? (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.4)') : undefined,
+          border: isModal ? (isDarkMode ? '1px dashed rgba(255,255,255,0.2)' : '1px dashed rgba(0,0,0,0.2)') : undefined
+        }}
+        bordered={!isModal}
+        styles={{ body: { padding: isModal ? '12px' : '16px' } }}
+      >
+        <Space.Compact style={{ width: '100%' }}>
+          <Input
+            placeholder="粘贴图片 URL（支持 JPG、PNG、GIF 等格式）"
+            prefix={<LinkOutlined style={{ color: isDarkMode ? 'rgba(255,255,255,0.45)' : undefined }} />}
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onPressEnter={handleUrlUpload}
+            disabled={uploading}
+            style={{
+              background: isModal ? (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : undefined
+            }}
+          />
+          <Button
+            type="primary"
+            onClick={handleUrlUpload}
+            disabled={uploading || !urlInput.trim()}
+            loading={uploading}
+          >
+            上传
+          </Button>
+        </Space.Compact>
+      </Card>
 
       <Card
         style={{

@@ -4,7 +4,7 @@ const fs = require('fs-extra');
 const config = require('../../config');
 const { upload, uploadAny, handleMulterError } = require('../middleware/upload');
 const { requirePassword } = require('../middleware/auth');
-const { saveBase64Image, safeJoin, sanitizeFilename, generateThumbHash } = require('../utils/fileUtils');
+const { saveBase64Image, safeJoin, sanitizeFilename, generateThumbHash, downloadFromUrl } = require('../utils/fileUtils');
 const { formatImageResponse } = require('../utils/urlUtils');
 const imageRepository = require('../db/imageRepository');
 const { getFileMetadata, parseAudioDuration } = require('../services/metadataService');
@@ -108,6 +108,89 @@ router.post('/upload-base64', requirePassword, async (req, res) => {
     } catch (error) {
         console.error("base64 上传错误:", error);
         return res.status(400).json({ success: false, error: error.message || "base64 图片处理失败" });
+    }
+});
+
+// 1.0 URL 上传
+router.post('/upload-url', requirePassword, async (req, res) => {
+    try {
+        const { url } = req.body;
+        if (!url) {
+            return res.status(400).json({ success: false, error: "缺少 url 参数" });
+        }
+
+        let dir = req.body.dir || "";
+        dir = dir.replace(/\\/g, "/");
+
+        // Download image from URL
+        let imageData;
+        try {
+            imageData = await downloadFromUrl(url);
+        } catch (downloadErr) {
+            return res.status(400).json({ success: false, error: `下载图片失败: ${downloadErr.message}` });
+        }
+
+        // Convert to base64 and save
+        const base64Data = `data:${imageData.mimetype};base64,${imageData.buffer.toString('base64')}`;
+        const { filename, filePath, size, mimetype } = await saveBase64Image(base64Data, dir);
+        const relPath = path.join(dir, filename).replace(/\\/g, "/");
+
+        // Generate metadata
+        const metadata = await getFileMetadata(filePath, relPath);
+
+        // Extract original name from URL if possible
+        const urlPathname = new URL(url).pathname;
+        const urlFilename = decodeURIComponent(urlPathname.split('/').pop() || filename);
+        const ext = path.extname(urlFilename);
+        const nameWithoutExt = path.basename(urlFilename, ext);
+        const originalName = ext ? `${nameWithoutExt}${ext}` : filename;
+
+        const dbResult = imageRepository.add({
+            filename: sanitizeFilename(originalName),
+            rel_path: relPath,
+            ...metadata
+        });
+
+        // Add to magic search queue
+        try {
+            let imageId = dbResult.lastInsertRowid;
+            if (!imageId || imageId.toString() === '0') {
+                const existing = imageRepository.getByPath(relPath);
+                if (existing) imageId = existing.id;
+            }
+            if (imageId) {
+                clipService.addToQueue({ id: imageId, rel_path: relPath, filename: originalName });
+            }
+        } catch (queueErr) {
+            console.error("Queue error:", queueErr);
+        }
+
+        // Record upload stats
+        imageRepository.recordUpload(size);
+
+        const formatted = formatImageResponse(req, imageRepository.getByPath(relPath) || {
+            filename: originalName,
+            rel_path: relPath,
+            width: metadata.width,
+            height: metadata.height,
+            size: size,
+            upload_time: metadata.upload_time,
+            mime_type: mimetype,
+            thumbhash: metadata.thumbhash
+        });
+
+        res.json({
+            success: true,
+            message: "URL 图片上传成功",
+            data: {
+                ...formatted,
+                originalName: originalName,
+                mimetype: mimetype
+            }
+        });
+    } catch (error) {
+        console.error("URL 上传错误:", error);
+        return res.status(500).json({ success: false, error: error.message || "URL 图片上传失败" });
     }
 });
 

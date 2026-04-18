@@ -113,12 +113,70 @@ async function saveBase64Image(base64Data, dir) {
     };
 }
 
+async function downloadFromUrl(imageUrl) {
+    return new Promise((resolve, reject) => {
+        const protocol = imageUrl.startsWith('https') ? require('https') : require('http');
+        const urlObj = new URL(imageUrl);
+
+        const options = {
+            hostname: urlObj.hostname,
+            port: urlObj.port || (imageUrl.startsWith('https') ? 443 : 80),
+            path: urlObj.pathname + urlObj.search,
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 30000
+        };
+
+        const req = protocol.request(options, (res) => {
+            // Handle redirects
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                downloadFromUrl(res.headers.location).then(resolve).catch(reject);
+                req.destroy();
+                return;
+            }
+
+            if (res.statusCode !== 200) {
+                reject(new Error(`下载失败: HTTP ${res.statusCode}`));
+                return;
+            }
+
+            const contentType = res.headers['content-type'] || '';
+            if (!contentType.startsWith('image/')) {
+                reject(new Error('URL 不是图片类型'));
+                return;
+            }
+
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
+            res.on('end', () => {
+                const buffer = Buffer.concat(chunks);
+                resolve({
+                    buffer,
+                    mimetype: contentType
+                });
+            });
+            res.on('error', reject);
+        });
+
+        req.on('error', reject);
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('下载超时'));
+        });
+
+        req.end();
+    });
+}
+
 module.exports = {
     safeJoin,
     sanitizeFilename,
     generateThumbHash,
     getThumbHash,
     saveBase64Image,
+    downloadFromUrl,
     CACHE_DIR_NAME,
     TRASH_DIR_NAME: ".trash",
     CONFIG_DIR_NAME: "config"
