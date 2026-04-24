@@ -396,6 +396,11 @@ const ImageDetailModal = ({
         },
         container: { padding: 0 }
       }}
+      maskProps={{
+        onTouchStart: (e) => e.stopPropagation(),
+        onTouchMove: (e) => e.stopPropagation(),
+        onTouchEnd: (e) => e.stopPropagation(),
+      }}
       closeIcon={null}
     >
       <div
@@ -420,7 +425,21 @@ const ImageDetailModal = ({
             <Button
               shape="circle"
               icon={<CopyOutlined />}
-              onClick={() => copyToClipboard(window.location.origin + file.url)}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                copyToClipboard(window.location.origin + file.url);
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                copyToClipboard(window.location.origin + file.url);
+              }}
               style={{
                 background: "rgba(0,0,0,0.5)",
                 border: "1px solid rgba(255,255,255,0.2)",
@@ -433,7 +452,21 @@ const ImageDetailModal = ({
           <Button
             shape="circle"
             icon={<span style={{ fontSize: 24, lineHeight: 1 }}>×</span>}
-            onClick={onCancel}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onCancel();
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onCancel();
+            }}
             style={{
               background: "rgba(0,0,0,0.5)",
               border: "1px solid rgba(255,255,255,0.2)",
