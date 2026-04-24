@@ -102,11 +102,37 @@ const ImageDetailModal = ({
   const [dirValue, setDirValue] = useState("");
   const [renaming, setRenaming] = useState(false);
   const videoRef = useRef(null);
+  const scrollLockRef = useRef(null);
 
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (visible) {
+      const scrollY = window.scrollY;
+      scrollLockRef.current = scrollY;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+    } else {
+      const scrollY = scrollLockRef.current || 0;
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollY);
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+    };
+  }, [visible]);
 
   // Reset state when file changes
   useEffect(() => {
@@ -393,13 +419,17 @@ const ImageDetailModal = ({
           padding: 0,
           background: "#000",
           boxShadow: "none",
+          height: "100vh",
+          overflow: "hidden",
+          borderRadius: 0,
+        },
+        wrapper: {
+          overflow: "hidden",
+        },
+        mask: {
+          touchAction: "none",
         },
         container: { padding: 0 }
-      }}
-      maskProps={{
-        onTouchStart: (e) => e.stopPropagation(),
-        onTouchMove: (e) => e.stopPropagation(),
-        onTouchEnd: (e) => e.stopPropagation(),
       }}
       closeIcon={null}
     >
@@ -408,6 +438,7 @@ const ImageDetailModal = ({
           display: "flex",
           height: "100vh",
           position: "relative",
+          overflow: "hidden",
         }}
       >
         {/* Close & Action Buttons */}
