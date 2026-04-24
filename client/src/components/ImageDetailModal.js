@@ -103,6 +103,8 @@ const ImageDetailModal = ({
   const [renaming, setRenaming] = useState(false);
   const videoRef = useRef(null);
   const scrollLockRef = useRef(null);
+  const touchStartXRef = useRef(null);
+  const touchStartYRef = useRef(null);
 
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -595,6 +597,25 @@ const ImageDetailModal = ({
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
+            onTouchStart={(e) => {
+              touchStartXRef.current = e.touches[0].clientX;
+              touchStartYRef.current = e.touches[0].clientY;
+            }}
+            onTouchEnd={(e) => {
+              if (touchStartXRef.current === null) return;
+              const dx = e.changedTouches[0].clientX - touchStartXRef.current;
+              const dy = e.changedTouches[0].clientY - touchStartYRef.current;
+              // 只有水平滑动幅度明显大于垂直时才切换（避免上下滑误触）
+              if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && zoom === 1) {
+                if (dx < 0 && hasNext) {
+                  onNext();
+                } else if (dx > 0 && hasPrev) {
+                  onPrev();
+                }
+              }
+              touchStartXRef.current = null;
+              touchStartYRef.current = null;
+            }}
           >
             {/* Blurry Background */}
             <div
