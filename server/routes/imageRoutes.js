@@ -270,9 +270,26 @@ async function serveImage(req, res, relPath) {
 
         const { w, h, q, fmt, rows, cols, idx } = req.query;
 
+        // 对 GIF 文件且无任何处理参数时，直接返回原始文件（保留动画）
+        const fileMime = (mime.lookup(filePath) || "").toLowerCase();
+        const isGif = fileMime.includes("gif");
+        if (isGif && !w && !h && !q && !fmt && !rows && !cols) {
+            try {
+                const stats = await fs.stat(filePath);
+                imageRepository.recordView(stats.size);
+                imageRepository.incrementViews(relPath);
+            } catch (e) { }
+            res.setHeader("Content-Type", "image/gif");
+            res.setHeader("Cache-Control", "public, max-age=31536000");
+            return res.sendFile(filePath);
+        }
+
         // Sharp 逻辑
         try {
-            let img = sharp(filePath).rotate();
+            // GIF 缩略图：明确只取第一帧（animated: false 是 sharp 默认行为，此处显式声明）
+            let img = isGif
+                ? sharp(filePath, { animated: false }).rotate()
+                : sharp(filePath).rotate();
 
             // 2. 处理网格切分 (Slicing)
             if (rows && cols && idx !== undefined) {

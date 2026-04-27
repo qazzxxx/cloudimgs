@@ -215,6 +215,9 @@ const ImageItem = ({
         {/* Real Image/Video Layer */}
         {(() => {
           const isVideo = /\.(mp4|webm)$/i.test(image.filename);
+          const isGif = /\.gif$/i.test(image.filename);
+          // GIF 使用原始文件路径，保留完整动画（与详情页策略一致）
+          const gifSrc = image.url.replace(/^\/api\/images\//, "/api/files/");
           if (isVideo) {
             return (
               <video
@@ -245,7 +248,7 @@ const ImageItem = ({
           return (
             <img
               alt={image.filename}
-              src={getCacheBustedUrl(image, thumbnailWidth)}
+              src={isGif ? gifSrc : getCacheBustedUrl(image, thumbnailWidth)}
               draggable={false}
               loading="lazy"
               onLoad={() => setLoaded(true)}

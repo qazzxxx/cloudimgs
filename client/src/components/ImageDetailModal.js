@@ -692,7 +692,12 @@ const ImageDetailModal = ({
                     pointerEvents: "none", // Let container handle events
                     opacity: imgLoaded ? 1 : 0,
                   }}
-                  src={file.url}
+                  src={
+                    // GIF 使用原始文件路径（保留完整动画），其他格式走 /api/images/（经过 sharp 处理）
+                    /\.gif$/i.test(file.filename)
+                      ? file.url.replace(/^\/api\/images\//, "/api/files/")
+                      : file.url
+                  }
                   draggable={false}
                 />
               </>
