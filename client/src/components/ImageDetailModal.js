@@ -101,6 +101,7 @@ const ImageDetailModal = ({
   const [isEditingDir, setIsEditingDir] = useState(false);
   const [dirValue, setDirValue] = useState("");
   const [renaming, setRenaming] = useState(false);
+  const [moving, setMoving] = useState(false);
   const videoRef = useRef(null);
   const scrollLockRef = useRef(null);
   const touchStartXRef = useRef(null);
@@ -358,17 +359,27 @@ const ImageDetailModal = ({
   const handleMove = async () => {
     const oldRel = file.relPath;
     try {
-      const res = await api.put(`/images/${encodePath(oldRel)}`, {
-        newDir: dirValue || "",
+      setMoving(true);
+      const res = await api.post("/batch/move", {
+        files: [oldRel],
+        targetDir: dirValue || "",
       });
       if (res.data?.success) {
-        const updated = res.data.data;
-        message.success("目录已更新");
-        setIsEditingDir(false);
-        if (onUpdate) onUpdate(updated);
+        const { successCount = 0, failCount = 0 } = res.data;
+        if (successCount > 0 && failCount === 0) {
+          message.success("已移动到: " + (dirValue || "根目录"));
+          setIsEditingDir(false);
+        } else {
+          message.error(res.data?.error || "移动失败");
+        }
+      } else {
+        message.error(res.data?.error || "移动失败");
       }
     } catch (e) {
-      message.error("移动失败");
+      const errMsg = e?.response?.data?.error || e?.response?.data?.message || e?.message || "移动失败";
+      message.error(errMsg);
+    } finally {
+      setMoving(false);
     }
   };
 
@@ -804,6 +815,7 @@ const ImageDetailModal = ({
                     type="primary"
                     ghost={!isLight}
                     size="small"
+                    loading={moving}
                     onClick={handleMove}
                   >
                     保存

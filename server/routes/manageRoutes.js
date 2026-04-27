@@ -242,4 +242,65 @@ router.post('/directories', requirePassword, async (req, res) => {
     }
 });
 
+// 7. 重命名图片
+router.put('/images/*', requirePassword, async (req, res) => {
+    const relPath = decodeURIComponent(req.params[0]);
+    const { newName } = req.body;
+
+    if (!newName || !newName.trim()) {
+        return res.status(400).json({ success: false, error: "新文件名不能为空" });
+    }
+
+    // 安全校验：不允许路径穿越或绝对路径
+    const safeName = path.basename(newName.trim());
+    if (!safeName || safeName !== newName.trim()) {
+        return res.status(400).json({ success: false, error: "非法文件名" });
+    }
+
+    try {
+        const oldFilePath = safeJoin(STORAGE_PATH, relPath);
+        if (!await fs.pathExists(oldFilePath)) {
+            return res.status(404).json({ success: false, error: "原文件不存在" });
+        }
+
+        const dir = path.dirname(relPath);
+        const newRelPath = (dir && dir !== '.') ? `${dir}/${safeName}` : safeName;
+        const newFilePath = safeJoin(STORAGE_PATH, newRelPath);
+
+        // 不允许重命名为自身
+        if (oldFilePath === newFilePath) {
+            return res.json({ success: true, data: { relPath, filename: path.basename(relPath) } });
+        }
+
+        // 目标已存在则报错
+        if (await fs.pathExists(newFilePath)) {
+            return res.status(409).json({ success: false, error: "目标文件名已存在" });
+        }
+
+        // 重命名文件
+        await fs.rename(oldFilePath, newFilePath);
+
+        // 移动 thumbhash 缓存（如存在）
+        const oldCacheFile = path.join(path.dirname(oldFilePath), CACHE_DIR_NAME, `${path.basename(oldFilePath)}.th`);
+        if (await fs.pathExists(oldCacheFile)) {
+            const newCacheFile = path.join(path.dirname(newFilePath), CACHE_DIR_NAME, `${safeName}.th`);
+            await fs.ensureDir(path.dirname(newCacheFile));
+            await fs.rename(oldCacheFile, newCacheFile);
+        }
+
+        // 原子更新数据库
+        const updated = imageRepository.rename(relPath, newRelPath, safeName);
+
+        const { formatImageResponse } = require('../utils/urlUtils');
+        const responseData = updated
+            ? formatImageResponse(req, updated)
+            : { relPath: newRelPath, filename: safeName };
+
+        res.json({ success: true, data: responseData });
+    } catch (e) {
+        console.error("Rename failed:", e);
+        res.status(500).json({ success: false, error: "重命名失败: " + (e.message || e) });
+    }
+});
+
 module.exports = router;

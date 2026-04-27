@@ -26,6 +26,17 @@ const insertMany = db.transaction((images) => {
     for (const img of images) insertImage.run(img);
 });
 
+// 重命名（原子替换路径）
+const renameImage = db.transaction((oldRelPath, newRelPath, newFilename) => {
+    const existing = getImageByPath.get(oldRelPath);
+    if (!existing) return null;
+    deleteImageByPath.run(oldRelPath);
+    existing.rel_path = newRelPath;
+    existing.filename = newFilename;
+    insertImage.run(existing);
+    return existing;
+});
+
 // 统计数据 SQL
 const incrementViewQuery = db.prepare('UPDATE images SET views = views + 1, last_viewed = @now WHERE rel_path = @relPath');
 
@@ -63,6 +74,7 @@ module.exports = {
         }
     },
     update: (image) => updateImage.run(image),
+    rename: (oldRelPath, newRelPath, newFilename) => renameImage(oldRelPath, newRelPath, newFilename),
     getByPath: (relPath) => getImageByPath.get(relPath),
     getAll: () => getAllImagesQuery.all(),
     getAllByViews: () => getAllImagesByViewsQuery.all(),
