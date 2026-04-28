@@ -62,11 +62,17 @@ function init() {
     );
 
     CREATE TABLE IF NOT EXISTS daily_stats (
-        date TEXT PRIMARY KEY, 
+        date TEXT PRIMARY KEY,
         uploads_count INTEGER DEFAULT 0,
         uploads_size INTEGER DEFAULT 0,
         views_count INTEGER DEFAULT 0,
         views_size INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS user_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
     );
   `);
 

@@ -7,7 +7,7 @@
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
-    "antd": "^6.0.0",
+    "antd": "^6.3.7",
     "axios": "^1.10.0",
     "coordtransform": "^2.1.2",
     "cropperjs": "^1.6.2",

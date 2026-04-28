@@ -12,12 +12,17 @@ import DirectorySelector from "./components/DirectorySelector";
 import TrafficDashboard from './components/TrafficDashboard';
 import { getPassword, clearPassword } from "./utils/secureStorage";
 
+const defaultSettings = {
+  imageRadius: 0,
+};
+
 function App() {
   const [currentTheme, setCurrentTheme] = useState("light");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [settings, setSettings] = useState(defaultSettings);
 
   // Batch Mode State
   const [isBatchMode, setIsBatchMode] = useState(false);
@@ -80,6 +85,33 @@ function App() {
 
     checkAuthStatus();
   }, []);
+
+  // Load settings from database
+  useEffect(() => {
+    if (!passwordRequired || isAuthenticated) {
+      api.get("/settings")
+        .then(res => {
+          if (res.data.success && res.data.data) {
+            setSettings({ ...defaultSettings, ...res.data.data });
+          }
+        })
+        .catch(err => {
+          console.warn("Failed to load settings:", err);
+        });
+    }
+  }, [passwordRequired, isAuthenticated]);
+
+  // Save settings to database
+  const handleSettingsChange = async (newSettings) => {
+    try {
+      await api.put("/settings/batch", { settings: newSettings });
+      setSettings(newSettings);
+      message.success("设置已保存");
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+      message.error("保存设置失败");
+    }
+  };
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
@@ -242,6 +274,11 @@ function App() {
               isBatchMode={isBatchMode}
               selectedItems={selectedItems}
               onSelectionChange={handleSelectionChange}
+              imageRadius={settings.imageRadius}
+              currentTheme={currentTheme}
+              onThemeChange={handleThemeChange}
+              settings={settings}
+              onSettingsChange={handleSettingsChange}
             />
 
             {/* Password Overlay */}
