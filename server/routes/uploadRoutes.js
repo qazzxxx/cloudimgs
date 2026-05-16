@@ -283,7 +283,119 @@ router.post('/upload', requirePassword, upload.any(), handleMulterError, async (
     }
 });
 
-// 1.2 上传文件 (任意)
+// 1.2 处理图片（缩放+居中合成到指定尺寸）
+router.post('/process-image', requirePassword, upload.single("image"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "没有选择图片文件" });
+      }
+
+      const width = parseInt(req.body.width || req.query.width);
+      const height = parseInt(req.body.height || req.query.height);
+
+      if (!width || !height || width <= 0 || height <= 0) {
+        return res.status(400).json({ error: "请提供有效的宽度和高度参数" });
+      }
+
+      let dir = req.body.dir || req.query.dir || "";
+      dir = dir.replace(/\\/g, "/");
+
+      const inputBuffer = await fs.readFile(req.file.path);
+      const metadata = await sharp(inputBuffer).metadata();
+
+      const scaleX = width / metadata.width;
+      const scaleY = height / metadata.height;
+      const scale = Math.min(scaleX, scaleY);
+
+      const scaledWidth = Math.round(metadata.width * scale);
+      const scaledHeight = Math.round(metadata.height * scale);
+
+      const left = Math.round((width - scaledWidth) / 2);
+      const top = Math.round((height - scaledHeight) / 2);
+
+      const processedBuffer = await sharp({
+        create: {
+          width: width,
+          height: height,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        }
+      })
+        .composite([
+          {
+            input: await sharp(inputBuffer)
+              .resize(scaledWidth, scaledHeight)
+              .toBuffer(),
+            left: left,
+            top: top
+          }
+        ])
+        .png()
+        .toBuffer();
+
+      let originalName = req.file.originalname;
+      if (!/[^ -ÿ]/.test(originalName)) {
+        try { originalName = Buffer.from(originalName, "latin1").toString("utf8"); } catch (e) { }
+      }
+
+      const ext = path.extname(originalName);
+      const nameWithoutExt = path.basename(originalName, ext);
+      let processedFilename = `${nameWithoutExt}_processed_${width}x${height}.png`;
+      processedFilename = sanitizeFilename(processedFilename);
+
+      const dest = safeJoin(STORAGE_PATH, dir);
+      await fs.ensureDir(dest);
+
+      let finalFilename = processedFilename;
+      let counter = 1;
+
+      if (!config.upload.allowDuplicateNames) {
+        while (fs.existsSync(path.join(dest, finalFilename))) {
+          if (config.upload.duplicateStrategy === "timestamp") {
+            finalFilename = `${nameWithoutExt}_processed_${width}x${height}_${Date.now()}_${counter}.png`;
+          } else if (config.upload.duplicateStrategy === "counter") {
+            finalFilename = `${nameWithoutExt}_processed_${width}x${height}_${counter}.png`;
+          } else if (config.upload.duplicateStrategy === "overwrite") {
+            break;
+          }
+          counter++;
+        }
+      }
+
+      const processedFilePath = path.join(dest, finalFilename);
+      await fs.writeFile(processedFilePath, processedBuffer);
+      await fs.remove(req.file.path);
+
+      const relPath = path.join(dir, finalFilename).replace(/\\/g, "/");
+
+      const fileInfo = {
+        filename: finalFilename,
+        originalName: originalName,
+        processedSize: { width, height },
+        originalSize: { width: metadata.width, height: metadata.height },
+        size: processedBuffer.length,
+        mimetype: "image/png",
+        uploadTime: new Date().toISOString(),
+        url: `/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
+        relPath,
+        fullUrl: `${getBaseUrl(req)}/api/images/${relPath.split("/").map(encodeURIComponent).join("/")}`,
+      };
+
+      res.json({
+        success: true,
+        message: "图片处理成功",
+        data: fileInfo,
+      });
+    } catch (error) {
+      console.error("图片处理错误:", error);
+      if (req.file && req.file.path) {
+        try { await fs.remove(req.file.path); } catch (cleanupError) { }
+      }
+      res.status(500).json({ error: "图片处理失败" });
+    }
+});
+
+// 1.3 上传文件 (任意)
 router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMulterError, async (req, res) => {
 
     try {
@@ -302,31 +414,35 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
         let displayName = req.file.originalname;
 
         if (customFilename) {
-            // 重命名逻辑...
-            const safeCustom = sanitizeFilename(customFilename);
+            const safeCustom = sanitizeFilename(path.basename(customFilename));
             const targetDir = safeJoin(STORAGE_PATH, dir);
             const oldPath = req.file.path;
-            let newPath = path.join(targetDir, safeCustom);
+            const newPath = path.join(targetDir, safeCustom);
 
-            // 重复检查
-            let counter = 1;
-            const ext = path.extname(safeCustom);
-            const nameBase = path.basename(safeCustom, ext);
-
-            if (!config.upload.allowDuplicateNames) {
-                while (fs.existsSync(newPath)) {
-                    if (config.upload.duplicateStrategy === 'timestamp') {
-                        newPath = path.join(targetDir, `${nameBase}_${Date.now()}_${counter}${ext}`);
-                    } else {
-                        newPath = path.join(targetDir, `${nameBase}_${counter}${ext}`);
-                    }
-                    counter++;
-                }
-            }
-            finalFilename = path.basename(newPath);
-            displayName = customFilename;
             if (oldPath !== newPath) {
-                fs.renameSync(oldPath, newPath);
+                let counter = 1;
+                const ext = path.extname(safeCustom);
+                const nameBase = path.basename(safeCustom, ext);
+                let targetPath = newPath;
+
+                if (!config.upload.allowDuplicateNames) {
+                    while (fs.existsSync(targetPath)) {
+                        if (config.upload.duplicateStrategy === 'timestamp') {
+                            safeCustom = `${nameBase}_${Date.now()}_${counter}${ext}`;
+                        } else {
+                            safeCustom = `${nameBase}_${counter}${ext}`;
+                        }
+                        targetPath = path.join(targetDir, safeCustom);
+                        counter++;
+                    }
+                }
+
+                finalFilename = safeCustom;
+                displayName = customFilename;
+                fs.renameSync(oldPath, path.join(targetDir, safeCustom));
+            } else {
+                finalFilename = safeCustom;
+                displayName = customFilename;
             }
         }
 
