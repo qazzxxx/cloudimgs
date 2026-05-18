@@ -420,6 +420,7 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
             const newPath = path.join(targetDir, safeCustom);
 
             if (oldPath !== newPath) {
+                await fs.ensureDir(targetDir);
                 let counter = 1;
                 const ext = path.extname(safeCustom);
                 const nameBase = path.basename(safeCustom, ext);
@@ -439,7 +440,7 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
 
                 finalFilename = safeCustom;
                 displayName = customFilename;
-                fs.renameSync(oldPath, path.join(targetDir, safeCustom));
+                fs.renameSync(oldPath, targetPath);
             } else {
                 finalFilename = safeCustom;
                 displayName = customFilename;
@@ -499,8 +500,8 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
         });
 
     } catch (error) {
-        console.error("文件上传错误:", error);
-        res.status(500).json({ success: false, error: "文件上传失败" });
+        console.error("文件上传错误:", error.message);
+        res.status(500).json({ success: false, error: "文件上传失败: " + error.message });
     }
 });
 
