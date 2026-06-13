@@ -237,8 +237,7 @@ const ImageItem = ({
         style={{
           overflow: "hidden",
           position: "relative",
-          // Use a simple div for background placeholder
-          background: "#f0f0f0",
+          background: colorBgContainer,
         }}
       >
         {/* ThumbHash Placeholder Layer */}
