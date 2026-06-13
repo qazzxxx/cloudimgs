@@ -412,7 +412,7 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
                 let targetPath = newPath;
 
                 if (!config.upload.allowDuplicateNames) {
-                    while (fs.existsSync(targetPath)) {
+                    while (await fs.pathExists(targetPath)) {
                         if (config.upload.duplicateStrategy === 'timestamp') {
                             safeCustom = `${nameBase}_${Date.now()}_${counter}${ext}`;
                         } else {
@@ -425,7 +425,7 @@ router.post('/upload-file', requirePassword, uploadAny.single("file"), handleMul
 
                 finalFilename = safeCustom;
                 displayName = customFilename;
-                fs.renameSync(oldPath, targetPath);
+                await fs.move(oldPath, targetPath);
             } else {
                 finalFilename = safeCustom;
                 displayName = customFilename;
