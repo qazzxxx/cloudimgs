@@ -224,11 +224,6 @@ router.post('/upload', requirePassword, upload.any(), handleMulterError, async (
             ...metadata
         });
 
-        // 上传后清除 sharp 缓存，防止覆盖文件时返回旧图
-        try {
-            sharp.cache(false);
-            sharp.cache(true);
-        } catch (e) { }
 
         // 添加到魔法搜图队列
         try {
