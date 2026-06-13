@@ -76,29 +76,57 @@ function _buildExcludeClause(lockedDirs) {
     return { sql: ' AND ' + clauses.join(' AND '), params: lockedDirs };
 }
 
+// Prepared statements are cached: SQL shape only varies with locked dir count
+// (and search presence for paginated/count), so we key on those dimensions.
+const _excludeStmtCache = Object.create(null);
+
 const getTopImagesExcludeQuery = (lockedDirs, limit) => {
-    const { sql, params } = _buildExcludeClause(lockedDirs);
-    return db.prepare(`SELECT * FROM images WHERE 1=1${sql} ORDER BY views DESC LIMIT ?`).all(...params, limit);
+    // SQL shape only varies with locked dir count, so cache the compiled statement.
+    const key = `top:${lockedDirs.length}`;
+    let stmt = _excludeStmtCache[key];
+    if (!stmt) {
+        const { sql } = _buildExcludeClause(lockedDirs);
+        stmt = _excludeStmtCache[key] = db.prepare(`SELECT * FROM images WHERE 1=1${sql} ORDER BY views DESC LIMIT ?`);
+    }
+    return stmt.all(...lockedDirs, limit);
 };
 
 const getRandomExcludeQuery = (lockedDirs) => {
-    const { sql, params } = _buildExcludeClause(lockedDirs);
-    return db.prepare(`SELECT * FROM images WHERE 1=1${sql} ORDER BY RANDOM() LIMIT 1`).get(...params);
+    const key = `random:${lockedDirs.length}`;
+    let stmt = _excludeStmtCache[key];
+    if (!stmt) {
+        const { sql } = _buildExcludeClause(lockedDirs);
+        stmt = _excludeStmtCache[key] = db.prepare(`SELECT * FROM images WHERE 1=1${sql} ORDER BY RANDOM() LIMIT 1`);
+    }
+    return stmt.get(...lockedDirs);
 };
 
 const getPaginatedExcludeQuery = (lockedDirs, search, page, pageSize) => {
-    const { sql, params } = _buildExcludeClause(lockedDirs);
-    const searchClause = search ? " AND filename LIKE '%' || ? || '%'" : '';
+    // Shape varies with (locked dir count, search presence); cache accordingly.
+    const hasSearch = !!search;
+    const key = `paginated:${lockedDirs.length}:${hasSearch ? 1 : 0}`;
+    let stmt = _excludeStmtCache[key];
+    if (!stmt) {
+        const { sql } = _buildExcludeClause(lockedDirs);
+        const searchClause = hasSearch ? " AND filename LIKE '%' || ? || '%'" : '';
+        stmt = _excludeStmtCache[key] = db.prepare(`SELECT * FROM images WHERE 1=1${sql}${searchClause} ORDER BY upload_time DESC LIMIT ? OFFSET ?`);
+    }
     const offset = (page - 1) * pageSize;
-    const allParams = [...params, ...(search ? [search] : []), pageSize, offset];
-    return db.prepare(`SELECT * FROM images WHERE 1=1${sql}${searchClause} ORDER BY upload_time DESC LIMIT ? OFFSET ?`).all(...allParams);
+    const params = [...lockedDirs, ...(hasSearch ? [search] : []), pageSize, offset];
+    return stmt.all(...params);
 };
 
 const countExcludeQuery = (lockedDirs, search) => {
-    const { sql, params } = _buildExcludeClause(lockedDirs);
-    const searchClause = search ? " AND filename LIKE '%' || ? || '%'" : '';
-    const allParams = [...params, ...(search ? [search] : [])];
-    return db.prepare(`SELECT COUNT(*) as count FROM images WHERE 1=1${sql}${searchClause}`).get(...allParams).count;
+    const hasSearch = !!search;
+    const key = `count:${lockedDirs.length}:${hasSearch ? 1 : 0}`;
+    let stmt = _excludeStmtCache[key];
+    if (!stmt) {
+        const { sql } = _buildExcludeClause(lockedDirs);
+        const searchClause = hasSearch ? " AND filename LIKE '%' || ? || '%'" : '';
+        stmt = _excludeStmtCache[key] = db.prepare(`SELECT COUNT(*) as count FROM images WHERE 1=1${sql}${searchClause}`);
+    }
+    const params = [...lockedDirs, ...(hasSearch ? [search] : [])];
+    return stmt.get(...params).count;
 };
 
 // 批量操作
