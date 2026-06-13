@@ -341,6 +341,18 @@ router.post('/process-image', requirePassword, upload.single("image"), async (re
 
       const relPath = path.join(dir, finalFilename).replace(/\\/g, "/");
 
+      // 入库
+      try {
+          const fileMetadata = await getFileMetadata(processedFilePath, relPath);
+          imageRepository.add({
+              filename: finalFilename,
+              rel_path: relPath,
+              ...fileMetadata
+          });
+      } catch (dbErr) {
+          console.error("Failed to index processed image:", dbErr);
+      }
+
       const fileInfo = {
         filename: finalFilename,
         originalName: originalName,
