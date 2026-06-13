@@ -68,6 +68,53 @@ const getThumbHashUrl = (hash) => {
   }
 };
 
+
+const SkeletonCard = ({ count = 10, columns = 4, gutter = 8, isDarkMode }) => {
+  const baseColor = isDarkMode ? '#2a2a2a' : '#f0f0f0';
+  const shimmerColor = isDarkMode ? '#3a3a3a' : '#e0e0e0';
+  const cardStyle = {
+    borderRadius: 8,
+    overflow: 'hidden',
+    background: baseColor,
+  };
+  const heights = [200, 240, 180, 260, 220, 190, 250, 210, 230, 200];
+  const cards = Array.from({ length: count }, (_, i) => (
+    <div key={i} style={cardStyle}>
+      <div style={{
+        width: '100%',
+        height: heights[i % heights.length],
+        background: `linear-gradient(90deg, ${baseColor} 25%, ${shimmerColor} 50%, ${baseColor} 75%)`,
+        backgroundSize: '200% 100%',
+        animation: 'skeleton-shimmer 1.5s ease-in-out infinite',
+      }} />
+      <div style={{ padding: '8px 10px' }}>
+        <div style={{ width: '60%', height: 12, borderRadius: 4, background: shimmerColor,
+          backgroundSize: '200% 100%', animation: 'skeleton-shimmer 1.5s ease-in-out infinite 0.1s' }} />
+        <div style={{ width: '40%', height: 10, borderRadius: 4, background: shimmerColor, marginTop: 6,
+          backgroundSize: '200% 100%', animation: 'skeleton-shimmer 1.5s ease-in-out infinite 0.2s' }} />
+      </div>
+    </div>
+  ));
+
+  const gridStyle = {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${columns}, 1fr)`,
+    gap: gutter,
+  };
+
+  return (
+    <>
+      <style>{`
+        @keyframes skeleton-shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+      <div style={gridStyle}>{cards}</div>
+    </>
+  );
+};
+
 const encodePath = (path) => {
   if (!path) return "";
   return path.split('/').map(encodeURIComponent).join('/');
@@ -1271,7 +1318,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           setCurrentPage((p) => p + 1);
         }
       },
-      { root: null, rootMargin: "200px", threshold: 0 }
+      { root: null, rootMargin: "600px", threshold: 0 }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -2227,9 +2274,7 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
       </div>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: "100px 0" }}>
-          <Spin size="large" />
-        </div>
+        <SkeletonCard count={pageSize} columns={isMobile ? 2 : screens.xl ? 5 : screens.lg ? 4 : screens.md ? 3 : 2} gutter={8} isDarkMode={isDarkMode} />
       ) : images.length === 0 ? (
         <Empty description="暂无图片" style={{ marginTop: 100 }} />
       ) : (
@@ -2293,8 +2338,8 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
           ))}
           <div ref={loadMoreRef} style={{ height: 20 }} />
           {loadingMore && (
-            <div style={{ textAlign: "center", padding: 20 }}>
-              <Spin />
+            <div style={{ marginTop: 16 }}>
+              <SkeletonCard count={Math.min(pageSize, 6)} columns={isMobile ? 2 : screens.xl ? 5 : screens.lg ? 4 : screens.md ? 3 : 2} gutter={8} isDarkMode={isDarkMode} />
             </div>
           )}
         </>
