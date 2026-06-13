@@ -47,10 +47,7 @@ const getCacheBustedUrl = (img, width = 0) => {
   if (!img) return "";
   let u = img.url;
   if (!u) return "";
-  const t = img.mtime || (img.uploadTime ? new Date(img.uploadTime).getTime() : 0);
-  if (t) {
-    u += u.includes('?') ? `&t=${t}` : `?t=${t}`;
-  }
+  // 服务端 URL 已带 ?t=<mtime>，前端不再重复追加
   if (width > 0) {
     u += u.includes('?') ? `&w=${width}` : `?w=${width}`;
   }
