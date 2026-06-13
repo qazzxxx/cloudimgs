@@ -179,7 +179,7 @@ module.exports = {
             if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
                 // 如果已存在，尝试更新
                 // 目前仅记录日志或重新抛出，或者可以使用 INSERT OR REPLACE
-                console.warn(`Image ${image.relPath} already exists in DB. Attempting update.`);
+                console.warn(`Image ${image.rel_path} already exists in DB. Attempting update.`);
                 return updateImage.run(image);
             }
             throw e;

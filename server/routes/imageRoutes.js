@@ -9,6 +9,7 @@ const imageRepository = require('../db/imageRepository');
 const { requirePassword } = require('../middleware/auth');
 const { safeJoin } = require('../utils/fileUtils');
 const { formatImageResponse } = require('../utils/urlUtils');
+const { getFileMetadata } = require('../services/metadataService');
 
 const router = express.Router();
 const STORAGE_PATH = config.storage.path;
@@ -201,7 +202,6 @@ router.get('/images/meta/*', requirePassword, async (req, res) => {
         const mimeType = mime.lookup(filePath) || "application/octet-stream";
 
         if (!fileInfo.space || !fileInfo.width) {
-            const { getFileMetadata } = require('../services/metadataService');
             const freshMeta = await getFileMetadata(filePath, relPath, fstats);
 
             // Merge fresh meta
