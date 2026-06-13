@@ -57,7 +57,11 @@ const countByDirQuery = db.prepare("SELECT COUNT(*) as count FROM images WHERE r
 
 // 地图数据: 只查有 GPS 的图片 (避免全量加载)
 const getGpsImagesQuery = db.prepare(`
-  SELECT * FROM images WHERE meta_json LIKE '%gps%'
+  SELECT *,
+    json_extract(meta_json, '$.gps.lat') as lat,
+    json_extract(meta_json, '$.gps.lng') as lng
+  FROM images
+  WHERE json_extract(meta_json, '$.gps.lat') IS NOT NULL
 `);
 
 // 随机图片: SQL 随机选取

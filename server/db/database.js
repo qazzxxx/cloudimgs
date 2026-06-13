@@ -51,6 +51,9 @@ function init() {
     CREATE INDEX IF NOT EXISTS idx_mtime ON images(mtime);
     CREATE INDEX IF NOT EXISTS idx_upload_time ON images(upload_time DESC);
 
+    -- Expression index for GPS lookup; avoids full-table LIKE scan on /map-data
+    CREATE INDEX IF NOT EXISTS idx_gps_lat ON images(json_extract(meta_json, '$.gps.lat'));
+
     CREATE TABLE IF NOT EXISTS shares (
         token TEXT PRIMARY KEY,
         path TEXT NOT NULL,

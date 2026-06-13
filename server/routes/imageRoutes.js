@@ -28,12 +28,11 @@ router.get('/map-data', requirePassword, async (req, res) => {
         return true;
     }).map(img => {
         const formatted = formatImageResponse(req, img);
-        const meta = JSON.parse(img.meta_json || '{}');
         return {
             filename: img.filename,
             relPath: img.rel_path,
-            lat: meta.gps.lat,
-            lng: meta.gps.lng,
+            lat: img.lat,
+            lng: img.lng,
             date: img.upload_time,
             thumbUrl: `${formatted.url}?w=200`,
             thumbhash: img.thumbhash,
