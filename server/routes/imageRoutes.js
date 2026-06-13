@@ -272,7 +272,7 @@ async function serveImage(req, res, relPath) {
                 imageRepository.incrementViews(relPath);
             } catch (e) { }
             res.setHeader("Content-Type", "image/gif");
-            res.setHeader("Cache-Control", "public, max-age=31536000");
+            res.setHeader("Cache-Control", "public, max-age=86400, must-revalidate");
             return res.sendFile(filePath);
         }
 
@@ -364,7 +364,7 @@ async function serveImage(req, res, relPath) {
             }
 
             res.setHeader("Content-Type", outMime);
-            res.setHeader("Cache-Control", "public, max-age=31536000");
+            res.setHeader("Cache-Control", "public, max-age=86400, must-revalidate");
             res.send(buffer);
         } catch (e) {
             // 对非图像文件或 sharp 错误的回退

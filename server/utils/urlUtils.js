@@ -11,7 +11,8 @@ function formatImageResponse(req, image) {
     if (!image || !image.rel_path) return image;
 
     const relPathStr = image.rel_path.split("/").map(encodeURIComponent).join("/");
-    const url = `/api/images/${relPathStr}`;
+    const cacheBuster = image.mtime ? `?t=${Math.floor(new Date(image.mtime).getTime() / 1000)}` : "";
+    const url = `/api/images/${relPathStr}${cacheBuster}`;
     const fullUrl = `${req.protocol}://${req.get('host')}${url}`;
 
     // Parse meta_json if it exists and is a string

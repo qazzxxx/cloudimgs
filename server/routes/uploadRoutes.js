@@ -224,19 +224,11 @@ router.post('/upload', requirePassword, upload.any(), handleMulterError, async (
             ...metadata
         });
 
-        // 检查是否覆盖了现有文件，如果是则清除 sharp 缓存
-        const forceOverwrite =
-            req.query.overwrite === "true" ||
-            req.body?.overwrite === "true" ||
-            req.query.overwrite === true ||
-            req.body?.overwrite === true;
-        if (forceOverwrite) {
-            try {
-                // 清除 sharp 缓存以确保下次访问读取新文件
-                sharp.cache(false);
-                sharp.cache(true);
-            } catch (e) { }
-        }
+        // 上传后清除 sharp 缓存，防止覆盖文件时返回旧图
+        try {
+            sharp.cache(false);
+            sharp.cache(true);
+        } catch (e) { }
 
         // 添加到魔法搜图队列
         try {
