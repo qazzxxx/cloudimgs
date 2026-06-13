@@ -289,7 +289,7 @@ router.post('/process-image', requirePassword, upload.single("image"), async (re
         .toBuffer();
 
       let originalName = req.file.originalname;
-      if (!/[^ -ÿ]/.test(originalName)) {
+      if (!/[^\u0000-\u00ff]/.test(originalName)) {
         try { originalName = Buffer.from(originalName, "latin1").toString("utf8"); } catch (e) { }
       }
 
