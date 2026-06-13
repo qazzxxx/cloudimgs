@@ -22,11 +22,10 @@ router.get('/map-data', requirePassword, async (req, res) => {
     // 我们可以在 SQL 或 JS 中过滤。
     // 目前获取所有并返回所需字段。
     const lockedDirs = await getAllLockedDirectories();
-    const images = imageRepository.getAll();
+    const images = imageRepository.getGpsImages();
     const mapData = images.filter(img => {
         if (lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/"))) return false;
-        const meta = JSON.parse(img.meta_json || '{}');
-        return meta.gps;
+        return true;
     }).map(img => {
         const formatted = formatImageResponse(req, img);
         const meta = JSON.parse(img.meta_json || '{}');
@@ -135,33 +134,26 @@ router.get('/images', requirePassword, async (req, res) => {
             }
         }
 
-        // DB 查询？
-        // SQLite 没有原生的递归目录过滤，除非我们使用 GLOB
-        // 但 `rel_path` 允许 `dir/*` 通配符？
-        // 或者我们可以获取全部并在内存中过滤？
-        // `imageRepository.getAll` 返回所有。
-        // 如果库很大（10万张图片），内存过滤很糟糕。
-        // 我应该使用 LIKE 'dir/%' AND NOT LIKE 'dir/%/%' 向存储库添加 `getByDir`？
-        // 原来的 `getAllImages` 是递归的！
-        // `getAllImages(dir)` 递归返回 `dir` 中的所有内容。
-        // 所以 `WHERE rel_path LIKE 'dir/%'` 是正确的（对根目录处理正确）。
-
-        let allImages = imageRepository.getAll();
-
-        if (dir) {
-            allImages = allImages.filter(img => img.rel_path.startsWith(dir !== "" ? (dir + "/") : ""));
-        } else {
+        // 使用 SQL 分页，避免全量加载
+        // 无目录时需过滤锁定相册（通常很少，退回内存过滤）
+        if (!dir) {
             const lockedDirs = await getAllLockedDirectories();
-            allImages = allImages.filter(img => !lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/")));
+            if (lockedDirs.length > 0) {
+                let allImages = imageRepository.getAll();
+                allImages = allImages.filter(img => !lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/")));
+                if (search) allImages = allImages.filter(img => img.filename.toLowerCase().includes(search.toLowerCase()));
+                const total = allImages.length;
+                const paginated = allImages.slice((page - 1) * pageSize, page * pageSize);
+                res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+                return res.json({
+                    success: true, data: paginated.map(img => formatImageResponse(req, img)),
+                    pagination: { current: page, pageSize, total, totalPages: Math.ceil(total / pageSize) }
+                });
+            }
         }
 
-        if (search) {
-            allImages = allImages.filter(img => img.filename.toLowerCase().includes(search.toLowerCase()));
-        }
-
-        const total = allImages.length;
-        const startIndex = (page - 1) * pageSize;
-        const paginated = allImages.slice(startIndex, startIndex + pageSize);
+        const total = imageRepository.countPaginated(dir, search);
+        const paginated = imageRepository.getPaginated(dir, page, pageSize, search);
 
         const result = paginated.map(img => formatImageResponse(req, img));
 
@@ -402,31 +394,26 @@ router.get('/random', async (req, res) => {
         let dir = req.query.dir || "";
         dir = dir.replace(/\\/g, "/");
 
-        let allImages = imageRepository.getAll();
-
-        if (dir) {
-            allImages = allImages.filter(img => img.rel_path.startsWith(dir !== "" ? (dir + "/") : ""));
-        } else {
+        // 使用 SQL 随机选取，避免全量加载
+        if (!dir) {
             const lockedDirs = await getAllLockedDirectories();
-            allImages = allImages.filter(img => !lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/")));
+            if (lockedDirs.length > 0) {
+                let allImages = imageRepository.getAll();
+                allImages = allImages.filter(img => !lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/")));
+                if (allImages.length === 0) return res.status(404).json({ error: "Not Found" });
+                const randomImage = allImages[Math.floor(Math.random() * allImages.length)];
+                if (req.query.format === 'json') return res.json(formatImageResponse(req, randomImage));
+                return await serveImage(req, res, randomImage.rel_path);
+            }
         }
 
-        if (allImages.length === 0) {
-            return res.status(404).json({ error: "Not Found" });
-        }
+        const randomImage = dir ? imageRepository.getRandomByDir(dir) : imageRepository.getRandom();
+        if (!randomImage) return res.status(404).json({ error: "Not Found" });
 
-        const randomIndex = Math.floor(Math.random() * allImages.length);
-        const randomImage = allImages[randomIndex];
-
-        // START CHANGE: Support format=json
-        // START CHANGE: Support format=json
         if (req.query.format === 'json') {
             return res.json(formatImageResponse(req, randomImage));
         }
-        // END CHANGE
-        // END CHANGE
 
-        // 复用 serveImage
         await serveImage(req, res, randomImage.rel_path);
 
     } catch (e) {

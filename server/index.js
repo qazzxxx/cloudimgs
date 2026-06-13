@@ -55,12 +55,6 @@ app.use("/api", imageRoutes); // /images, /images/*, /files/*
     await migrateFromLegacyJson();
     await syncFileSystem();
 
-    if (config.magicSearch.enabled) {
-      // 触发后台扫描任何丢失的嵌入 (低优先级)
-      // 这里没有 await，以便让服务器立即启动
-      const clipService = require('./services/clipService');
-      clipService.scanAll().catch(e => console.error("Background scan failed:", e));
-    }
   } catch (e) {
     console.error("Initialization failed:", e);
   }

@@ -21,6 +21,52 @@ const getPreviewsQuery = db.prepare("SELECT * FROM images WHERE rel_path LIKE ? 
 const countImagesByDirQuery = db.prepare("SELECT COUNT(*) as count FROM images WHERE rel_path LIKE ? || '/%'");
 const getAllImagesByViewsQuery = db.prepare('SELECT * FROM images ORDER BY views DESC');
 
+// 分页查询 (按目录 + 搜索)
+const getPaginatedQuery = db.prepare(`
+  SELECT * FROM images
+  WHERE rel_path LIKE ? || '/%'
+    AND (? = '' OR filename LIKE '%' || ? || '%')
+  ORDER BY upload_time DESC
+  LIMIT ? OFFSET ?
+`);
+
+const getPaginatedRootQuery = db.prepare(`
+  SELECT * FROM images
+  WHERE (? = '' OR filename LIKE '%' || ? || '%')
+  ORDER BY upload_time DESC
+  LIMIT ? OFFSET ?
+`);
+
+const countByDirFilteredQuery = db.prepare(`
+  SELECT COUNT(*) as count FROM images
+  WHERE rel_path LIKE ? || '/%'
+    AND (? = '' OR filename LIKE '%' || ? || '%')
+`);
+
+const countRootFilteredQuery = db.prepare(`
+  SELECT COUNT(*) as count FROM images
+  WHERE (? = '' OR filename LIKE '%' || ? || '%')
+`);
+
+// 带目录分页 (分享页用)
+const getPaginatedByDirQuery = db.prepare(`
+  SELECT * FROM images WHERE rel_path LIKE ? || '/%' ORDER BY upload_time DESC LIMIT ? OFFSET ?
+`);
+const countByDirQuery = db.prepare("SELECT COUNT(*) as count FROM images WHERE rel_path LIKE ? || '/%'");
+
+// 地图数据: 只查有 GPS 的图片 (避免全量加载)
+const getGpsImagesQuery = db.prepare(`
+  SELECT * FROM images WHERE meta_json LIKE '%gps%'
+`);
+
+// 随机图片: SQL 随机选取
+const getRandomImageQuery = db.prepare(`
+  SELECT * FROM images ORDER BY RANDOM() LIMIT 1
+`);
+const getRandomImageByDirQuery = db.prepare(`
+  SELECT * FROM images WHERE rel_path LIKE ? || '/%' ORDER BY RANDOM() LIMIT 1
+`);
+
 // 批量操作
 const insertMany = db.transaction((images) => {
     for (const img of images) insertImage.run(img);
@@ -91,6 +137,30 @@ module.exports = {
     getPreviews: (dir, limit = 3) => getPreviewsQuery.all(dir, limit),
     countByDir: (dir) => countImagesByDirQuery.get(dir).count,
     insertMany,
+    // 分页查询
+    getPaginated: (dir, page, pageSize, search = "") => {
+        const offset = (page - 1) * pageSize;
+        if (dir) {
+            return getPaginatedQuery.all(dir + "/", search, search, pageSize, offset);
+        }
+        return getPaginatedRootQuery.all(search, search, pageSize, offset);
+    },
+    countPaginated: (dir, search = "") => {
+        if (dir) {
+            return countByDirFilteredQuery.get(dir + "/", search, search).count;
+        }
+        return countRootFilteredQuery.get(search, search).count;
+    },
+    // 分享页分页
+    getPaginatedByDir: (dir, page, pageSize) => {
+        const offset = (page - 1) * pageSize;
+        return getPaginatedByDirQuery.all(dir + "/", pageSize, offset);
+    },
+    countPaginatedByDir: (dir) => countByDirQuery.get(dir + "/").count,
+    // 地图 & 随机
+    getGpsImages: () => getGpsImagesQuery.all(),
+    getRandom: () => getRandomImageQuery.get(),
+    getRandomByDir: (dir) => getRandomImageByDirQuery.get(dir + "/"),
     // 事务辅助函数
     transaction: (fn) => db.transaction(fn),
 

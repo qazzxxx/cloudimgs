@@ -118,27 +118,24 @@ router.get('/access', (req, res) => {
         // Increment view count
         shareRepository.incrementView(token);
 
-        // Get images
-        let images = imageRepository.getByDir(share.path);
-
-        // Pagination
         const p = parseInt(page);
         const ps = parseInt(pageSize);
-        const total = images.length;
+        const dir = share.path || "";
+        const total = dir ? imageRepository.countPaginatedByDir(dir) : imageRepository.count();
         const totalPages = Math.ceil(total / ps);
-        const start = (p - 1) * ps;
-        const end = start + ps;
-        const sliced = images.slice(start, end); // Basic memory pagination. For huge sets, DB limit/offset is better but we use `LIKE` which is tricky for deep pagination without more logic.
+        const sliced = dir
+            ? imageRepository.getPaginatedByDir(dir, p, ps)
+            : imageRepository.getPaginated("", p, ps, "");
 
         // Get dirname
-        const dirName = share.path.split('/').pop() || (share.path === "" ? "全部图片" : share.path);
+        const dirName = dir.split('/').pop() || (dir === "" ? "全部图片" : dir);
 
         res.json({
             success: true,
             data: sliced.map(img => formatImageResponse(req, img)),
             dirName,
             pagination: {
-                current: p,
+                current: parseInt(page),
                 pageSize: ps,
                 total,
                 totalPages
