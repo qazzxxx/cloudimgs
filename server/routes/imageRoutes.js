@@ -139,11 +139,8 @@ router.get('/images', requirePassword, async (req, res) => {
         if (!dir) {
             const lockedDirs = await getAllLockedDirectories();
             if (lockedDirs.length > 0) {
-                let allImages = imageRepository.getAll();
-                allImages = allImages.filter(img => !lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/")));
-                if (search) allImages = allImages.filter(img => img.filename.toLowerCase().includes(search.toLowerCase()));
-                const total = allImages.length;
-                const paginated = allImages.slice((page - 1) * pageSize, page * pageSize);
+                const total = imageRepository.countExclude(lockedDirs, search);
+                const paginated = imageRepository.getPaginatedExclude(lockedDirs, search, page, pageSize);
                 res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
                 return res.json({
                     success: true, data: paginated.map(img => formatImageResponse(req, img)),
@@ -401,10 +398,8 @@ router.get('/random', async (req, res) => {
         if (!dir) {
             const lockedDirs = await getAllLockedDirectories();
             if (lockedDirs.length > 0) {
-                let allImages = imageRepository.getAll();
-                allImages = allImages.filter(img => !lockedDirs.some(lockedDir => img.rel_path.startsWith(lockedDir + "/")));
-                if (allImages.length === 0) return res.status(404).json({ error: "Not Found" });
-                const randomImage = allImages[Math.floor(Math.random() * allImages.length)];
+                const randomImage = imageRepository.getRandomExclude(lockedDirs);
+                if (!randomImage) return res.status(404).json({ error: "Not Found" });
                 if (req.query.format === 'json') return res.json(formatImageResponse(req, randomImage));
                 return await serveImage(req, res, randomImage.rel_path);
             }

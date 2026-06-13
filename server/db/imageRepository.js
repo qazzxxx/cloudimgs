@@ -68,6 +68,39 @@ const getRandomImageByDirQuery = db.prepare(`
   SELECT * FROM images WHERE rel_path LIKE ? || '/%' ORDER BY RANDOM() LIMIT 1
 `);
 
+
+// 排除锁定目录的查询 (动态 SQL，锁定目录通常很少)
+function _buildExcludeClause(lockedDirs) {
+    if (!lockedDirs || lockedDirs.length === 0) return { sql: '', params: [] };
+    const clauses = lockedDirs.map(() => 'rel_path NOT LIKE ? || \'/%\'');
+    return { sql: ' AND ' + clauses.join(' AND '), params: lockedDirs };
+}
+
+const getTopImagesExcludeQuery = (lockedDirs, limit) => {
+    const { sql, params } = _buildExcludeClause(lockedDirs);
+    return db.prepare(`SELECT * FROM images WHERE 1=1${sql} ORDER BY views DESC LIMIT ?`).all(...params, limit);
+};
+
+const getRandomExcludeQuery = (lockedDirs) => {
+    const { sql, params } = _buildExcludeClause(lockedDirs);
+    return db.prepare(`SELECT * FROM images WHERE 1=1${sql} ORDER BY RANDOM() LIMIT 1`).get(...params);
+};
+
+const getPaginatedExcludeQuery = (lockedDirs, search, page, pageSize) => {
+    const { sql, params } = _buildExcludeClause(lockedDirs);
+    const searchClause = search ? " AND filename LIKE '%' || ? || '%'" : '';
+    const offset = (page - 1) * pageSize;
+    const allParams = [...params, ...(search ? [search] : []), pageSize, offset];
+    return db.prepare(`SELECT * FROM images WHERE 1=1${sql}${searchClause} ORDER BY upload_time DESC LIMIT ? OFFSET ?`).all(...allParams);
+};
+
+const countExcludeQuery = (lockedDirs, search) => {
+    const { sql, params } = _buildExcludeClause(lockedDirs);
+    const searchClause = search ? " AND filename LIKE '%' || ? || '%'" : '';
+    const allParams = [...params, ...(search ? [search] : [])];
+    return db.prepare(`SELECT COUNT(*) as count FROM images WHERE 1=1${sql}${searchClause}`).get(...allParams).count;
+};
+
 // 批量操作
 const insertMany = db.transaction((images) => {
     for (const img of images) insertImage.run(img);
@@ -161,6 +194,10 @@ module.exports = {
     countPaginatedByDir: (dir) => countByDirQuery.get(dir + "/").count,
     // 地图 & 随机
     getGpsImages: () => getGpsImagesQuery.all(),
+    getTopExclude: (lockedDirs, limit) => getTopImagesExcludeQuery(lockedDirs, limit),
+    getRandomExclude: (lockedDirs) => getRandomExcludeQuery(lockedDirs),
+    getPaginatedExclude: (lockedDirs, search, page, pageSize) => getPaginatedExcludeQuery(lockedDirs, search, page, pageSize),
+    countExclude: (lockedDirs, search) => countExcludeQuery(lockedDirs, search),
     getRandom: () => getRandomImageQuery.get(),
     getRandomByDir: (dir) => getRandomImageByDirQuery.get(dir + "/"),
     // 事务辅助函数
