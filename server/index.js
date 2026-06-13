@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
 const path = require("path");
 const fs = require("fs-extra");
 const config = require("../config"); // config.js is in root usually? checking old index.js: require("../config")
@@ -21,6 +22,7 @@ const PORT = config.server.port || 5000; // fallback
 
 // 中间件
 app.use(cors());
+app.use(compression());
 app.use(express.json({ limit: '3mb' }));
 app.use(express.static(path.join(__dirname, "../client/build")));
 app.enable("trust proxy");
