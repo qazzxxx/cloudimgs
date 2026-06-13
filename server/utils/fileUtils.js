@@ -6,8 +6,10 @@ const config = require('../../config');
 const CACHE_DIR_NAME = ".cache";
 
 function safeJoin(base, target) {
-    const targetPath = path.resolve(base, target || "");
-    if (!targetPath.startsWith(path.resolve(base))) {
+    const resolvedBase = path.resolve(base);
+    const targetPath = path.resolve(resolvedBase, target || "");
+    const relative = path.relative(resolvedBase, targetPath);
+    if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
         throw new Error("非法目录路径");
     }
     return targetPath;
