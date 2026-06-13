@@ -257,8 +257,11 @@ async function serveImage(req, res, relPath) {
         const filePath = safeJoin(STORAGE_PATH, relPath);
         if (!await fs.pathExists(filePath)) return res.status(404).json({ error: "Not found" });
 
-        // Thumbhash 触发器
-        getThumbHash(filePath).then(h => { if (!h) generateThumbHash(filePath); });
+        // Thumbhash: 仅 DB 中为空时才生成（避免每次请求都读磁盘）
+        const dbImg = imageRepository.getByPath(relPath);
+        if (dbImg && !dbImg.thumbhash) {
+            generateThumbHash(filePath).catch(() => {});
+        }
 
         const { w, h, q, fmt, rows, cols, idx } = req.query;
 
