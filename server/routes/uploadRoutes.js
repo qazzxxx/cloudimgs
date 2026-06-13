@@ -22,7 +22,7 @@ function getBaseUrl(req) {
 }
 
 // 1. Base64 上传
-router.post('/upload-base64', requirePassword, async (req, res) => {
+router.post('/upload-base64', requirePassword, express.json({ limit: '50mb' }), async (req, res) => {
     try {
         let dir = req.body.dir || req.query.dir || "";
         dir = dir.replace(/\\/g, "/");
@@ -98,7 +98,7 @@ router.post('/upload-base64', requirePassword, async (req, res) => {
 });
 
 // 1.0 URL 上传
-router.post('/upload-url', requirePassword, async (req, res) => {
+router.post('/upload-url', requirePassword, express.json({ limit: '10mb' }), async (req, res) => {
     try {
         const { url } = req.body;
         if (!url) {
