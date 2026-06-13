@@ -67,20 +67,6 @@ router.post('/upload-base64', requirePassword, async (req, res) => {
             console.error("Queue error:", queueErr);
         }
 
-        // 添加到魔法搜图队列
-        try {
-            let imageId = dbResult.lastInsertRowid;
-            if (!imageId || imageId.toString() === '0') {
-                const existing = imageRepository.getByPath(relPath);
-                if (existing) imageId = existing.id;
-            }
-            if (imageId) {
-                clipService.addToQueue({ id: imageId, rel_path, filename: fileInfo.filename });
-            }
-        } catch (queueErr) {
-            console.error("Queue error:", queueErr);
-        }
-
         // 记录上传统计信息
         imageRepository.recordUpload(size);
 
