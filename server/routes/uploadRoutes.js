@@ -14,6 +14,21 @@ const sharp = require('sharp');
 const router = express.Router();
 const STORAGE_PATH = config.storage.path;
 
+function queueForMagicSearch(dbResult, relPath, filename, priority) {
+    try {
+        let imageId = dbResult.lastInsertRowid;
+        if (!imageId || imageId.toString() === '0') {
+            const existing = imageRepository.getByPath(relPath);
+            if (existing) imageId = existing.id;
+        }
+        if (imageId) {
+            clipService.addToQueue({ id: imageId, rel_path: relPath, filename }, priority);
+        }
+    } catch (queueErr) {
+        console.error("Queue error:", queueErr);
+    }
+}
+
 function getBaseUrl(req) {
     const proto = req.headers["x-forwarded-proto"] || req.protocol;
     const protocol = Array.isArray(proto) ? proto[0] : String(proto).split(",")[0].trim();
@@ -54,18 +69,7 @@ router.post('/upload-base64', requirePassword, express.json({ limit: '50mb' }), 
         });
 
         // 添加到魔法搜图队列
-        try {
-            let imageId = dbResult.lastInsertRowid;
-            if (!imageId || imageId.toString() === '0') {
-                const existing = imageRepository.getByPath(relPath);
-                if (existing) imageId = existing.id;
-            }
-            if (imageId) {
-                clipService.addToQueue({ id: imageId, rel_path, filename: fileInfo.filename });
-            }
-        } catch (queueErr) {
-            console.error("Queue error:", queueErr);
-        }
+        queueForMagicSearch(dbResult, relPath, fileInfo.filename);
 
         // 记录上传统计信息
         imageRepository.recordUpload(size);
@@ -138,18 +142,7 @@ router.post('/upload-url', requirePassword, express.json({ limit: '10mb' }), asy
         });
 
         // Add to magic search queue
-        try {
-            let imageId = dbResult.lastInsertRowid;
-            if (!imageId || imageId.toString() === '0') {
-                const existing = imageRepository.getByPath(relPath);
-                if (existing) imageId = existing.id;
-            }
-            if (imageId) {
-                clipService.addToQueue({ id: imageId, rel_path: relPath, filename: originalName });
-            }
-        } catch (queueErr) {
-            console.error("Queue error:", queueErr);
-        }
+        queueForMagicSearch(dbResult, relPath, originalName);
 
         // Record upload stats
         imageRepository.recordUpload(size);
@@ -212,18 +205,7 @@ router.post('/upload', requirePassword, upload.any(), handleMulterError, async (
 
 
         // 添加到魔法搜图队列
-        try {
-            let imageId = dbResult.lastInsertRowid;
-            if (!imageId || imageId.toString() === '0') {
-                const existing = imageRepository.getByPath(relPath);
-                if (existing) imageId = existing.id;
-            }
-            if (imageId) {
-                clipService.addToQueue({ id: imageId, rel_path: relPath, filename: req.file.filename }, 'high');
-            }
-        } catch (queueErr) {
-            console.error("Queue error:", queueErr);
-        }
+        queueForMagicSearch(dbResult, relPath, req.file.filename, 'high');
 
         // 记录上传统计信息
         imageRepository.recordUpload(req.file.size);
