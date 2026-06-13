@@ -201,13 +201,6 @@ router.get('/images/meta/*', requirePassword, async (req, res) => {
         const fstats = await fs.stat(filePath);
         const mimeType = mime.lookup(filePath) || "application/octet-stream";
 
-        // If DB miss or missing critical info (e.g. detailed EXIF or Space not in DB for old records),
-        // we might want to re-parse from file on the fly given this is the "Detail View"
-        // But for performance, trust DB if available.
-        // However, user just asked to "fix" it, so for existing images that don't have the new fields,
-        // we should probably re-extract if missing.
-
-        let needsUpdate = false;
         if (!fileInfo.space || !fileInfo.width) {
             const { getFileMetadata } = require('../services/metadataService');
             const freshMeta = await getFileMetadata(filePath, relPath, fstats);

@@ -106,7 +106,8 @@ router.delete('/images/*', requirePassword, async (req, res) => {
             res.status(404).json({ error: "图片不存在 (但在数据库中已清理)" });
         }
     } catch (e) {
-        res.status(400).json({ error: "操作失败" });
+        console.error("Delete image failed:", e);
+        res.status(400).json({ error: "操作失败", detail: e.message });
     }
 });
 
@@ -124,7 +125,8 @@ router.delete('/files/*', requirePassword, async (req, res) => {
             res.status(404).json({ error: "文件不存在" });
         }
     } catch (e) {
-        res.status(400).json({ error: "操作失败" });
+        console.error("Delete file failed:", e);
+        res.status(400).json({ error: "操作失败", detail: e.message });
     }
 });
 
