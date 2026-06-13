@@ -120,6 +120,7 @@ async function syncFileSystem() {
             } catch (e) {
                 console.error(`Failed to sync file ${file.relPath}`, e);
             }
+            await new Promise(r => setTimeout(r, 50));
         } else {
             // 现有文件，检查 mtime
             // 注意：dbEntry.mtime 来自 DB
@@ -133,6 +134,7 @@ async function syncFileSystem() {
                         ...metadata
                     });
                 } catch (e) { console.error(`Failed to update ${file.relPath}`, e); }
+                await new Promise(r => setTimeout(r, 50));
             }
         }
     }
