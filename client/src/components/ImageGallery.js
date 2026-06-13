@@ -603,8 +603,8 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingDir, setPendingDir] = useState(null); // The directory that required password
 
-  // Thumbnail width from config (0 = use original)
-  // Thumbnail width from config (0 = use original)
+ // Thumbnail width from config (0 = use original)
+ // Thumbnail width from config (0 = use original)
   const [thumbnailWidth, setThumbnailWidth] = useState(0);
 
   // Magic Search
