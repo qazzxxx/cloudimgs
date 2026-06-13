@@ -78,10 +78,9 @@ router.post('/revoke', requirePassword, (req, res) => {
 });
 
 // Delete Share Link (History)
-router.delete('/delete', requirePassword, (req, res) => {
+router.post('/delete', requirePassword, (req, res) => {
     try {
-        const { signature } = req.body; // or req.body.data if axios sends it there? Express req.body handles it if JSON middleware is on.
-        // Wait, DELETE with body? Client sends `data: { ... }`. Express `req.body` should have it.
+        const { signature } = req.body;
 
         if (!signature) return res.status(400).json({ error: "Missing signature" });
 
