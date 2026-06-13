@@ -97,10 +97,10 @@ async function getAllFiles(dir) {
 async function syncFileSystem() {
     console.log("Starting file system sync...");
     const diskFiles = await getAllFiles("");
-    const dbImages = imageRepository.getAll();
+    const dbSyncEntries = imageRepository.getAllSyncEntries();
 
     const diskMap = new Map(diskFiles.map(f => [f.relPath, f]));
-    const dbMap = new Map(dbImages.map(i => [i.rel_path, i]));
+    const dbMap = new Map(dbSyncEntries.map(i => [i.rel_path, i]));
 
     // 1. 磁盘上的文件但不在 DB 中（新增）
     // 2. 磁盘上的文件在 DB 中（如果修改则更新）
@@ -138,7 +138,7 @@ async function syncFileSystem() {
     }
 
     // 3. 在 DB 中但不在磁盘上（删除）
-    for (const img of dbImages) {
+    for (const img of dbSyncEntries) {
         if (!diskMap.has(img.rel_path)) {
             console.log(`Removing missing file from DB: ${img.rel_path}`);
             imageRepository.delete(img.rel_path);

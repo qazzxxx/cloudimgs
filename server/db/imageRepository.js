@@ -17,6 +17,7 @@ const getAllImagesQuery = db.prepare('SELECT * FROM images ORDER BY upload_time 
 const deleteImageByPath = db.prepare('DELETE FROM images WHERE rel_path = ?');
 const countImages = db.prepare('SELECT COUNT(*) as count FROM images');
 const getImagesByDir = db.prepare("SELECT * FROM images WHERE rel_path LIKE ? || '/%' ORDER BY upload_time DESC");
+const getAllSyncEntriesQuery = db.prepare('SELECT rel_path, mtime FROM images');
 const getPreviewsQuery = db.prepare("SELECT * FROM images WHERE rel_path LIKE ? || '/%' ORDER BY upload_time DESC LIMIT ?");
 const countImagesByDirQuery = db.prepare("SELECT COUNT(*) as count FROM images WHERE rel_path LIKE ? || '/%'");
 const getAllImagesByViewsQuery = db.prepare('SELECT * FROM images ORDER BY views DESC');
@@ -123,6 +124,7 @@ module.exports = {
     rename: (oldRelPath, newRelPath, newFilename) => renameImage(oldRelPath, newRelPath, newFilename),
     getByPath: (relPath) => getImageByPath.get(relPath),
     getAll: () => getAllImagesQuery.all(),
+    getAllSyncEntries: () => getAllSyncEntriesQuery.all(),
     getAllByViews: () => getAllImagesByViewsQuery.all(),
     delete: (relPath) => deleteImageByPath.run(relPath),
     count: () => countImages.get().count,
