@@ -7,7 +7,7 @@ sharp.cache(false);
 const config = require('../../config');
 const imageRepository = require('../db/imageRepository');
 const { requirePassword } = require('../middleware/auth');
-const { safeJoin, getThumbHash, generateThumbHash } = require('../utils/fileUtils');
+const { safeJoin } = require('../utils/fileUtils');
 const { formatImageResponse } = require('../utils/urlUtils');
 
 const router = express.Router();
@@ -246,12 +246,6 @@ async function serveImage(req, res, relPath) {
     try {
         const filePath = safeJoin(STORAGE_PATH, relPath);
         if (!await fs.pathExists(filePath)) return res.status(404).json({ error: "Not found" });
-
-        // Thumbhash: 仅 DB 中为空时才生成（避免每次请求都读磁盘）
-        const dbImg = imageRepository.getByPath(relPath);
-        if (dbImg && !dbImg.thumbhash) {
-            generateThumbHash(filePath).catch(() => {});
-        }
 
         const { w, h, q, fmt, rows, cols, idx } = req.query;
 
