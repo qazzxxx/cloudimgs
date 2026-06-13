@@ -6,6 +6,31 @@ const fs = require('fs-extra');
 let Pipeline = null;
 
 class ClipService {
+    static purgeCorruptCache(modelName) {
+        const cacheBase = path.resolve(__dirname, '../../.cache/huggingface', modelName);
+        try {
+            fs.removeSync(cacheBase);
+            console.warn(`[MagicSearch] Purged corrupt cache for ${modelName} at ${cacheBase}`);
+        } catch (e) {
+            console.error(`[MagicSearch] Failed to purge cache for ${modelName}:`, e);
+        }
+    }
+
+    // The error path contains the actual cache location, e.g.
+    // /app/.cache/huggingface/Xenova/opus-mt-zh-en/onnx/encoder_model_quantized.onnx
+    // Extract the model id so we purge the corrupt file, not some other model.
+    static extractModelFromError(error) {
+        const msg = String(error?.message || error);
+        const m = msg.match(/huggingface\/([^/]+\/[^/]+)\//);
+        return m ? m[1] : null;
+    }
+
+    static isCorruptModelError(error) {
+        const msg = String(error?.message || error);
+        return msg.includes('Protobuf parsing failed') ||
+            (msg.includes('Load model') && msg.includes('failed'));
+    }
+
     constructor() {
         this.modelName = config.magicSearch.modelName || 'Xenova/clip-vit-base-patch32';
         this.tokenizer = null;
@@ -85,6 +110,13 @@ class ClipService {
             };
         } catch (error) {
             console.error(`[MagicSearch] Failed to load models:`, error);
+            if (ClipService.isCorruptModelError(error)) {
+                // Purge the actual corrupt model (extracted from the error path),
+                // not necessarily this.modelName — the failure may reference a
+                // different model that poisoned the onnxruntime session.
+                const corruptModel = ClipService.extractModelFromError(error) || this.modelName;
+                ClipService.purgeCorruptCache(corruptModel);
+            }
             throw error;
         }
     }
@@ -287,6 +319,22 @@ class ClipService {
     async getTranslator() {
         if (this.translator) return this.translator;
 
+        // Pre-validate the cached ONNX file before handing it to onnxruntime.
+        // A corrupt/truncated file triggers a protobuf parse failure that can
+        // poison the onnxruntime session for *all* subsequent model loads
+        // (including CLIP), so we must catch it before that happens.
+        const opusCacheDir = path.resolve(__dirname, '../../.cache/huggingface', 'Xenova/opus-mt-zh-en', 'onnx');
+        const opusOnnx = path.join(opusCacheDir, 'encoder_model_quantized.onnx');
+        if (await fs.pathExists(opusOnnx)) {
+            const stat = await fs.stat(opusOnnx);
+            // A validly-downloaded quantized opus encoder is several MB.
+            // Anything smaller is almost certainly a truncated download.
+            if (stat.size < 1024 * 1024) {
+                console.warn(`[MagicSearch] Translation model cache looks corrupt (${stat.size} bytes), purging before load.`);
+                ClipService.purgeCorruptCache('Xenova/opus-mt-zh-en');
+            }
+        }
+
         console.log(`[MagicSearch] Loading translation model (opus-mt-zh-en)...`);
         try {
             const { pipeline, env } = await import('@huggingface/transformers');
@@ -305,6 +353,11 @@ class ClipService {
             return this.translator;
         } catch (e) {
             console.error(`[MagicSearch] Failed to load translator:`, e);
+            // If the cached ONNX is corrupt/truncated, purge it so the next
+            // attempt re-downloads instead of reading the bad file forever.
+            if (ClipService.isCorruptModelError(e)) {
+                ClipService.purgeCorruptCache('Xenova/opus-mt-zh-en');
+            }
             return null;
         }
     }
