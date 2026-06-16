@@ -3,11 +3,17 @@ const db = require('../db/database');
 const path = require('path');
 const fs = require('fs-extra');
 
+// 模型缓存放在存储目录（uploads）下，随现有的 ./uploads 卷持久化，
+// 用户无需额外配置卷即可保留已下载的模型，避免每次重建容器都重下几百 MB。
+// 与数据库位置（<storage>/.cache/cloudimgs.db）保持一致。
+const HF_CACHE_DIR = path.resolve(config.storage.path, '.cache', 'huggingface');
+fs.ensureDirSync(HF_CACHE_DIR);
+
 let Pipeline = null;
 
 class ClipService {
     static purgeCorruptCache(modelName) {
-        const cacheBase = path.resolve(__dirname, '../../.cache/huggingface', modelName);
+        const cacheBase = path.join(HF_CACHE_DIR, modelName);
         try {
             fs.removeSync(cacheBase);
             console.warn(`[MagicSearch] Purged corrupt cache for ${modelName} at ${cacheBase}`);
@@ -17,7 +23,7 @@ class ClipService {
     }
 
     // The error path contains the actual cache location, e.g.
-    // /app/.cache/huggingface/Xenova/opus-mt-zh-en/onnx/encoder_model_quantized.onnx
+    // /app/uploads/.cache/huggingface/Xenova/opus-mt-zh-en/onnx/encoder_model_quantized.onnx
     // Extract the model id so we purge the corrupt file, not some other model.
     static extractModelFromError(error) {
         const msg = String(error?.message || error);
@@ -29,6 +35,44 @@ class ClipService {
         const msg = String(error?.message || error);
         return msg.includes('Protobuf parsing failed') ||
             (msg.includes('Load model') && msg.includes('failed'));
+    }
+
+    // 翻译模型连续加载失败多少次后，本会话内熔断（停止重试），避免每次搜索都被拖慢。
+    static MAX_TRANSLATOR_FAILURES = 2;
+
+    // 校验单个 ONNX 文件是否完整有效。
+    // @huggingface/transformers 导出的 ONNX ModelProto 头部有固定特征：
+    //   08 <ir_version> 12 0d 6f6e6e78 ...  →  field1=ir_version, field2=producer_name="onnx.quantiz..."
+    // 损坏/截断的下载（Git-LFS 指针、HTML/JSON 错误页、半截二进制）都不会带这个头部，
+    // 因此只读前 8 字节即可廉价识别，无需把几十上百 MB 的文件读进内存。
+    // （旧的体积校验只挡 <1MB 的文件，NAS 上半截下载/镜像错误页常 >1MB，从而绕过校验）
+    static isValidOnnxFile(filePath) {
+        try {
+            const fd = fs.openSync(filePath, 'r');
+            const buf = Buffer.alloc(8);
+            const n = fs.readSync(fd, buf, 0, 8, 0);
+            fs.closeSync(fd);
+            if (n < 8) return false;
+            // byte0=0x08(ir_version tag) · byte2=0x12(producer_name tag) · bytes4-7="onnx"
+            return buf[0] === 0x08 && buf[2] === 0x12 && buf.toString('ascii', 4, 8) === 'onnx';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // 校验某模型目录下的指定 ONNX 文件，任一损坏则整体清理缓存（让下次重新下载）。
+    // 返回 true 表示发现并清理了损坏缓存。
+    static purgeCorruptModelFiles(modelName, onnxFiles) {
+        const onnxDir = path.join(HF_CACHE_DIR, modelName, 'onnx');
+        for (const name of onnxFiles) {
+            const fp = path.join(onnxDir, name);
+            if (fs.existsSync(fp) && !ClipService.isValidOnnxFile(fp)) {
+                console.warn(`[MagicSearch] Corrupt ONNX detected: ${modelName}/onnx/${name}`);
+                ClipService.purgeCorruptCache(modelName);
+                return true;
+            }
+        }
+        return false;
     }
 
     constructor() {
@@ -45,6 +89,12 @@ class ClipService {
         this.queue = [];
         this.processing = false;
         this.queueInterval = 2000; // 每个项目之间延迟 2 秒，为 N100 留出呼吸空间
+
+        // 模型加载串行锁：避免 onnxruntime 并发加载（N100 友好，也避免日志/错误错乱）
+        this._lockChain = Promise.resolve();
+        // 翻译模型熔断器：损坏文件反复重试只会拖慢每次搜索
+        this.translatorFailures = 0;
+        this.translatorDisabled = false;
     }
 
     static getInstance() {
@@ -54,7 +104,17 @@ class ClipService {
         return ClipService.instance;
     }
 
+    // 串行执行模型加载类异步任务。用 Promise 链排队，后一个等前一个完成（成功或失败），
+    // 避免 onnxruntime 并发加载导致日志/错误错乱，对 N100 也更友好。
+    _withLock(fn) {
+        const next = this._lockChain.then(() => fn());
+        // 吞掉错误，防止某次失败卡断整条链
+        this._lockChain = next.catch(() => {});
+        return next;
+    }
+
     async getModels() {
+        // 快速路径：已加载直接返回（无需加锁）
         if (this.processor && this.tokenizer && this.visionModel && this.textModel) {
             return {
                 processor: this.processor,
@@ -64,61 +124,81 @@ class ClipService {
             };
         }
 
-        console.log(`[MagicSearch] Loading model components: ${this.modelName}...`);
-        try {
-            // Dynamic import for ESM module
-            const {
-                AutoProcessor,
-                AutoTokenizer,
-                CLIPVisionModelWithProjection,
-                CLIPTextModelWithProjection,
-                RawImage,
-                env
-            } = await import('@huggingface/transformers');
-
-            this.RawImage = RawImage;
-
-            // 配置为使用本地缓存
-            env.cacheDir = path.resolve(__dirname, '../../.cache/huggingface');
-            env.allowLocalModels = false;
-            env.useBrowserCache = false;
-
-            // 允许自定义 HuggingFace 端点 (用于国内镜像，如 https://hf-mirror.com)
-            if (process.env.HF_ENDPOINT) {
-                env.remoteHost = process.env.HF_ENDPOINT;
-                console.log(`[MagicSearch] Using custom HF endpoint: ${env.remoteHost}`);
+        // 串行加载：避免 onnxruntime 并发加载
+        return this._withLock(async () => {
+            // 拿到锁后复查，并发调用方可能已经完成加载
+            if (this.processor && this.tokenizer && this.visionModel && this.textModel) {
+                return {
+                    processor: this.processor,
+                    tokenizer: this.tokenizer,
+                    visionModel: this.visionModel,
+                    textModel: this.textModel
+                };
             }
 
-            // 加载组件
-            this.processor = await AutoProcessor.from_pretrained(this.modelName);
-            this.tokenizer = await AutoTokenizer.from_pretrained(this.modelName);
-            this.visionModel = await CLIPVisionModelWithProjection.from_pretrained(this.modelName, {
-                quantized: true,
-                dtype: 'q8', // 显式指定量化类型，消除 N100 上的 fp32 警告
-            });
-            this.textModel = await CLIPTextModelWithProjection.from_pretrained(this.modelName, {
-                quantized: true,
-                dtype: 'q8', // 显式指定量化类型，消除 N100 上的 fp32 警告
-            });
+            // 加载前校验并清理可能损坏的 CLIP ONNX 文件，防止 Protobuf 解析失败
+            ClipService.purgeCorruptModelFiles(this.modelName, [
+                'text_model_quantized.onnx',
+                'vision_model_quantized.onnx',
+                'model_quantized.onnx',
+            ]);
 
-            console.log(`[MagicSearch] Models loaded successfully.`);
-            return {
-                processor: this.processor,
-                tokenizer: this.tokenizer,
-                visionModel: this.visionModel,
-                textModel: this.textModel
-            };
-        } catch (error) {
-            console.error(`[MagicSearch] Failed to load models:`, error);
-            if (ClipService.isCorruptModelError(error)) {
-                // Purge the actual corrupt model (extracted from the error path),
-                // not necessarily this.modelName — the failure may reference a
-                // different model that poisoned the onnxruntime session.
-                const corruptModel = ClipService.extractModelFromError(error) || this.modelName;
-                ClipService.purgeCorruptCache(corruptModel);
+            console.log(`[MagicSearch] Loading model components: ${this.modelName}...`);
+            try {
+                // Dynamic import for ESM module
+                const {
+                    AutoProcessor,
+                    AutoTokenizer,
+                    CLIPVisionModelWithProjection,
+                    CLIPTextModelWithProjection,
+                    RawImage,
+                    env
+                } = await import('@huggingface/transformers');
+
+                this.RawImage = RawImage;
+
+                // 配置为使用本地缓存
+                env.cacheDir = HF_CACHE_DIR;
+                env.allowLocalModels = false;
+                env.useBrowserCache = false;
+
+                // 允许自定义 HuggingFace 端点 (用于国内镜像，如 https://hf-mirror.com)
+                if (process.env.HF_ENDPOINT) {
+                    env.remoteHost = process.env.HF_ENDPOINT;
+                    console.log(`[MagicSearch] Using custom HF endpoint: ${env.remoteHost}`);
+                }
+
+                // 加载组件
+                this.processor = await AutoProcessor.from_pretrained(this.modelName);
+                this.tokenizer = await AutoTokenizer.from_pretrained(this.modelName);
+                this.visionModel = await CLIPVisionModelWithProjection.from_pretrained(this.modelName, {
+                    quantized: true,
+                    dtype: 'q8', // 显式指定量化类型，消除 N100 上的 fp32 警告
+                });
+                this.textModel = await CLIPTextModelWithProjection.from_pretrained(this.modelName, {
+                    quantized: true,
+                    dtype: 'q8', // 显式指定量化类型，消除 N100 上的 fp32 警告
+                });
+
+                console.log(`[MagicSearch] Models loaded successfully.`);
+                return {
+                    processor: this.processor,
+                    tokenizer: this.tokenizer,
+                    visionModel: this.visionModel,
+                    textModel: this.textModel
+                };
+            } catch (error) {
+                console.error(`[MagicSearch] Failed to load models:`, error);
+                if (ClipService.isCorruptModelError(error)) {
+                    // Purge the actual corrupt model (extracted from the error path),
+                    // not necessarily this.modelName — the failure may reference a
+                    // different model that poisoned the onnxruntime session.
+                    const corruptModel = ClipService.extractModelFromError(error) || this.modelName;
+                    ClipService.purgeCorruptCache(corruptModel);
+                }
+                throw error;
             }
-            throw error;
-        }
+        });
     }
 
     normalize(vector) {
@@ -315,51 +395,67 @@ class ClipService {
         return { success: true, count: queuedCount };
     }
 
-    // 加载翻译模型 (懒加载)
+    // 加载翻译模型 (懒加载)。翻译是可选增强，失败必须优雅降级，绝不能拖垮 CLIP。
     async getTranslator() {
-        if (this.translator) return this.translator;
-
-        // Pre-validate the cached ONNX file before handing it to onnxruntime.
-        // A corrupt/truncated file triggers a protobuf parse failure that can
-        // poison the onnxruntime session for *all* subsequent model loads
-        // (including CLIP), so we must catch it before that happens.
-        const opusCacheDir = path.resolve(__dirname, '../../.cache/huggingface', 'Xenova/opus-mt-zh-en', 'onnx');
-        const opusOnnx = path.join(opusCacheDir, 'encoder_model_quantized.onnx');
-        if (await fs.pathExists(opusOnnx)) {
-            const stat = await fs.stat(opusOnnx);
-            // A validly-downloaded quantized opus encoder is several MB.
-            // Anything smaller is almost certainly a truncated download.
-            if (stat.size < 1024 * 1024) {
-                console.warn(`[MagicSearch] Translation model cache looks corrupt (${stat.size} bytes), purging before load.`);
-                ClipService.purgeCorruptCache('Xenova/opus-mt-zh-en');
-            }
-        }
-
-        console.log(`[MagicSearch] Loading translation model (opus-mt-zh-en)...`);
-        try {
-            const { pipeline, env } = await import('@huggingface/transformers');
-            env.cacheDir = path.resolve(__dirname, '../../.cache/huggingface');
-
-            if (process.env.HF_ENDPOINT) {
-                env.remoteHost = process.env.HF_ENDPOINT;
-            }
-
-            this.translator = await pipeline('translation', 'Xenova/opus-mt-zh-en', {
-                // 开启量化，显著降低 N100 的内存压力和 CPU 占用
-                quantized: true,
-                dtype: 'q8', // 显式指定 q8 类型，消除 fp32 警告
-            });
-            console.log(`[MagicSearch] Translation model loaded.`);
-            return this.translator;
-        } catch (e) {
-            console.error(`[MagicSearch] Failed to load translator:`, e);
-            // If the cached ONNX is corrupt/truncated, purge it so the next
-            // attempt re-downloads instead of reading the bad file forever.
-            if (ClipService.isCorruptModelError(e)) {
-                ClipService.purgeCorruptCache('Xenova/opus-mt-zh-en');
-            }
+        if (this.translatorDisabled) {
+            // 熔断后直接跳过，避免损坏的翻译模型反复触发慢失败
             return null;
         }
+        if (this.translator) return this.translator;
+
+        return this._withLock(async () => {
+            if (this.translatorDisabled) return null;
+            if (this.translator) return this.translator;
+
+            const opusFiles = [
+                'encoder_model_quantized.onnx',
+                'decoder_model_merged_quantized.onnx',
+                'decoder_model_quantized.onnx',
+            ];
+
+            // 加载前用 magic-byte 校验缓存：损坏/截断的 ONNX 会触发 Protobuf 解析失败。
+            // 旧的体积校验（<1MB）挡不住 NAS 上常见的半截下载和镜像错误页。
+            const purged = ClipService.purgeCorruptModelFiles('Xenova/opus-mt-zh-en', opusFiles);
+
+            // 刚清理过损坏缓存时，本轮先不重新下载（镜像可能再次返回同样的坏文件），
+            // 本次搜索直接以原文进行；下次搜索再尝试重新下载。
+            if (purged) {
+                console.warn(`[MagicSearch] Translator skipped this round after purging corrupt opus-mt-zh-en cache.`);
+                return null;
+            }
+
+            console.log(`[MagicSearch] Loading translation model (opus-mt-zh-en)...`);
+            try {
+                const { pipeline, env } = await import('@huggingface/transformers');
+                env.cacheDir = HF_CACHE_DIR;
+
+                if (process.env.HF_ENDPOINT) {
+                    env.remoteHost = process.env.HF_ENDPOINT;
+                }
+
+                this.translator = await pipeline('translation', 'Xenova/opus-mt-zh-en', {
+                    // 开启量化，显著降低 N100 的内存压力和 CPU 占用
+                    quantized: true,
+                    dtype: 'q8', // 显式指定 q8 类型，消除 fp32 警告
+                });
+                console.log(`[MagicSearch] Translation model loaded.`);
+                this.translatorFailures = 0; // 成功后重置熔断计数
+                return this.translator;
+            } catch (e) {
+                console.error(`[MagicSearch] Failed to load translator:`, e);
+                // If the cached ONNX is corrupt/truncated, purge it so the next
+                // attempt re-downloads instead of reading the bad file forever.
+                if (ClipService.isCorruptModelError(e)) {
+                    ClipService.purgeCorruptModelFiles('Xenova/opus-mt-zh-en', opusFiles);
+                }
+                this.translatorFailures += 1;
+                if (this.translatorFailures >= ClipService.MAX_TRANSLATOR_FAILURES) {
+                    this.translatorDisabled = true;
+                    console.warn(`[MagicSearch] Translator disabled for this session after ${this.translatorFailures} failure(s). Semantic search will run without zh→en translation until restart.`);
+                }
+                return null;
+            }
+        });
     }
 
     // 按需翻译
