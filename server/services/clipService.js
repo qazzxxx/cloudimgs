@@ -95,6 +95,31 @@ class ClipService {
         // 翻译模型熔断器：损坏文件反复重试只会拖慢每次搜索
         this.translatorFailures = 0;
         this.translatorDisabled = false;
+        // 后台预热标志，防止并发预热
+        this._preloading = false;
+    }
+
+    // 后台预热模型，避免首次搜索在弱 CPU（如 N100）上冷加载 ~260MB 模型耗时过长
+    // 导致请求超时（接口 30s 无响应）。在服务启动时调用，不要 await。
+    // 模型就绪后自动补全尚未生成向量的历史图片（仅缺失的，已存在则跳过）。
+    async preload() {
+        if (!config.magicSearch.enabled) return;
+        if (this._preloading) return; // 防止并发预热
+        this._preloading = true;
+        try {
+            console.log('[MagicSearch] Background preloading models (N100 warm-up)...');
+            // 先加载搜索必需的 CLIP，再加载可选的翻译模型
+            await this.getModels();
+            console.log('[MagicSearch] CLIP models preloaded.');
+            await this.getTranslator();
+            console.log('[MagicSearch] All models preloaded. Magic search is ready.');
+            // 模型就绪后，后台补全尚未生成向量的历史图片
+            this.scanAll().catch(e => console.error('[MagicSearch] Background scan failed:', e));
+        } catch (e) {
+            console.error('[MagicSearch] Preload failed:', e);
+        } finally {
+            this._preloading = false;
+        }
     }
 
     static getInstance() {

@@ -390,7 +390,7 @@ const mockAdapter = async (config) => {
 // 创建axios实例
 const api = axios.create({
   baseURL: "/api",
-  timeout: 30000,
+  timeout: 120000,
   adapter: isMock ? mockAdapter : undefined,
 });
 

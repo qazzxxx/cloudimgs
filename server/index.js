@@ -15,6 +15,7 @@ const statsRoutes = require("./routes/statsRoutes");
 const searchRoutes = require("./routes/searchRoutes");
 const shareRoutes = require("./routes/shareRoutes");
 const { migrateFromLegacyJson, syncFileSystem } = require("./services/syncService");
+const clipService = require("./services/clipService");
 
 
 const app = express();
@@ -109,4 +110,9 @@ app.get('*', (req, res) => {
 // 启动服务器
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  // 开启魔法搜图即常驻模型（~260MB）：开机后台预热 CLIP + 翻译模型并补全历史图片向量，
+  // 避免首次搜索在弱 CPU（如 N100）上冷加载超时。全局超时也已放宽到 120s 兜底。
+  if (config.magicSearch.enabled) {
+    clipService.preload().catch(() => {});
+  }
 });
