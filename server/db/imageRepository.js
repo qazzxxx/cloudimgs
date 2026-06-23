@@ -208,22 +208,22 @@ module.exports = {
     getPaginated: (dir, page, pageSize, search = "") => {
         const offset = (page - 1) * pageSize;
         if (dir) {
-            return getPaginatedQuery.all(dir + "/", search, search, pageSize, offset);
+            return getPaginatedQuery.all(dir, search, search, pageSize, offset);
         }
         return getPaginatedRootQuery.all(search, search, pageSize, offset);
     },
     countPaginated: (dir, search = "") => {
         if (dir) {
-            return countByDirFilteredQuery.get(dir + "/", search, search).count;
+            return countByDirFilteredQuery.get(dir, search, search).count;
         }
         return countRootFilteredQuery.get(search, search).count;
     },
     // 分享页分页
     getPaginatedByDir: (dir, page, pageSize) => {
         const offset = (page - 1) * pageSize;
-        return getPaginatedByDirQuery.all(dir + "/", pageSize, offset);
+        return getPaginatedByDirQuery.all(dir, pageSize, offset);
     },
-    countPaginatedByDir: (dir) => countByDirQuery.get(dir + "/").count,
+    countPaginatedByDir: (dir) => countByDirQuery.get(dir).count,
     // 地图 & 随机
     getGpsImages: () => getGpsImagesQuery.all(),
     getTopExclude: (lockedDirs, limit) => getTopImagesExcludeQuery(lockedDirs, limit),
@@ -231,7 +231,7 @@ module.exports = {
     getPaginatedExclude: (lockedDirs, search, page, pageSize) => getPaginatedExcludeQuery(lockedDirs, search, page, pageSize),
     countExclude: (lockedDirs, search) => countExcludeQuery(lockedDirs, search),
     getRandom: () => getRandomImageQuery.get(),
-    getRandomByDir: (dir) => getRandomImageByDirQuery.get(dir + "/"),
+    getRandomByDir: (dir) => getRandomImageByDirQuery.get(dir),
     // 事务辅助函数
     transaction: (fn) => db.transaction(fn),
 
