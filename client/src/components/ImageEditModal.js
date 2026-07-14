@@ -1,6 +1,10 @@
-import React, { useMemo } from "react";
-import { Modal, Button, theme as antdTheme } from "antd";
-import FilerobotImageEditor from "react-filerobot-image-editor";
+import React, { useMemo, Suspense } from "react";
+import { Modal, Button, Spin, theme as antdTheme } from "antd";
+
+// 重型编辑器（含 konva / @scaleflex/*）按需异步加载，避免拖入首屏 bundle
+const FilerobotImageEditor = React.lazy(() =>
+  import(/* webpackChunkName: "filerobot" */ "react-filerobot-image-editor")
+);
 
 const ImageEditModal = ({
   open,
@@ -250,21 +254,37 @@ const ImageEditModal = ({
               另存为上传
             </Button>
           </div>
-          <FilerobotImageEditor
-            source={editorSource}
-            onClose={onClose}
-            closeAfterSave={false}
-            language="zh"
-            translations={translations}
-            defaultSavedImageName={getEditorDefaults(file).baseName}
-            defaultSavedImageType={getEditorDefaults(file).type}
-            defaultSavedImageQuality={92}
-            savingPixelRatio={2}
-            previewPixelRatio={1}
-            getCurrentImgDataFnRef={getCurrentImgDataFnRef}
-            removeSaveButton={true}
-            theme={filerobotTheme}
-          />
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100%",
+                  background: token?.colorBgContainer || "#141414",
+                }}
+              >
+                <Spin size="large" />
+              </div>
+            }
+          >
+            <FilerobotImageEditor
+              source={editorSource}
+              onClose={onClose}
+              closeAfterSave={false}
+              language="zh"
+              translations={translations}
+              defaultSavedImageName={getEditorDefaults(file).baseName}
+              defaultSavedImageType={getEditorDefaults(file).type}
+              defaultSavedImageQuality={92}
+              savingPixelRatio={2}
+              previewPixelRatio={1}
+              getCurrentImgDataFnRef={getCurrentImgDataFnRef}
+              removeSaveButton={true}
+              theme={filerobotTheme}
+            />
+          </Suspense>
         </div>
       )}
     </Modal>

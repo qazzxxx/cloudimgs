@@ -1,16 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { ConfigProvider, theme, message, Spin, Grid, Modal } from "antd";
 import FloatingToolbar from "./components/FloatingToolbar";
 import ImageGallery from "./components/ImageGallery";
 import PasswordOverlay from "./components/PasswordOverlay";
 import LogoWithText from "./components/LogoWithText";
 import api from "./utils/api";
-import ApiDocs from "./components/ApiDocs";
-import MapPage from "./components/MapPage";
-import ShareView from "./components/ShareView";
-import DirectorySelector from "./components/DirectorySelector";
-import TrafficDashboard from './components/TrafficDashboard';
 import { getPassword, clearPassword } from "./utils/secureStorage";
+import DirectorySelector from "./components/DirectorySelector";
+const ApiDocs = React.lazy(() =>
+  import(/* webpackChunkName: "apidocs" */ "./components/ApiDocs")
+);
+const MapPage = React.lazy(() =>
+  import(/* webpackChunkName: "map" */ "./components/MapPage")
+);
+const ShareView = React.lazy(() =>
+  import(/* webpackChunkName: "share" */ "./components/ShareView")
+);
+const TrafficDashboard = React.lazy(() =>
+  import(/* webpackChunkName: "traffic" */ "./components/TrafficDashboard")
+);
 
 const defaultSettings = {
   imageRadius: 0,
@@ -240,6 +248,18 @@ function App() {
 
       {/* Main Content */}
       <div style={{ position: "relative", minHeight: "100vh" }}>
+        <Suspense
+          fallback={
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100vh"
+            }}>
+              <Spin size="large" />
+            </div>
+          }
+        >
         {isApiDocs ? (
           <ApiDocs />
         ) : isMapPage ? (
@@ -329,6 +349,7 @@ function App() {
             </Modal>
           </>
         )}
+        </Suspense>
       </div>
     </ConfigProvider>
   );
