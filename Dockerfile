@@ -98,9 +98,13 @@ FROM node:18-bookworm-slim AS production
 # 设置工作目录
 WORKDIR /app
 
-# 安装 gosu 和基础依赖
+# 安装 gosu、字体和基础依赖
+# fontconfig + fonts-dejavu-core: 修复 sharp(libvips) 在渲染含文字 SVG 时,
+# 因镜像内缺少字体与 fontconfig 配置导致 librsvg/pango 段错误的问题
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gosu \
+    fontconfig \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # 从构建阶段复制node_modules和应用文件
