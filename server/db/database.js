@@ -30,6 +30,13 @@ if (config.magicSearch.enabled) {
 
 // 初始化 Schema
 function init() {
+  // 性能优化：冷启动同步大量文件时，每个 autocommit 都会触发 fsync。
+  // synchronous=NORMAL 把 fsync 降到事务提交/检查点级别（而非每次写），
+  // 在 NAS/SMB/NFS 等网络存储上安全且可移植（不强制 WAL，避免网络 FS 上 WAL 锁问题）。
+  // busy_timeout 避免并发写入短暂锁等待时直接报错。
+  db.pragma('synchronous = NORMAL');
+  db.pragma('busy_timeout = 5000');
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS images (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

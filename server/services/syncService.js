@@ -67,24 +67,21 @@ async function getAllFiles(dir) {
     let results = [];
     const absDir = safeJoin(STORAGE_PATH, dir);
     try {
-        const files = await fs.readdir(absDir);
-        for (const file of files) {
-            if (file === CACHE_DIR_NAME || file === CONFIG_DIR_NAME || file === TRASH_DIR_NAME) continue;
+        // withFileTypes: 一次 readdir 同时拿到类型信息，避免对目录项额外 fs.stat 系统调用
+        const entries = await fs.readdir(absDir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (entry.name === CACHE_DIR_NAME || entry.name === CONFIG_DIR_NAME || entry.name === TRASH_DIR_NAME) continue;
 
-            const filePath = path.join(absDir, file);
-            const relPath = path.join(dir, file).replace(/\\/g, "/");
-            const stat = await fs.stat(filePath);
+            const relPath = path.join(dir, entry.name).replace(/\\/g, "/");
 
-            if (stat.isDirectory()) {
+            if (entry.isDirectory()) {
                 results = results.concat(await getAllFiles(relPath));
-            } else {
-                const ext = path.extname(file).toLowerCase();
+            } else if (entry.isFile()) {
+                const ext = path.extname(entry.name).toLowerCase();
                 if (config.upload.allowedExtensions.includes(ext)) {
-                    results.push({
-                        relPath,
-                        filePath,
-                        stat
-                    });
+                    const filePath = path.join(absDir, entry.name);
+                    const stat = await fs.stat(filePath);
+                    results.push({ relPath, filePath, stat });
                 }
             }
         }
@@ -94,59 +91,75 @@ async function getAllFiles(dir) {
     return results;
 }
 
+// 有界并发池：并行处理 items，最多同时运行 limit 个，避免主线程长时间阻塞 / 压垮单核
+async function mapPool(items, limit, fn) {
+    const results = new Array(items.length);
+    let cursor = 0;
+    const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (cursor < items.length) {
+            const idx = cursor++;
+            results[idx] = await fn(items[idx], idx);
+        }
+    });
+    await Promise.all(workers);
+    return results;
+}
+
+const SYNC_CONCURRENCY = 4; // 元数据抽取（sharp / exifr / thumbhash）并发数，留余量
+
 async function syncFileSystem() {
+    const t0 = Date.now();
     console.log("Starting file system sync...");
     const diskFiles = await getAllFiles("");
+    const tScan = Date.now();
     const dbSyncEntries = imageRepository.getAllSyncEntries();
 
     const diskMap = new Map(diskFiles.map(f => [f.relPath, f]));
     const dbMap = new Map(dbSyncEntries.map(i => [i.rel_path, i]));
 
-    // 1. 磁盘上的文件但不在 DB 中（新增）
-    // 2. 磁盘上的文件在 DB 中（如果修改则更新）
+    // 收集需要新增 / 更新的文件（先比对，不立即写库）
+    const pending = [];
     for (const file of diskFiles) {
         const dbEntry = dbMap.get(file.relPath);
-
         if (!dbEntry) {
-            // 新文件
-            try {
-                const metadata = await getFileMetadata(file.filePath, file.relPath, file.stat);
-                imageRepository.add({
-                    filename: path.basename(file.relPath),
-                    rel_path: file.relPath,
-                    ...metadata
-                });
-                // console.log(`Synced new file: ${file.relPath}`);
-            } catch (e) {
-                console.error(`Failed to sync file ${file.relPath}`, e);
-            }
-            await new Promise(r => setTimeout(r, 50));
-        } else {
-            // 现有文件，检查 mtime
-            // 注意：dbEntry.mtime 来自 DB
-            if (Math.abs(dbEntry.mtime - file.stat.mtime.getTime()) > 1000) { // 1 秒容差
-                console.log(`Updating modified file: ${file.relPath}`);
-                try {
-                    const metadata = await getFileMetadata(file.filePath, file.relPath, file.stat);
-                    imageRepository.update({
-                        filename: path.basename(file.relPath),
-                        rel_path: file.relPath,
-                        ...metadata
-                    });
-                } catch (e) { console.error(`Failed to update ${file.relPath}`, e); }
-                await new Promise(r => setTimeout(r, 50));
-            }
+            pending.push({ file, op: "add" });
+        } else if (Math.abs(dbEntry.mtime - file.stat.mtime.getTime()) > 1000) { // 1 秒容差
+            pending.push({ file, op: "update" });
         }
     }
 
-    // 3. 在 DB 中但不在磁盘上（删除）
-    for (const img of dbSyncEntries) {
-        if (!diskMap.has(img.rel_path)) {
-            console.log(`Removing missing file from DB: ${img.rel_path}`);
-            imageRepository.delete(img.rel_path);
+    // 并发抽取元数据（CPU/IO 密集），用有界并发池并行 + 避免主线程长时间阻塞
+    const toAdd = [];
+    const toUpdate = [];
+    await mapPool(pending, SYNC_CONCURRENCY, async ({ file, op }) => {
+        try {
+            const metadata = await getFileMetadata(file.filePath, file.relPath, file.stat);
+            const row = { filename: path.basename(file.relPath), rel_path: file.relPath, ...metadata };
+            if (op === "add") toAdd.push(row);
+            else toUpdate.push(row);
+        } catch (e) {
+            console.error(`Failed to sync ${file.relPath}`, e);
         }
+    });
+    const tMeta = Date.now();
+
+    // 批量写入：包成单次事务，把 N 次 fsync 降到约 1 次（NAS 网络存储关键优化）
+    if (toAdd.length) imageRepository.insertMany(toAdd);
+    if (toUpdate.length) {
+        imageRepository.transaction((rows) => { for (const r of rows) imageRepository.update(r); })(toUpdate);
     }
-    console.log("Sync completed.");
+
+    // 删除：DB 中存在但磁盘已不存在，同样包进事务
+    const missing = dbSyncEntries.filter(img => !diskMap.has(img.rel_path));
+    if (missing.length) {
+        imageRepository.transaction((rows) => { for (const r of rows) imageRepository.delete(r.rel_path); })(missing);
+    }
+    const tWrite = Date.now();
+
+    const fmt = (ms) => `${(ms / 1000).toFixed(2)}s`;
+    console.log(`Sync completed. Added ${toAdd.length}, updated ${toUpdate.length}, removed ${missing.length}.`);
+    console.log(`[sync timing] scan=${fmt(tScan - t0)}  metadata(concurrency=${SYNC_CONCURRENCY})=${fmt(tMeta - tScan)} \
+    dbWrite=${fmt(tWrite - tMeta)}  total=${fmt(tWrite - t0)}  files=${diskFiles.length}`);
 }
 
 module.exports = {
