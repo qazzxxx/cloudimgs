@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Slider, Button, theme } from "antd";
-import { SettingOutlined } from "@ant-design/icons";
+import { Modal, Slider, Button, Segmented, theme } from "antd";
+import { SettingOutlined, CalendarOutlined, AppstoreOutlined } from "@ant-design/icons";
 
 const SettingsModal = ({ open, onClose, settings, onSettingsChange }) => {
   const [draft, setDraft] = useState(settings);
@@ -32,6 +32,12 @@ const SettingsModal = ({ open, onClose, settings, onSettingsChange }) => {
     const next = { ...draft, imageRadius: val };
     setDraft(next);
   };
+
+  const handleDisplayModeChange = (mode) => {
+    setDraft((prev) => ({ ...prev, displayMode: mode }));
+  };
+
+  const displayMode = draft?.displayMode || "grouped";
 
   const previewColors = ["#dce8ff", "#d4f0e8", "#f0dce8"];
 
@@ -116,7 +122,7 @@ const SettingsModal = ({ open, onClose, settings, onSettingsChange }) => {
       </div>
 
       {/* Body */}
-      <div style={{ padding: "20px 24px" }}>
+      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
         {/* ── Image Style Section ── */}
         <div
           style={{
@@ -198,6 +204,55 @@ const SettingsModal = ({ open, onClose, settings, onSettingsChange }) => {
               {draft.imageRadius || 0}px
             </div>
           </div>
+        </div>
+
+        {/* ── Display Mode Section ── */}
+        <div
+          style={{
+            background: token.colorFillAlter,
+            border: `1px solid ${token.colorBorderSecondary}`,
+            borderRadius: 12,
+            padding: "16px 20px",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: token.colorText,
+              marginBottom: 4,
+              display: "block",
+            }}
+          >
+            展示模式
+          </span>
+          <span
+            style={{
+              fontSize: 12,
+              color: token.colorTextSecondary,
+              marginBottom: 12,
+              display: "block",
+            }}
+          >
+            选择图片列表的展示方式
+          </span>
+          <Segmented
+            block
+            value={displayMode}
+            onChange={handleDisplayModeChange}
+            options={[
+              {
+                value: "grouped",
+                icon: <CalendarOutlined />,
+                label: "按日期分组",
+              },
+              {
+                value: "waterfall",
+                icon: <AppstoreOutlined />,
+                label: "瀑布流全部",
+              },
+            ]}
+          />
         </div>
       </div>
 

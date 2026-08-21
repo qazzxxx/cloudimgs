@@ -22,6 +22,7 @@ const TrafficDashboard = React.lazy(() =>
 
 const defaultSettings = {
   imageRadius: 0,
+  displayMode: "grouped",
 };
 
 function App() {

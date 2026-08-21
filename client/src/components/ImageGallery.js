@@ -2275,63 +2275,102 @@ const ImageGallery = ({ onDelete, onRefresh, api, isAuthenticated, refreshTrigge
         <Empty description="暂无图片" style={{ marginTop: 100 }} />
       ) : (
         <>
-          {groups.map((group) => (
-            <div key={group.date} style={{ marginBottom: 24 }}>
-              <div
-                style={{
-                  marginBottom: 16,
-                  paddingLeft: 8,
-                  opacity: 0.8,
-                  fontWeight: 600,
-                  fontSize: "13px",
-                  letterSpacing: "0.5px",
-                  textTransform: "uppercase",
-                  color: colorTextSecondary, // Applied theme color
-                }}
-              >
-                {group.date}
+          {settings?.displayMode === "waterfall" ? (
+            // 瀑布流模式：所有图片统一展示在一个 Masonry 中，不分组
+            <Masonry
+              columns={
+                isMobile ? 2 : screens.xl ? 5 : screens.lg ? 4 : screens.md ? 3 : 2
+              }
+              gutter={8}
+              items={images.map((imgItem, index) => ({
+                key: imgItem.relPath || `item-all-${index}`,
+                data: imgItem,
+              }))}
+              itemRender={({ data: imgItem }) => (
+                <ImageItem
+                  image={imgItem}
+                  hoverKey={hoverKey}
+                  setHoverKey={setHoverKey}
+                  handlePreview={handlePreview}
+                  formatFileSize={formatFileSize}
+                  isMobile={isMobile}
+                  handleDownload={handleDownload}
+                  onCopyClick={handleCopyClick}
+                  handleDelete={handleDelete}
+                  handleEdit={handleEdit}
+                  hoverLocation={hoverLocation}
+                  isBatchMode={isBatchMode}
+                  isSelected={selectedItems.has(imgItem.relPath)}
+                  onToggleSelect={(id) => {
+                    const newSet = new Set(selectedItems);
+                    if (newSet.has(id)) newSet.delete(id);
+                    else newSet.add(id);
+                    onSelectionChange(newSet);
+                  }}
+                  registerRef={registerRef}
+                  thumbnailWidth={thumbnailWidth}
+                  imageRadius={imageRadius}
+                />
+              )}
+            />
+          ) : (
+            // 按日期分组模式：每个日期一个 Masonry
+            groups.map((group) => (
+              <div key={group.date} style={{ marginBottom: 24 }}>
+                <div
+                  style={{
+                    marginBottom: 16,
+                    paddingLeft: 8,
+                    opacity: 0.8,
+                    fontWeight: 600,
+                    fontSize: "13px",
+                    letterSpacing: "0.5px",
+                    textTransform: "uppercase",
+                    color: colorTextSecondary,
+                  }}
+                >
+                  {group.date}
+                </div>
+
+                <Masonry
+                  columns={
+                    isMobile ? 2 : screens.xl ? 5 : screens.lg ? 4 : screens.md ? 3 : 2
+                  }
+                  gutter={8}
+                  items={group.items.map((imgItem, index) => ({
+                    key: imgItem.relPath || `item-${group.date}-${index}`,
+                    data: imgItem,
+                  }))}
+                  itemRender={({ data: imgItem }) => (
+                    <ImageItem
+                      image={imgItem}
+                      hoverKey={hoverKey}
+                      setHoverKey={setHoverKey}
+                      handlePreview={handlePreview}
+                      formatFileSize={formatFileSize}
+                      isMobile={isMobile}
+                      handleDownload={handleDownload}
+                      onCopyClick={handleCopyClick}
+                      handleDelete={handleDelete}
+                      handleEdit={handleEdit}
+                      hoverLocation={hoverLocation}
+                      isBatchMode={isBatchMode}
+                      isSelected={selectedItems.has(imgItem.relPath)}
+                      onToggleSelect={(id) => {
+                        const newSet = new Set(selectedItems);
+                        if (newSet.has(id)) newSet.delete(id);
+                        else newSet.add(id);
+                        onSelectionChange(newSet);
+                      }}
+                      registerRef={registerRef}
+                      thumbnailWidth={thumbnailWidth}
+                      imageRadius={imageRadius}
+                    />
+                  )}
+                />
               </div>
-
-              {/* Masonry Layout - with batch selection support */}
-              <Masonry
-                columns={
-                  isMobile ? 2 : screens.xl ? 5 : screens.lg ? 4 : screens.md ? 3 : 2
-                }
-                gutter={8}
-                items={group.items.map((imgItem, index) => ({
-                  key: imgItem.relPath || `item-${group.date}-${index}`,
-                  data: imgItem,
-                }))}
-                itemRender={({ data: imgItem }) => (
-                  <ImageItem
-                    image={imgItem}
-                    hoverKey={hoverKey}
-                    setHoverKey={setHoverKey}
-                    handlePreview={handlePreview}
-                    formatFileSize={formatFileSize}
-                    isMobile={isMobile}
-                    handleDownload={handleDownload}
-                    onCopyClick={handleCopyClick}
-                    handleDelete={handleDelete}
-                    handleEdit={handleEdit}
-                    hoverLocation={hoverLocation}
-                    isBatchMode={isBatchMode}
-                    isSelected={selectedItems.has(imgItem.relPath)}
-                    onToggleSelect={(id) => {
-                      const newSet = new Set(selectedItems);
-                      if (newSet.has(id)) newSet.delete(id);
-                      else newSet.add(id);
-                      onSelectionChange(newSet);
-                    }}
-                    registerRef={registerRef}
-                    thumbnailWidth={thumbnailWidth}
-                    imageRadius={imageRadius}
-                  />
-                )}
-              />
-
-            </div>
-          ))}
+            ))
+          )}
           <div ref={loadMoreRef} style={{ height: 20 }} />
           {loadingMore && (
             <div style={{ marginTop: 16 }}>
